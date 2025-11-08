@@ -9,7 +9,14 @@ import java.io.File
 class FolderCache(private val context: Context) {
 
     private val gson = Gson()
-    private val cacheDir = File(context.cacheDir, "folder_cache")
+    private val cacheDir = File(
+        context.externalCacheDir ?: context.cacheDir,
+        "folder_cache"
+    ).apply {
+        if (!exists()) {
+            mkdirs()
+        }
+    }
 
     // In-memory cache
     private val memoryCache = mutableMapOf<String, CachedFolderData>()

@@ -2,6 +2,7 @@ package com.devson.pixchive.viewmodel
 
 import android.app.Application
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.devson.pixchive.data.Chapter
@@ -42,6 +43,10 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     // Track loaded folders to prevent re-scanning
     private val loadedFolders = mutableSetOf<String>()
 
+    companion object {
+        private const val TAG = "FolderViewModel"
+    }
+
     init {
         loadPreferences()
     }
@@ -56,6 +61,7 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     fun loadFolder(folderId: String, forceRescan: Boolean = false) {
         // Skip if already loaded and not forcing rescan
         if (loadedFolders.contains(folderId) && !forceRescan) {
+            Log.d(TAG, "Folder $folderId already loaded, skipping")
             return
         }
 
@@ -65,6 +71,8 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
             try {
                 val folders = preferencesManager.foldersFlow.first()
                 val folder = folders.find { it.id == folderId }
+
+                Log.d(TAG, "Loading folder: ${folder?.name}")
 
                 folder?.let {
                     _currentFolder.value = it
@@ -78,14 +86,23 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
                         forceRescan
                     )
 
+                    Log.d(TAG, "Cached data loaded: ${cachedData.chapters.size} chapters, ${cachedData.allImagePaths.size} images")
+
                     // Convert cached data to live objects
-                    _chapters.value = FolderScanner.cachedDataToChapters(cachedData)
+                    val chaptersList = FolderScanner.cachedDataToChapters(cachedData)
+                    _chapters.value = chaptersList
                     _allImages.value = FolderScanner.pathsToImageFiles(cachedData.allImagePaths)
+
+                    // Debug: Print chapter info
+                    chaptersList.forEach { chapter ->
+                        Log.d(TAG, "Chapter: ${chapter.name}, Path: ${chapter.path}, Images: ${chapter.images.size}")
+                    }
 
                     // Mark as loaded
                     loadedFolders.add(folderId)
                 }
             } catch (e: Exception) {
+                Log.e(TAG, "Error loading folder", e)
                 e.printStackTrace()
             } finally {
                 _isLoading.value = false
@@ -94,6 +111,7 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun refreshFolder(folderId: String) {
+        Log.d(TAG, "Refreshing folder: $folderId")
         loadedFolders.remove(folderId)
         folderCache.clearCache(folderId)
         loadFolder(folderId, forceRescan = true)
@@ -115,7 +133,9 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun getChapterImages(chapterPath: String): List<ImageFile> {
-        return _chapters.value.find { it.path == chapterPath }?.images ?: emptyList()
+        val images = _chapters.value.find { it.path == chapterPath }?.images ?: emptyList()
+        Log.d(TAG, "getChapterImages for path: $chapterPath, found: ${images.size} images")
+        return images
     }
 
     override fun onCleared() {

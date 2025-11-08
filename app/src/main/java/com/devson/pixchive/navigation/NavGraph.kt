@@ -1,6 +1,7 @@
 package com.devson.pixchive.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -10,6 +11,7 @@ import com.devson.pixchive.ui.screens.ChapterViewScreen
 import com.devson.pixchive.ui.screens.FolderViewScreen
 import com.devson.pixchive.ui.screens.HomeScreen
 import com.devson.pixchive.ui.screens.ImageViewerScreen
+import com.devson.pixchive.viewmodel.FolderViewModel
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
@@ -18,11 +20,12 @@ fun NavGraph(
     navController: NavHostController,
     startDestination: String = Screen.Home.route
 ) {
+    val folderViewModel: FolderViewModel = viewModel()
+
     NavHost(
         navController = navController,
         startDestination = startDestination
     ) {
-        // Home Screen
         composable(Screen.Home.route) {
             HomeScreen(
                 onFolderClick = { folderId, viewMode ->
@@ -31,7 +34,6 @@ fun NavGraph(
             )
         }
 
-        // Folder View Screen (Explorer/Flat/Chapter modes)
         composable(
             route = Screen.FolderView.route,
             arguments = listOf(
@@ -50,12 +52,13 @@ fun NavGraph(
                     navController.navigate(Screen.ChapterView.createRoute(folderId, chapterPath))
                 },
                 onImageClick = { imageIndex ->
-                    navController.navigate(Screen.ImageViewer.createRoute(folderId, imageIndex))
-                }
+                    // This won't be used from FolderView, only from ChapterView
+                    navController.navigate(Screen.ImageViewer.createRoute(folderId, "", imageIndex))
+                },
+                viewModel = folderViewModel
             )
         }
 
-        // Chapter View Screen
         composable(
             route = Screen.ChapterView.route,
             arguments = listOf(
@@ -76,26 +79,37 @@ fun NavGraph(
                 chapterPath = chapterPath,
                 onNavigateBack = { navController.popBackStack() },
                 onImageClick = { imageIndex ->
-                    navController.navigate(Screen.ImageViewer.createRoute(folderId, imageIndex))
-                }
+                    // Pass chapterPath to ImageViewer
+                    navController.navigate(Screen.ImageViewer.createRoute(folderId, chapterPath, imageIndex))
+                },
+                viewModel = folderViewModel
             )
         }
 
-        // Image Viewer Screen
+        // Image Viewer Screen - NOW WITH CHAPTER PATH
         composable(
             route = Screen.ImageViewer.route,
             arguments = listOf(
                 navArgument("folderId") { type = NavType.StringType },
+                navArgument("chapterPath") { type = NavType.StringType },
                 navArgument("imageIndex") { type = NavType.IntType }
             )
         ) { backStackEntry ->
             val folderId = backStackEntry.arguments?.getString("folderId") ?: ""
+            val encodedPath = backStackEntry.arguments?.getString("chapterPath") ?: ""
+            val chapterPath = try {
+                URLDecoder.decode(encodedPath, StandardCharsets.UTF_8.toString())
+            } catch (e: Exception) {
+                encodedPath
+            }
             val imageIndex = backStackEntry.arguments?.getInt("imageIndex") ?: 0
 
             ImageViewerScreen(
                 folderId = folderId,
+                chapterPath = chapterPath,
                 initialIndex = imageIndex,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                viewModel = folderViewModel
             )
         }
     }

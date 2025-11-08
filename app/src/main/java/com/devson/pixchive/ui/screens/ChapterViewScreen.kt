@@ -1,5 +1,7 @@
 package com.devson.pixchive.ui.screens
 
+import android.net.Uri
+import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -23,21 +25,46 @@ import coil.compose.AsyncImage
 import com.devson.pixchive.data.ImageFile
 import com.devson.pixchive.viewmodel.FolderViewModel
 
+// Helper function to properly compare URIs regardless of encoding
+private fun urisMatch(uri1: String, uri2: String): Boolean {
+    return try {
+        val parsed1 = Uri.parse(uri1)
+        val parsed2 = Uri.parse(uri2)
+
+        parsed1.scheme == parsed2.scheme &&
+                parsed1.authority == parsed2.authority &&
+                parsed1.path == parsed2.path
+    } catch (e: Exception) {
+        uri1 == uri2
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChapterViewScreen(
     folderId: String,
     chapterPath: String,
     onNavigateBack: () -> Unit,
-    onImageClick: (Int) -> Unit,
+    onImageClick: (Int) -> Unit,  // This now only receives index
     viewModel: FolderViewModel = viewModel()
 ) {
     val layoutMode by viewModel.layoutMode.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val chapters by viewModel.chapters.collectAsState()
 
-    // Get chapter images
-    val chapterImages = remember(chapterPath) {
-        viewModel.getChapterImages(chapterPath)
+    val chapterImages = remember(chapters, chapterPath) {
+        val found = chapters.find { chapter ->
+            urisMatch(chapter.path, chapterPath)
+        }
+
+        Log.d("ChapterViewScreen", "Searching for: $chapterPath")
+        Log.d("ChapterViewScreen", "Found chapter: ${found?.name}, Images: ${found?.images?.size ?: 0}")
+
+        if (found != null) {
+            Log.d("ChapterViewScreen", "✅ MATCH! Returning ${found.images.size} images")
+        }
+
+        found?.images ?: emptyList()
     }
 
     val chapterName = remember(chapterPath) {
@@ -90,7 +117,7 @@ fun ChapterViewScreen(
                     )
                 }
                 chapterImages.isEmpty() -> {
-                    EmptyImagesView()
+                    EmptyChapterImagesView(chapterName, chapters.size)
                 }
                 else -> {
                     if (layoutMode == "grid") {
@@ -107,6 +134,41 @@ fun ChapterViewScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun EmptyChapterImagesView(
+    chapterName: String,
+    totalChapters: Int
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "🖼️",
+            style = MaterialTheme.typography.displayMedium
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "No Images Found",
+            style = MaterialTheme.typography.titleLarge
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Chapter: $chapterName",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = "Total chapters loaded: $totalChapters",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -171,7 +233,7 @@ fun ImageListView(
 
                     Column {
                         Text(
-                            text = "Image ${index + 1}",
+                            text = "Image ${index + 1} of ${images.size}",
                             style = MaterialTheme.typography.titleSmall
                         )
                         Text(

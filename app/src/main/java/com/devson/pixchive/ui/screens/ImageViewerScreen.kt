@@ -1,5 +1,6 @@
 package com.devson.pixchive.ui.screens
 
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
@@ -19,16 +20,38 @@ import com.devson.pixchive.viewmodel.FolderViewModel
 import net.engawapg.lib.zoomable.rememberZoomState
 import net.engawapg.lib.zoomable.zoomable
 
+// Helper function to match URIs
+private fun urisMatch(uri1: String, uri2: String): Boolean {
+    return try {
+        val parsed1 = Uri.parse(uri1)
+        val parsed2 = Uri.parse(uri2)
+
+        parsed1.scheme == parsed2.scheme &&
+                parsed1.authority == parsed2.authority &&
+                parsed1.path == parsed2.path
+    } catch (e: Exception) {
+        uri1 == uri2
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ImageViewerScreen(
     folderId: String,
+    chapterPath: String,  // NEW: Pass chapter path
     initialIndex: Int,
     onNavigateBack: () -> Unit,
     viewModel: FolderViewModel = viewModel()
 ) {
-    val allImages by viewModel.allImages.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val chapters by viewModel.chapters.collectAsState()
+
+    // Get ONLY the images from this specific chapter
+    val chapterImages = remember(chapters, chapterPath) {
+        chapters.find { chapter ->
+            urisMatch(chapter.path, chapterPath)
+        }?.images ?: emptyList()
+    }
 
     var showUI by remember { mutableStateOf(true) }
 
@@ -37,8 +60,8 @@ fun ImageViewerScreen(
     }
 
     val pagerState = rememberPagerState(
-        initialPage = initialIndex.coerceIn(0, maxOf(0, allImages.size - 1)),
-        pageCount = { allImages.size }
+        initialPage = initialIndex.coerceIn(0, maxOf(0, chapterImages.size - 1)),
+        pageCount = { chapterImages.size }
     )
 
     Box(
@@ -53,7 +76,7 @@ fun ImageViewerScreen(
                     color = Color.White
                 )
             }
-            allImages.isEmpty() -> {
+            chapterImages.isEmpty() -> {
                 Text(
                     text = "No images to display",
                     modifier = Modifier.align(Alignment.Center),
@@ -65,7 +88,7 @@ fun ImageViewerScreen(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize()
                 ) { page ->
-                    val zoomState = rememberZoomState()
+                    val zoomState = rememberZoomState(maxScale = 5f)
 
                     Box(
                         modifier = Modifier
@@ -73,8 +96,8 @@ fun ImageViewerScreen(
                             .zoomable(zoomState)
                     ) {
                         AsyncImage(
-                            model = allImages[page].uri,
-                            contentDescription = allImages[page].name,
+                            model = chapterImages[page].uri,
+                            contentDescription = chapterImages[page].name,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Fit
                         )
@@ -83,12 +106,12 @@ fun ImageViewerScreen(
             }
         }
 
-        // Top Bar (Overlay)
-        if (showUI && allImages.isNotEmpty()) {
+        // Top Bar
+        if (showUI && chapterImages.isNotEmpty()) {
             TopAppBar(
                 title = {
                     Text(
-                        text = "${pagerState.currentPage + 1} / ${allImages.size}",
+                        text = "${pagerState.currentPage + 1} / ${chapterImages.size}",
                         color = Color.White
                     )
                 },
@@ -107,8 +130,8 @@ fun ImageViewerScreen(
             )
         }
 
-        // Bottom Info (Overlay)
-        if (showUI && allImages.isNotEmpty()) {
+        // Bottom Info
+        if (showUI && chapterImages.isNotEmpty()) {
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -119,9 +142,14 @@ fun ImageViewerScreen(
                     modifier = Modifier.padding(16.dp)
                 ) {
                     Text(
-                        text = allImages[pagerState.currentPage].name,
+                        text = chapterImages[pagerState.currentPage].name,
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.White
+                    )
+                    Text(
+                        text = "Pinch to zoom • Swipe to navigate",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.7f)
                     )
                 }
             }

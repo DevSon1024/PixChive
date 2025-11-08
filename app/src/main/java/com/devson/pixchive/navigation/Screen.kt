@@ -20,9 +20,11 @@ sealed class Screen(val route: String) {
         }
     }
 
-    object ImageViewer : Screen("image/{folderId}/{imageIndex}") {
-        fun createRoute(folderId: String, imageIndex: Int): String {
-            return "image/$folderId/$imageIndex"
+    // UPDATED: Add chapterPath to ImageViewer
+    object ImageViewer : Screen("image/{folderId}/{chapterPath}/{imageIndex}") {
+        fun createRoute(folderId: String, chapterPath: String, imageIndex: Int): String {
+            val encodedPath = URLEncoder.encode(chapterPath, StandardCharsets.UTF_8.toString())
+            return "image/$folderId/$encodedPath/$imageIndex"
         }
     }
 }

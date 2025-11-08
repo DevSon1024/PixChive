@@ -28,6 +28,7 @@ fun ReaderTopBar(
     onMoreMenuToggle: (Boolean) -> Unit
 ) {
     val context = LocalContext.current
+    var showDetailsDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -96,14 +97,14 @@ fun ReaderTopBar(
                             }
                         )
 
-                        // Image Details
+                        // Image Details (NEW - Opens Dialog)
                         DropdownMenuItem(
                             text = { Text("Image Details") },
                             leadingIcon = {
                                 Icon(Icons.Default.Info, contentDescription = null)
                             },
                             onClick = {
-                                currentImage?.let { showImageDetails(context, it) }
+                                showDetailsDialog = true
                                 onMoreMenuToggle(false)
                             }
                         )
@@ -133,6 +134,14 @@ fun ReaderTopBar(
             )
         )
     }
+
+    // Image Details Dialog
+    if (showDetailsDialog && currentImage != null) {
+        ImageDetailsDialog(
+            image = currentImage,
+            onDismiss = { showDetailsDialog = false }
+        )
+    }
 }
 
 private fun shareImage(context: Context, image: ImageFile) {
@@ -148,25 +157,7 @@ private fun shareImage(context: Context, image: ImageFile) {
     }
 }
 
-private fun showImageDetails(context: Context, image: ImageFile) {
-    val details = """
-        Name: ${image.name}
-        Size: ${formatFileSize(image.size)}
-        Path: ${image.path}
-    """.trimIndent()
-
-    Toast.makeText(context, details, Toast.LENGTH_LONG).show()
-}
-
 private fun deleteImage(context: Context, image: ImageFile) {
     // TODO: Implement delete with confirmation dialog
     Toast.makeText(context, "Delete functionality coming soon", Toast.LENGTH_SHORT).show()
-}
-
-private fun formatFileSize(bytes: Long): String {
-    return when {
-        bytes < 1024 -> "$bytes B"
-        bytes < 1024 * 1024 -> "${bytes / 1024} KB"
-        else -> "${bytes / (1024 * 1024)} MB"
-    }
 }

@@ -88,10 +88,10 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
 
                     Log.d(TAG, "Cached data loaded: ${cachedData.chapters.size} chapters, ${cachedData.allImagePaths.size} images")
 
-                    // Convert cached data to live objects
-                    val chaptersList = FolderScanner.cachedDataToChapters(cachedData)
+                    // Convert cached data to live objects WITH CONTEXT
+                    val chaptersList = FolderScanner.cachedDataToChapters(getApplication(), cachedData)
                     _chapters.value = chaptersList
-                    _allImages.value = FolderScanner.pathsToImageFiles(cachedData.allImagePaths)
+                    _allImages.value = FolderScanner.pathsToImageFiles(getApplication(), cachedData)
 
                     // Debug: Print chapter info
                     chaptersList.forEach { chapter ->

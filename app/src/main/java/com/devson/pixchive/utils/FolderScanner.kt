@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import com.devson.pixchive.data.CachedChapter
 import com.devson.pixchive.data.CachedFolderData
+import com.devson.pixchive.data.CachedImageInfo
 import com.devson.pixchive.data.Chapter
 import com.devson.pixchive.data.ImageFile
 import kotlinx.coroutines.Dispatchers
@@ -35,7 +36,7 @@ object FolderScanner {
         // Scan and cache
         try {
             val folder = DocumentFile.fromTreeUri(context, folderUri)
-                ?: return@withContext CachedFolderData(folderId, emptyList(), emptyList())
+                ?: return@withContext CachedFolderData(folderId, emptyList(), emptyList(), emptyList())
 
             val subFolders = folder.listFiles().filter { it.isDirectory }
 
@@ -43,20 +44,22 @@ object FolderScanner {
             val chapters = subFolders.map { subFolder ->
                 async {
                     try {
-                        scanChapterFast(subFolder)
+                        scanChapterFast(context, subFolder)
                     } catch (e: Exception) {
                         null
                     }
                 }
             }.awaitAll().filterNotNull()
 
-            // Collect all image paths for flat view
+            // Collect all image paths and info for flat view
             val allImagePaths = chapters.flatMap { it.imagePaths }
+            val allImageInfo = chapters.flatMap { it.imageInfo }
 
             val cachedData = CachedFolderData(
                 folderId = folderId,
                 chapters = chapters.sortedWith(naturalOrderComparator()),
-                allImagePaths = allImagePaths
+                allImagePaths = allImagePaths,
+                allImageInfo = allImageInfo
             )
 
             // Save to cache
@@ -65,22 +68,27 @@ object FolderScanner {
             cachedData
         } catch (e: Exception) {
             e.printStackTrace()
-            CachedFolderData(folderId, emptyList(), emptyList())
+            CachedFolderData(folderId, emptyList(), emptyList(), emptyList())
         }
     }
 
     /**
-     * Fast chapter scan - stores only paths and first thumbnail
+     * Fast chapter scan - stores paths, names, AND sizes
      */
-    private fun scanChapterFast(folder: DocumentFile): CachedChapter? {
+    private fun scanChapterFast(context: Context, folder: DocumentFile): CachedChapter? {
         try {
             val imagePaths = mutableListOf<String>()
+            val imageInfo = mutableListOf<CachedImageInfo>()
             var thumbnailPath: String? = null
 
             for (file in folder.listFiles()) {
                 if (file.isFile && isImageFile(file.name ?: "")) {
                     val path = file.uri.toString()
+                    val name = file.name ?: extractCleanFileName(path)
+                    val size = file.length()
+
                     imagePaths.add(path)
+                    imageInfo.add(CachedImageInfo(path, name, size))
 
                     // First image becomes thumbnail
                     if (thumbnailPath == null) {
@@ -96,7 +104,8 @@ object FolderScanner {
                 path = folder.uri.toString(),
                 imageCount = imagePaths.size,
                 thumbnailPath = thumbnailPath,
-                imagePaths = imagePaths.sorted()
+                imagePaths = imagePaths.sorted(),
+                imageInfo = imageInfo
             )
         } catch (e: Exception) {
             e.printStackTrace()
@@ -106,14 +115,19 @@ object FolderScanner {
 
     /**
      * Convert cached chapter to Chapter with ImageFile objects
+     * NOW INSTANT - Uses pre-loaded info from cache
      */
-    fun cachedChapterToChapter(cached: CachedChapter): Chapter {
+    fun cachedChapterToChapter(context: Context, cached: CachedChapter): Chapter {
+        // Create lookup map for fast access
+        val infoMap = cached.imageInfo.associateBy { it.path }
+
         val images = cached.imagePaths.map { path ->
+            val info = infoMap[path]
             ImageFile(
-                name = path.substringAfterLast('/'),
+                name = info?.name ?: extractCleanFileName(path),
                 path = path,
                 uri = Uri.parse(path),
-                size = 0L
+                size = info?.size ?: 0L
             )
         }
 
@@ -127,22 +141,43 @@ object FolderScanner {
 
     /**
      * Convert cached data to list of Chapters
+     * INSTANT - No DocumentFile calls
      */
-    fun cachedDataToChapters(cached: CachedFolderData): List<Chapter> {
-        return cached.chapters.map { cachedChapterToChapter(it) }
+    fun cachedDataToChapters(context: Context, cached: CachedFolderData): List<Chapter> {
+        return cached.chapters.map { cachedChapterToChapter(context, it) }
     }
 
     /**
      * Convert image paths to ImageFile list
+     * INSTANT - Uses pre-loaded info from cache
      */
-    fun pathsToImageFiles(paths: List<String>): List<ImageFile> {
-        return paths.map { path ->
+    fun pathsToImageFiles(context: Context, cached: CachedFolderData): List<ImageFile> {
+        val infoMap = cached.allImageInfo.associateBy { it.path }
+
+        return cached.allImagePaths.map { path ->
+            val info = infoMap[path]
             ImageFile(
-                name = path.substringAfterLast('/'),
+                name = info?.name ?: extractCleanFileName(path),
                 path = path,
                 uri = Uri.parse(path),
-                size = 0L
+                size = info?.size ?: 0L
             )
+        }
+    }
+
+    /**
+     * Extract clean filename from URI path
+     * Fallback if info not available
+     */
+    private fun extractCleanFileName(path: String): String {
+        return try {
+            val decoded = java.net.URLDecoder.decode(path, "UTF-8")
+            decoded
+                .substringAfterLast('/')
+                .substringAfterLast('%')
+                .substringAfterLast(':')
+        } catch (e: Exception) {
+            path.substringAfterLast('/')
         }
     }
 

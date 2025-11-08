@@ -20,8 +20,8 @@ import com.devson.pixchive.data.ImageFile
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReaderTopBar(
-    folderName: String,
-    chapterName: String,
+    chapterFolderName: String,
+    currentImageName: String,
     showMoreMenu: Boolean,
     currentImage: ImageFile?,
     onNavigateBack: () -> Unit,
@@ -38,15 +38,17 @@ fun ReaderTopBar(
         TopAppBar(
             title = {
                 Column {
+                    // Top line: Chapter folder name
                     Text(
-                        text = folderName,
+                        text = chapterFolderName,
                         style = MaterialTheme.typography.titleMedium,
                         color = Color.White,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    // Bottom line: Current image name (without extension)
                     Text(
-                        text = chapterName,
+                        text = currentImageName,
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White.copy(alpha = 0.7f),
                         maxLines = 1,
@@ -64,6 +66,18 @@ fun ReaderTopBar(
                 }
             },
             actions = {
+                // Image Details (Opens Dialog)
+                IconButton(onClick = {
+                    showDetailsDialog = true
+                    onMoreMenuToggle(false)
+                }) {
+                    Icon(
+                        Icons.Default.Info,
+                        contentDescription = "Details",
+                        tint = Color.White
+                    )
+                }
+
                 IconButton(onClick = { /* TODO: Bookmark */ }) {
                     Icon(
                         Icons.Default.BookmarkBorder,
@@ -80,7 +94,6 @@ fun ReaderTopBar(
                             tint = Color.White
                         )
                     }
-
                     DropdownMenu(
                         expanded = showMoreMenu,
                         onDismissRequest = { onMoreMenuToggle(false) }
@@ -96,20 +109,6 @@ fun ReaderTopBar(
                                 onMoreMenuToggle(false)
                             }
                         )
-
-                        // Image Details (NEW - Opens Dialog)
-                        DropdownMenuItem(
-                            text = { Text("Image Details") },
-                            leadingIcon = {
-                                Icon(Icons.Default.Info, contentDescription = null)
-                            },
-                            onClick = {
-                                showDetailsDialog = true
-                                onMoreMenuToggle(false)
-                            }
-                        )
-
-                        Divider()
 
                         // Delete
                         DropdownMenuItem(

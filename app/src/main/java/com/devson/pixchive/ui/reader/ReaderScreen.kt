@@ -1,6 +1,7 @@
 package com.devson.pixchive.ui.reader
 
 import android.app.Activity
+import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -60,6 +61,7 @@ fun ReaderScreen(
         }?.images ?: emptyList()
     }
 
+    // Extract chapter name from chapterPath
     val chapterName = remember(chapterPath) {
         chapterPath.substringAfterLast("/").substringAfterLast(":")
     }
@@ -75,6 +77,11 @@ fun ReaderScreen(
         initialPage = initialIndex.coerceIn(0, maxOf(0, chapterImages.size - 1)),
         pageCount = { chapterImages.size }
     )
+
+    // Get current image
+    val currentImage = if (chapterImages.isNotEmpty() && pagerState.currentPage < chapterImages.size) {
+        chapterImages[pagerState.currentPage]
+    } else null
 
     // Immersive mode
     LaunchedEffect(showUI) {
@@ -155,18 +162,16 @@ fun ReaderScreen(
             }
         }
 
-        // Top Bar
+        // Top Bar - NOW WITH CHAPTER NAME AND CURRENT IMAGE NAME
         androidx.compose.animation.AnimatedVisibility(
             visible = showUI && chapterImages.isNotEmpty(),
             modifier = Modifier.align(Alignment.TopCenter)
         ) {
             ReaderTopBar(
-                folderName = folderName,
-                chapterName = chapterName,
+                chapterFolderName = chapterName,  // NEW: Chapter folder name
+                currentImageName = currentImage?.name?.substringBeforeLast('.') ?: "",  // NEW: Image name without extension
                 showMoreMenu = showMoreMenu,
-                currentImage = if (chapterImages.isNotEmpty() && pagerState.currentPage < chapterImages.size) {
-                    chapterImages[pagerState.currentPage]
-                } else null,
+                currentImage = currentImage,
                 onNavigateBack = onNavigateBack,
                 onMoreMenuToggle = { showMoreMenu = it }
             )
@@ -254,7 +259,7 @@ fun ReaderScreen(
                     }
                 }
 
-                // COMPACT PAGE SLIDER (INLINE - ALWAYS WORKS)
+                // COMPACT PAGE SLIDER
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -262,7 +267,6 @@ fun ReaderScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    // Previous Button
                     IconButton(
                         onClick = {
                             if (pagerState.currentPage > 0) {
@@ -282,7 +286,6 @@ fun ReaderScreen(
                         )
                     }
 
-                    // Current Page Number
                     Text(
                         text = "${pagerState.currentPage + 1}",
                         color = Color.White,
@@ -290,7 +293,6 @@ fun ReaderScreen(
                         modifier = Modifier.width(32.dp)
                     )
 
-                    // Compact Slider
                     Slider(
                         value = pagerState.currentPage.toFloat(),
                         onValueChange = { newValue ->
@@ -308,7 +310,6 @@ fun ReaderScreen(
                         )
                     )
 
-                    // Total Pages
                     Text(
                         text = "${chapterImages.size}",
                         color = Color.White,
@@ -316,7 +317,6 @@ fun ReaderScreen(
                         modifier = Modifier.width(32.dp)
                     )
 
-                    // Next Button
                     IconButton(
                         onClick = {
                             if (pagerState.currentPage < chapterImages.size - 1) {

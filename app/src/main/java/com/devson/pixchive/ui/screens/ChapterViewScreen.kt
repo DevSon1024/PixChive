@@ -45,7 +45,7 @@ fun ChapterViewScreen(
     folderId: String,
     chapterPath: String,
     onNavigateBack: () -> Unit,
-    onImageClick: (Int) -> Unit,  // This now only receives index
+    onImageClick: (Int) -> Unit,
     viewModel: FolderViewModel = viewModel()
 ) {
     val layoutMode by viewModel.layoutMode.collectAsState()
@@ -55,13 +55,6 @@ fun ChapterViewScreen(
     val chapterImages = remember(chapters, chapterPath) {
         val found = chapters.find { chapter ->
             urisMatch(chapter.path, chapterPath)
-        }
-
-        Log.d("ChapterViewScreen", "Searching for: $chapterPath")
-        Log.d("ChapterViewScreen", "Found chapter: ${found?.name}, Images: ${found?.images?.size ?: 0}")
-
-        if (found != null) {
-            Log.d("ChapterViewScreen", "✅ MATCH! Returning ${found.images.size} images")
         }
 
         found?.images ?: emptyList()

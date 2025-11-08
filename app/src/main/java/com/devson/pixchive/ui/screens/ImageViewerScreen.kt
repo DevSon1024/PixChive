@@ -1,8 +1,6 @@
 package com.devson.pixchive.ui.screens
 
-import android.graphics.BitmapFactory
 import android.net.Uri
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -15,20 +13,19 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.size.Size
 import com.devson.pixchive.viewmodel.FolderViewModel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import net.engawapg.lib.zoomable.rememberZoomState
 import net.engawapg.lib.zoomable.zoomable
 
-// Helper function to match URIs
 private fun urisMatch(uri1: String, uri2: String): Boolean {
     return try {
         val parsed1 = Uri.parse(uri1)
@@ -78,9 +75,7 @@ fun ImageViewerScreen(
             .background(Color.Black)
             .pointerInput(Unit) {
                 detectTapGestures(
-                    onTap = {
-                        showUI = !showUI
-                    }
+                    onTap = { showUI = !showUI }
                 )
             }
     ) {
@@ -105,73 +100,27 @@ fun ImageViewerScreen(
                 ) { page ->
                     val zoomState = rememberZoomState(maxScale = 10f)
 
-                    // Load ORIGINAL bitmap directly from URI
-                    var bitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
-                    var isLoadingImage by remember { mutableStateOf(true) }
-
-                    LaunchedEffect(chapterImages[page].uri) {
-                        isLoadingImage = true
-                        bitmap = withContext(Dispatchers.IO) {
-                            try {
-                                // Load ORIGINAL image with NO scaling or compression
-                                context.contentResolver.openInputStream(chapterImages[page].uri)?.use { inputStream ->
-                                    val options = BitmapFactory.Options().apply {
-                                        inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888
-                                        inScaled = false  // NO scaling
-                                        inDither = false  // NO dithering
-                                        inPreferQualityOverSpeed = true  // Best quality
-                                    }
-                                    BitmapFactory.decodeStream(inputStream, null, options)
-                                }
-                            } catch (e: Exception) {
-                                null
-                            }
-                        }
-                        isLoadingImage = false
-                    }
-
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .zoomable(zoomState)
                     ) {
-                        when {
-                            isLoadingImage -> {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.align(Alignment.Center),
-                                    color = Color.White
-                                )
-                            }
-                            bitmap != null -> {
-                                Image(
-                                    painter = BitmapPainter(bitmap!!.asImageBitmap()),
-                                    contentDescription = chapterImages[page].name,
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Fit
-                                )
-                            }
-                            else -> {
-                                Column(
-                                    modifier = Modifier.align(Alignment.Center),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Text(
-                                        text = "❌",
-                                        style = MaterialTheme.typography.displayMedium
-                                    )
-                                    Text(
-                                        text = "Failed to load image",
-                                        color = Color.White
-                                    )
-                                }
-                            }
-                        }
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data(chapterImages[page].uri)
+                                .size(Size.ORIGINAL)  // ✅ Load original size
+                                .allowHardware(true)  // ✅ Hardware acceleration
+                                .build(),
+                            contentDescription = chapterImages[page].name,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit,
+                            filterQuality = FilterQuality.None  // ✅ NO FILTERING = RAW PIXELS
+                        )
                     }
                 }
             }
         }
 
-        // Top Bar
         androidx.compose.animation.AnimatedVisibility(
             visible = showUI && chapterImages.isNotEmpty(),
             modifier = Modifier.align(Alignment.TopCenter)
@@ -198,7 +147,6 @@ fun ImageViewerScreen(
             )
         }
 
-        // Bottom Info
         androidx.compose.animation.AnimatedVisibility(
             visible = showUI && chapterImages.isNotEmpty(),
             modifier = Modifier.align(Alignment.BottomCenter)
@@ -217,7 +165,7 @@ fun ImageViewerScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Original Quality • Tap to toggle UI • Pinch to zoom • Swipe to navigate",
+                        text = "RAW Quality • Tap to toggle • Pinch to zoom • Swipe",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White.copy(alpha = 0.7f)
                     )

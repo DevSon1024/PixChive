@@ -24,9 +24,10 @@ class PixChiveApplication : Application(), ImageLoaderFactory {
             }
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
-            .crossfade(300)
+            .crossfade(false)  // ✅ CHANGED: No crossfade animation (can blur)
             .respectCacheHeaders(false)
-            .allowHardware(false)
+            .allowHardware(true)  // ✅ CHANGED: Enable for better performance
+            .bitmapFactoryMaxParallelism(4)  // Better parallel loading
             .build()
     }
 }

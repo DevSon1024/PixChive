@@ -29,7 +29,8 @@ import com.devson.pixchive.viewmodel.HomeViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    viewModel: HomeViewModel = viewModel()
+    viewModel: HomeViewModel = viewModel(),
+    onFolderClick: (String, String) -> Unit = { _, _ -> }
 ) {
     val context = LocalContext.current
     val activity = context as? Activity
@@ -154,7 +155,8 @@ fun HomeScreen(
                         folders = folders,
                         onDeleteFolder = { folderId ->
                             viewModel.removeFolder(folderId)
-                        }
+                        },
+                        onFolderClick = onFolderClick
                     )
                 }
             }
@@ -192,7 +194,8 @@ fun HomeScreen(
 @Composable
 fun FolderListContent(
     folders: List<ComicFolder>,
-    onDeleteFolder: (String) -> Unit
+    onDeleteFolder: (String) -> Unit,
+    onFolderClick: (String, String) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -202,7 +205,8 @@ fun FolderListContent(
         items(folders, key = { it.id }) { folder ->
             FolderCard(
                 folder = folder,
-                onDelete = { onDeleteFolder(folder.id) }
+                onDelete = { onDeleteFolder(folder.id) },
+                onClick = { onFolderClick(folder.id, "explorer") }
             )
         }
     }
@@ -212,13 +216,12 @@ fun FolderListContent(
 @Composable
 fun FolderCard(
     folder: ComicFolder,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        onClick = {
-            // TODO: Navigate to folder view (Step 6)
-        }
+        onClick = onClick
     ) {
         Row(
             modifier = Modifier

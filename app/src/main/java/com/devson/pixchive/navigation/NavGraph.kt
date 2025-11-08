@@ -10,7 +10,7 @@ import androidx.navigation.navArgument
 import com.devson.pixchive.ui.screens.ChapterViewScreen
 import com.devson.pixchive.ui.screens.FolderViewScreen
 import com.devson.pixchive.ui.screens.HomeScreen
-import com.devson.pixchive.ui.screens.ImageViewerScreen
+import com.devson.pixchive.ui.reader.ReaderScreen
 import com.devson.pixchive.viewmodel.FolderViewModel
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
@@ -104,7 +104,7 @@ fun NavGraph(
             }
             val imageIndex = backStackEntry.arguments?.getInt("imageIndex") ?: 0
 
-            ImageViewerScreen(
+            ReaderScreen(
                 folderId = folderId,
                 chapterPath = chapterPath,
                 initialIndex = imageIndex,

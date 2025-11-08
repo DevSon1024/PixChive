@@ -52,7 +52,7 @@ fun FolderViewScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = currentFolder?.name ?: "Loading...",
+                        text = currentFolder?.displayName ?: "Loading...",
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -254,7 +254,7 @@ fun ChapterGridItem(
             if (chapter.images.isNotEmpty()) {
                 AsyncImage(
                     model = chapter.images.first().uri,
-                    contentDescription = chapter.name,
+                    contentDescription = chapter.displayName,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
@@ -278,7 +278,7 @@ fun ChapterGridItem(
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
-                        text = chapter.name,
+                        text = chapter.displayName,
                         style = MaterialTheme.typography.titleSmall,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -314,7 +314,7 @@ fun ChapterListItem(
             if (chapter.images.isNotEmpty()) {
                 AsyncImage(
                     model = chapter.images.first().uri,
-                    contentDescription = chapter.name,
+                    contentDescription = chapter.displayName,
                     modifier = Modifier.size(80.dp),
                     contentScale = ContentScale.Crop
                 )
@@ -331,7 +331,7 @@ fun ChapterListItem(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = chapter.name,
+                    text = chapter.displayName,
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis

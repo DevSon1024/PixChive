@@ -89,6 +89,8 @@ dependencies {
     // Zoomable Image (for image viewer)
     implementation("net.engawapg.lib:zoomable:1.6.1")
 
+    // DocumentFile - CRITICAL FOR FILE OPERATIONS
+    implementation("androidx.documentfile:documentfile:1.0.1")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

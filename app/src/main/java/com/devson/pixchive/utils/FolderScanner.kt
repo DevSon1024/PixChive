@@ -3,6 +3,8 @@ package com.devson.pixchive.utils
 import android.content.Context
 import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
+import com.devson.pixchive.data.CachedChapter
+import com.devson.pixchive.data.CachedFolderData
 import com.devson.pixchive.data.Chapter
 import com.devson.pixchive.data.ImageFile
 import kotlinx.coroutines.Dispatchers
@@ -14,125 +16,133 @@ object FolderScanner {
 
     private val imageExtensions = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp")
 
-    // Maximum images to scan per folder (prevent hanging on huge folders)
-    private const val MAX_IMAGES_PER_CHAPTER = 500
-
     /**
-     * Scan folder and return list of chapters with images (OPTIMIZED)
+     * Scan folder with caching - FAST!
      */
-    suspend fun scanFolder(context: Context, folderUri: Uri): List<Chapter> = withContext(Dispatchers.IO) {
-        try {
-            val folder = DocumentFile.fromTreeUri(context, folderUri) ?: return@withContext emptyList()
+    suspend fun scanFolderWithCache(
+        context: Context,
+        folderUri: Uri,
+        folderId: String,
+        forceRescan: Boolean = false
+    ): CachedFolderData = withContext(Dispatchers.IO) {
+        val cache = com.devson.pixchive.data.FolderCache(context)
 
-            // Get all subdirectories (chapters)
+        // Return cached data if valid
+        if (!forceRescan && cache.isCacheValid(folderId)) {
+            cache.getCachedData(folderId)?.let { return@withContext it }
+        }
+
+        // Scan and cache
+        try {
+            val folder = DocumentFile.fromTreeUri(context, folderUri)
+                ?: return@withContext CachedFolderData(folderId, emptyList(), emptyList())
+
             val subFolders = folder.listFiles().filter { it.isDirectory }
 
-            // Scan chapters in parallel for speed
+            // Scan chapters in parallel
             val chapters = subFolders.map { subFolder ->
                 async {
                     try {
-                        val images = scanImagesInFolder(subFolder, limit = MAX_IMAGES_PER_CHAPTER)
-                        if (images.isNotEmpty()) {
-                            Chapter(
-                                name = subFolder.name ?: "Unknown",
-                                path = subFolder.uri.toString(),
-                                imageCount = images.size,
-                                images = images
-                            )
-                        } else null
+                        scanChapterFast(subFolder)
                     } catch (e: Exception) {
                         null
                     }
                 }
             }.awaitAll().filterNotNull()
 
-            // Sort chapters naturally (Chapter 1, Chapter 2, etc.)
-            chapters.sortedWith(naturalOrderComparator())
+            // Collect all image paths for flat view
+            val allImagePaths = chapters.flatMap { it.imagePaths }
+
+            val cachedData = CachedFolderData(
+                folderId = folderId,
+                chapters = chapters.sortedWith(naturalOrderComparator()),
+                allImagePaths = allImagePaths
+            )
+
+            // Save to cache
+            cache.saveToCache(folderId, cachedData)
+
+            cachedData
         } catch (e: Exception) {
             e.printStackTrace()
-            emptyList()
+            CachedFolderData(folderId, emptyList(), emptyList())
         }
     }
 
     /**
-     * Scan all images recursively (for Flat View) - LAZY LOADING
+     * Fast chapter scan - stores only paths and first thumbnail
      */
-    suspend fun scanAllImages(context: Context, folderUri: Uri, limit: Int = 1000): List<ImageFile> =
-        withContext(Dispatchers.IO) {
-            val allImages = mutableListOf<ImageFile>()
-
-            try {
-                val folder = DocumentFile.fromTreeUri(context, folderUri) ?: return@withContext emptyList()
-                scanImagesRecursively(folder, allImages, limit)
-                allImages.sortedBy { it.name }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                emptyList()
-            }
-        }
-
-    /**
-     * Scan images in a specific folder (non-recursive) with limit
-     */
-    private fun scanImagesInFolder(folder: DocumentFile, limit: Int = MAX_IMAGES_PER_CHAPTER): List<ImageFile> {
-        val images = mutableListOf<ImageFile>()
-
+    private fun scanChapterFast(folder: DocumentFile): CachedChapter? {
         try {
-            var count = 0
-            for (file in folder.listFiles()) {
-                if (count >= limit) break
+            val imagePaths = mutableListOf<String>()
+            var thumbnailPath: String? = null
 
+            for (file in folder.listFiles()) {
                 if (file.isFile && isImageFile(file.name ?: "")) {
-                    images.add(
-                        ImageFile(
-                            name = file.name ?: "Unknown",
-                            path = file.uri.toString(),
-                            uri = file.uri,
-                            size = file.length()
-                        )
-                    )
-                    count++
+                    val path = file.uri.toString()
+                    imagePaths.add(path)
+
+                    // First image becomes thumbnail
+                    if (thumbnailPath == null) {
+                        thumbnailPath = path
+                    }
                 }
             }
+
+            if (imagePaths.isEmpty()) return null
+
+            return CachedChapter(
+                name = folder.name ?: "Unknown",
+                path = folder.uri.toString(),
+                imageCount = imagePaths.size,
+                thumbnailPath = thumbnailPath,
+                imagePaths = imagePaths.sorted()
+            )
         } catch (e: Exception) {
             e.printStackTrace()
+            return null
         }
-
-        return images.sortedBy { it.name }
     }
 
     /**
-     * Recursively scan all images with limit
+     * Convert cached chapter to Chapter with ImageFile objects
      */
-    private fun scanImagesRecursively(
-        folder: DocumentFile,
-        imageList: MutableList<ImageFile>,
-        limit: Int
-    ) {
-        if (imageList.size >= limit) return
+    fun cachedChapterToChapter(cached: CachedChapter): Chapter {
+        val images = cached.imagePaths.map { path ->
+            ImageFile(
+                name = path.substringAfterLast('/'),
+                path = path,
+                uri = Uri.parse(path),
+                size = 0L
+            )
+        }
 
-        try {
-            for (file in folder.listFiles()) {
-                if (imageList.size >= limit) break
+        return Chapter(
+            name = cached.name,
+            path = cached.path,
+            imageCount = cached.imageCount,
+            images = images
+        )
+    }
 
-                when {
-                    file.isFile && isImageFile(file.name ?: "") -> {
-                        imageList.add(
-                            ImageFile(
-                                name = file.name ?: "Unknown",
-                                path = file.uri.toString(),
-                                uri = file.uri,
-                                size = file.length()
-                            )
-                        )
-                    }
-                    file.isDirectory -> {
-                        scanImagesRecursively(file, imageList, limit)
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
+    /**
+     * Convert cached data to list of Chapters
+     */
+    fun cachedDataToChapters(cached: CachedFolderData): List<Chapter> {
+        return cached.chapters.map { cachedChapterToChapter(it) }
+    }
+
+    /**
+     * Convert image paths to ImageFile list
+     */
+    fun pathsToImageFiles(paths: List<String>): List<ImageFile> {
+        return paths.map { path ->
+            ImageFile(
+                name = path.substringAfterLast('/'),
+                path = path,
+                uri = Uri.parse(path),
+                size = 0L
+            )
         }
     }
 
@@ -147,7 +157,7 @@ object FolderScanner {
     /**
      * Natural order comparator for chapter names
      */
-    private fun naturalOrderComparator(): Comparator<Chapter> {
+    private fun naturalOrderComparator(): Comparator<CachedChapter> {
         return Comparator { a, b ->
             val regex = Regex("(\\d+)")
             val aMatch = regex.find(a.name)
@@ -162,37 +172,5 @@ object FolderScanner {
                 else -> a.name.compareTo(b.name, ignoreCase = true)
             }
         }
-    }
-
-    /**
-     * Count total images in folder (faster, doesn't load full objects)
-     */
-    suspend fun countImages(context: Context, folderUri: Uri, limit: Int = 10000): Int =
-        withContext(Dispatchers.IO) {
-            try {
-                val folder = DocumentFile.fromTreeUri(context, folderUri) ?: return@withContext 0
-                countImagesRecursively(folder, 0, limit)
-            } catch (e: Exception) {
-                0
-            }
-        }
-
-    private fun countImagesRecursively(folder: DocumentFile, currentCount: Int, limit: Int): Int {
-        if (currentCount >= limit) return currentCount
-
-        var count = currentCount
-        try {
-            for (file in folder.listFiles()) {
-                if (count >= limit) break
-
-                when {
-                    file.isFile && isImageFile(file.name ?: "") -> count++
-                    file.isDirectory -> count = countImagesRecursively(file, count, limit)
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        return count
     }
 }

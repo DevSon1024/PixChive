@@ -44,17 +44,23 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             _errorMessage.value = null
 
             try {
-                // Scan folder to count chapters and images
-                val chapters = FolderScanner.scanFolder(getApplication(), uri)
-                val imageCount = FolderScanner.countImages(getApplication(), uri)
+                val folderId = UUID.randomUUID().toString()
+
+                // Scan and cache folder
+                val cachedData = FolderScanner.scanFolderWithCache(
+                    getApplication(),
+                    uri,
+                    folderId,
+                    forceRescan = true
+                )
 
                 val newFolder = ComicFolder(
-                    id = UUID.randomUUID().toString(),
+                    id = folderId,
                     name = name,
                     uri = uri.toString(),
                     path = uri.path ?: "",
-                    chapterCount = chapters.size,
-                    imageCount = imageCount
+                    chapterCount = cachedData.chapters.size,
+                    imageCount = cachedData.allImagePaths.size
                 )
 
                 val updatedFolders = _folders.value + newFolder
@@ -70,6 +76,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun removeFolder(folderId: String) {
         viewModelScope.launch {
+            // Clear cache when removing folder
+            val cache = com.devson.pixchive.data.FolderCache(getApplication())
+            cache.clearCache(folderId)
+
             val updatedFolders = _folders.value.filter { it.id != folderId }
             preferencesManager.saveFolders(updatedFolders)
         }

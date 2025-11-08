@@ -22,6 +22,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.devson.pixchive.data.Chapter
 import com.devson.pixchive.data.ImageFile
+import androidx.compose.material.icons.filled.Refresh
 import com.devson.pixchive.viewmodel.FolderViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,6 +63,14 @@ fun FolderViewScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = {
+                        viewModel.refreshFolder(folderId)
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Refresh"
+                        )
+                    }
                     // View Mode Selector
                     IconButton(onClick = { showViewModeDialog = true }) {
                         Icon(
@@ -241,15 +250,13 @@ fun ChapterGridItem(
         onClick = onClick
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // First image as thumbnail with placeholder
+            // Use first image as thumbnail (already cached)
             if (chapter.images.isNotEmpty()) {
                 AsyncImage(
                     model = chapter.images.first().uri,
                     contentDescription = chapter.name,
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                    placeholder = null, // Remove default placeholder
-                    error = null
+                    contentScale = ContentScale.Crop
                 )
             } else {
                 Icon(
@@ -262,16 +269,14 @@ fun ChapterGridItem(
                 )
             }
 
-            // Overlay with chapter info
+            // Overlay
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter),
                 color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
             ) {
-                Column(
-                    modifier = Modifier.padding(12.dp)
-                ) {
+                Column(modifier = Modifier.padding(12.dp)) {
                     Text(
                         text = chapter.name,
                         style = MaterialTheme.typography.titleSmall,

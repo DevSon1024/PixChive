@@ -6,6 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.devson.pixchive.data.Chapter
 import com.devson.pixchive.data.ComicFolder
+import com.devson.pixchive.data.FolderCache
 import com.devson.pixchive.data.ImageFile
 import com.devson.pixchive.data.PreferencesManager
 import com.devson.pixchive.utils.FolderScanner
@@ -18,6 +19,7 @@ import kotlinx.coroutines.launch
 class FolderViewModel(application: Application) : AndroidViewModel(application) {
 
     private val preferencesManager = PreferencesManager(application)
+    private val folderCache = FolderCache(application)
 
     private val _currentFolder = MutableStateFlow<ComicFolder?>(null)
     val currentFolder: StateFlow<ComicFolder?> = _currentFolder.asStateFlow()
@@ -37,6 +39,9 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     private val _layoutMode = MutableStateFlow("grid")
     val layoutMode: StateFlow<String> = _layoutMode.asStateFlow()
 
+    // Track loaded folders to prevent re-scanning
+    private val loadedFolders = mutableSetOf<String>()
+
     init {
         loadPreferences()
     }
@@ -48,7 +53,12 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun loadFolder(folderId: String) {
+    fun loadFolder(folderId: String, forceRescan: Boolean = false) {
+        // Skip if already loaded and not forcing rescan
+        if (loadedFolders.contains(folderId) && !forceRescan) {
+            return
+        }
+
         viewModelScope.launch {
             _isLoading.value = true
 
@@ -60,13 +70,20 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
                     _currentFolder.value = it
                     val uri = Uri.parse(it.uri)
 
-                    // Load chapters
-                    val chapters = FolderScanner.scanFolder(getApplication(), uri)
-                    _chapters.value = chapters
+                    // Load from cache or scan
+                    val cachedData = FolderScanner.scanFolderWithCache(
+                        getApplication(),
+                        uri,
+                        folderId,
+                        forceRescan
+                    )
 
-                    // Load all images for flat view
-                    val images = FolderScanner.scanAllImages(getApplication(), uri)
-                    _allImages.value = images
+                    // Convert cached data to live objects
+                    _chapters.value = FolderScanner.cachedDataToChapters(cachedData)
+                    _allImages.value = FolderScanner.pathsToImageFiles(cachedData.allImagePaths)
+
+                    // Mark as loaded
+                    loadedFolders.add(folderId)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -74,6 +91,12 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
                 _isLoading.value = false
             }
         }
+    }
+
+    fun refreshFolder(folderId: String) {
+        loadedFolders.remove(folderId)
+        folderCache.clearCache(folderId)
+        loadFolder(folderId, forceRescan = true)
     }
 
     fun setViewMode(mode: String) {
@@ -93,5 +116,10 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
 
     fun getChapterImages(chapterPath: String): List<ImageFile> {
         return _chapters.value.find { it.path == chapterPath }?.images ?: emptyList()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        loadedFolders.clear()
     }
 }

@@ -12,10 +12,6 @@ data class ComicFolder(
     val imageCount: Int = 0,
     val dateAdded: Long = System.currentTimeMillis()
 ) {
-    /**
-     * Returns only the folder name from the full path
-     * Example: "Download/Ragalahari/Nayanthara" → "Nayanthara"
-     */
     val displayName: String
         get() = PathUtils.extractFolderName(name)
 }
@@ -26,10 +22,6 @@ data class Chapter(
     val imageCount: Int,
     val images: List<ImageFile> = emptyList()
 ) {
-    /**
-     * Returns only the folder name from the full path
-     * Example: "Download/Ragalahari/Nayanthara/Nayanthara-1354" → "Nayanthara-1354"
-     */
     val displayName: String
         get() = PathUtils.extractFolderName(name)
 }
@@ -38,5 +30,6 @@ data class ImageFile(
     val name: String,
     val path: String,
     val uri: Uri,
-    val size: Long = 0
+    val size: Long = 0,
+    val dateModified: Long = 0
 )

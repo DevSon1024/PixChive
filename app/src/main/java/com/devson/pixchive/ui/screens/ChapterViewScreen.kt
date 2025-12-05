@@ -26,6 +26,11 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.devson.pixchive.data.ImageFile
 import com.devson.pixchive.viewmodel.FolderViewModel
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.Date
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.ui.graphics.Color
 
 // Helper function to properly compare URIs regardless of encoding
 private fun urisMatch(uri1: String, uri2: String): Boolean {
@@ -199,7 +204,6 @@ fun ImageGridView(
         }
     }
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ImageListView(
@@ -207,49 +211,96 @@ fun ImageListView(
     onImageClick: (Int) -> Unit
 ) {
     LazyColumn(
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(bottom = 16.dp) // Only bottom padding needed
     ) {
         itemsIndexed(images) { index, image ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = { onImageClick(index) }
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // FIX: Use ImageRequest to downsample here as well
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(image.uri)
-                            .size(600)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = image.name,
-                        modifier = Modifier.size(100.dp),
-                        contentScale = ContentScale.Crop
-                    )
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    Column {
-                        Text(
-                            text = "Image ${index + 1} of ${images.size}",
-                            style = MaterialTheme.typography.titleSmall
-                        )
-                        Text(
-                            text = image.name,
-                            style = MaterialTheme.typography.bodySmall,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
+            ImageListItem(
+                image = image,
+                onClick = { onImageClick(index) },
+                onOptionClick = { /* TODO: Open menu */ }
+            )
         }
     }
+}
+
+@Composable
+fun ImageListItem(
+    image: ImageFile,
+    onClick: () -> Unit,
+    onOptionClick: () -> Unit
+) {
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 12.dp), // Standard list item padding
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 1. Small Thumbnail
+            Card(
+                shape = MaterialTheme.shapes.extraSmall, // Slightly rounded corners (4dp)
+                modifier = Modifier.size(48.dp), // Small size like screenshot
+                colors = CardDefaults.cardColors(containerColor = Color.LightGray)
+            ) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(image.uri)
+                        .size(200) // Load tiny thumbnail for performance
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            // 2. Name and Details
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = image.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "${formatFileSize(image.size)} | ${formatDate(image.dateModified)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant // Grey color
+                )
+            }
+
+            // 3. Option Menu (Three dots)
+            IconButton(onClick = onOptionClick) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "Options",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        // 4. Divider
+        HorizontalDivider(
+            modifier = Modifier.padding(start = 80.dp), // Inset divider looks cleaner
+            thickness = 0.5.dp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+        )
+    }
+}
+
+// Helper functions for formatting
+private fun formatFileSize(bytes: Long): String {
+    if (bytes <= 0) return "0 B"
+    val units = arrayOf("B", "KB", "MB", "GB", "TB")
+    val digitGroups = (Math.log10(bytes.toDouble()) / Math.log10(1024.0)).toInt()
+    return String.format("%.1f %s", bytes / Math.pow(1024.0, digitGroups.toDouble()), units[digitGroups])
+}
+
+private fun formatDate(timestamp: Long): String {
+    if (timestamp == 0L) return "Unknown Date"
+    val sdf = SimpleDateFormat("d MMMM", Locale.getDefault()) // e.g., "6 November"
+    return sdf.format(Date(timestamp))
 }

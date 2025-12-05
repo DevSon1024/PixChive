@@ -4,7 +4,7 @@ data class CachedFolderData(
     val folderId: String,
     val chapters: List<CachedChapter>,
     val allImagePaths: List<String>,
-    val allImageInfo: List<CachedImageInfo>,  // NEW: Store image info
+    val allImageInfo: List<CachedImageInfo>,
     val lastScanned: Long = System.currentTimeMillis()
 )
 
@@ -14,12 +14,12 @@ data class CachedChapter(
     val imageCount: Int,
     val thumbnailPath: String?,
     val imagePaths: List<String>,
-    val imageInfo: List<CachedImageInfo>  // NEW: Store image info per chapter
+    val imageInfo: List<CachedImageInfo>
 )
 
-// NEW: Cached image information
 data class CachedImageInfo(
     val path: String,
     val name: String,
-    val size: Long
+    val size: Long,
+    val dateModified: Long = 0
 )

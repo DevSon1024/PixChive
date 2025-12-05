@@ -36,6 +36,7 @@ import me.saket.telephoto.zoomable.rememberZoomableImageState
 import me.saket.telephoto.zoomable.rememberZoomableState
 import me.saket.telephoto.zoomable.ZoomSpec
 import coil.size.Size
+import coil.size.Scale
 
 @Composable
 fun ReaderScreen(
@@ -146,12 +147,15 @@ fun ReaderScreen(
                     ZoomableAsyncImage(
                         model = ImageRequest.Builder(context)
                             .data(chapterImages[page].uri)
-                            .size(Size.ORIGINAL)
+                            // FIX: Replace Size.ORIGINAL with a safe 4K limit
+                            // This prevents the "Canvas: trying to draw too large" crash
+                            // while maintaining very high quality (UHD).
+                            .size(4096)
+                            .scale(Scale.FIT)
                             .build(),
                         contentDescription = chapterImages[page].name,
                         modifier = Modifier.fillMaxSize(),
                         state = rememberZoomableImageState(zoomableState),
-                        // ADD THIS: Handle click to toggle UI here
                         onClick = {
                             showUI = !showUI
                             if (!showUI) showBottomOptions = false

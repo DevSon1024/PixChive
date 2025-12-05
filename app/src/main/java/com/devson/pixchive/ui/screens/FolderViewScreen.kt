@@ -25,12 +25,12 @@ import coil.request.ImageRequest
 import com.devson.pixchive.data.Chapter
 import com.devson.pixchive.data.ImageFile
 import com.devson.pixchive.viewmodel.FolderViewModel
+import com.devson.pixchive.ui.components.ImageListItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FolderViewScreen(
     folderId: String,
-    // REMOVED: viewMode: String,
     onNavigateBack: () -> Unit,
     onChapterClick: (String) -> Unit,
     onImageClick: (Int) -> Unit,
@@ -215,20 +215,17 @@ fun FlatView(
     } else {
         LazyColumn(
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(images.size) { index ->
                 ImageListItem(
                     image = images[index],
-                    index = index + 1,
-                    onClick = { onImageClick(index) }
+                    onClick = { onImageClick(index) },
+                    onOptionClick = { /* Handle option click */ }
                 )
             }
         }
     }
 }
-
-// REMOVED: ChapterOnlyView (It was a duplicate)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

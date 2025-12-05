@@ -28,8 +28,9 @@ fun NavGraph(
     ) {
         composable(Screen.Home.route) {
             HomeScreen(
-                onFolderClick = { folderId, viewMode ->
-                    navController.navigate(Screen.FolderView.createRoute(folderId, viewMode))
+                // CHANGED: Only pass folderId, remove viewMode
+                onFolderClick = { folderId ->
+                    navController.navigate(Screen.FolderView.createRoute(folderId))
                 }
             )
         }
@@ -37,23 +38,23 @@ fun NavGraph(
         composable(
             route = Screen.FolderView.route,
             arguments = listOf(
-                navArgument("folderId") { type = NavType.StringType },
-                navArgument("viewMode") { type = NavType.StringType }
+                navArgument("folderId") { type = NavType.StringType }
+                // REMOVED: navArgument("viewMode")
             )
         ) { backStackEntry ->
             val folderId = backStackEntry.arguments?.getString("folderId") ?: ""
-            val viewMode = backStackEntry.arguments?.getString("viewMode") ?: "explorer"
+
+            // REMOVED: val viewMode = ... logic
 
             FolderViewScreen(
                 folderId = folderId,
-                viewMode = viewMode,
+                // REMOVED: viewMode = viewMode,
                 onNavigateBack = { navController.popBackStack() },
                 onChapterClick = { chapterPath ->
                     navController.navigate(Screen.ChapterView.createRoute(folderId, chapterPath))
                 },
                 onImageClick = { imageIndex ->
-                    // This won't be used from FolderView, only from ChapterView
-                    navController.navigate(Screen.ImageViewer.createRoute(folderId, "", imageIndex))
+                    navController.navigate(Screen.ImageViewer.createRoute(folderId, "flat_view", imageIndex))
                 },
                 viewModel = folderViewModel
             )
@@ -86,7 +87,7 @@ fun NavGraph(
             )
         }
 
-        // Image Viewer Screen - NOW WITH CHAPTER PATH
+        // Image Viewer Screen
         composable(
             route = Screen.ImageViewer.route,
             arguments = listOf(

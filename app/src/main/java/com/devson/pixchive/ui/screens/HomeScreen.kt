@@ -30,7 +30,7 @@ import com.devson.pixchive.viewmodel.HomeViewModel
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel = viewModel(),
-    onFolderClick: (String, String) -> Unit = { _, _ -> }
+    onFolderClick: ( String) -> Unit = { _ -> }
 ) {
     val context = LocalContext.current
     val activity = context as? Activity
@@ -195,7 +195,8 @@ fun HomeScreen(
 fun FolderListContent(
     folders: List<ComicFolder>,
     onDeleteFolder: (String) -> Unit,
-    onFolderClick: (String, String) -> Unit
+    // CHANGED: Callback signature
+    onFolderClick: (String) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -206,7 +207,8 @@ fun FolderListContent(
             FolderCard(
                 folder = folder,
                 onDelete = { onDeleteFolder(folder.id) },
-                onClick = { onFolderClick(folder.id, "explorer") }
+                // CHANGED: Just pass ID, don't force "explorer"
+                onClick = { onFolderClick(folder.id) }
             )
         }
     }

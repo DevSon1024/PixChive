@@ -16,20 +16,21 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.devson.pixchive.data.Chapter
 import com.devson.pixchive.data.ImageFile
-import androidx.compose.material.icons.filled.Refresh
 import com.devson.pixchive.viewmodel.FolderViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FolderViewScreen(
     folderId: String,
-    viewMode: String,
+    // REMOVED: viewMode: String,
     onNavigateBack: () -> Unit,
     onChapterClick: (String) -> Unit,
     onImageClick: (Int) -> Unit,
@@ -40,7 +41,7 @@ fun FolderViewScreen(
     val allImages by viewModel.allImages.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val layoutMode by viewModel.layoutMode.collectAsState()
-    var currentViewMode by remember { mutableStateOf(viewMode) }
+    val currentViewMode by viewModel.viewMode.collectAsState()
     var showViewModeDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(folderId) {
@@ -77,7 +78,6 @@ fun FolderViewScreen(
                             imageVector = when (currentViewMode) {
                                 "explorer" -> Icons.Default.FolderOpen
                                 "flat" -> Icons.Default.Collections
-                                "chapter" -> Icons.Default.LibraryBooks
                                 else -> Icons.Default.FolderOpen
                             },
                             contentDescription = "Change View Mode"
@@ -122,7 +122,8 @@ fun FolderViewScreen(
                             layoutMode = layoutMode,
                             onImageClick = onImageClick
                         )
-                        "chapter" -> ChapterOnlyView(
+                        // Removed "chapter" view mode logic to reduce redundancy
+                        "chapter" -> ExplorerView(
                             chapters = chapters,
                             layoutMode = layoutMode,
                             onChapterClick = onChapterClick
@@ -132,12 +133,11 @@ fun FolderViewScreen(
             }
         }
 
-        // View Mode Dialog
         if (showViewModeDialog) {
             ViewModeDialog(
                 currentMode = currentViewMode,
                 onModeSelected = { mode ->
-                    currentViewMode = mode
+                    // This saves to prefs via ViewModel
                     viewModel.setViewMode(mode)
                     showViewModeDialog = false
                 },
@@ -228,14 +228,7 @@ fun FlatView(
     }
 }
 
-@Composable
-fun ChapterOnlyView(
-    chapters: List<Chapter>,
-    layoutMode: String,
-    onChapterClick: (String) -> Unit
-) {
-    ExplorerView(chapters, layoutMode, onChapterClick)
-}
+// REMOVED: ChapterOnlyView (It was a duplicate)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -250,10 +243,13 @@ fun ChapterGridItem(
         onClick = onClick
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Use first image as thumbnail (already cached)
             if (chapter.images.isNotEmpty()) {
                 AsyncImage(
-                    model = chapter.images.first().uri,
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(chapter.images.first().uri)
+                        .size(600) // Optimization: Small thumbnail for chapter cover
+                        .crossfade(true)
+                        .build(),
                     contentDescription = chapter.displayName,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
@@ -269,7 +265,6 @@ fun ChapterGridItem(
                 )
             }
 
-            // Overlay
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -310,10 +305,13 @@ fun ChapterListItem(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Thumbnail
             if (chapter.images.isNotEmpty()) {
                 AsyncImage(
-                    model = chapter.images.first().uri,
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(chapter.images.first().uri)
+                        .size(300) // Optimization: Small thumbnail
+                        .crossfade(true)
+                        .build(),
                     contentDescription = chapter.displayName,
                     modifier = Modifier.size(80.dp),
                     contentScale = ContentScale.Crop
@@ -358,8 +356,13 @@ fun ImageGridItem(
             .aspectRatio(0.7f)
             .clickable(onClick = onClick)
     ) {
+        // OPTIMIZATION: Load small thumbnail for grid
         AsyncImage(
-            model = image.uri,
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(image.uri)
+                .size(600) // Critical for performance in Flat View
+                .crossfade(true)
+                .build(),
             contentDescription = image.name,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop
@@ -384,8 +387,13 @@ fun ImageListItem(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // OPTIMIZATION: Load small thumbnail for list
             AsyncImage(
-                model = image.uri,
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(image.uri)
+                    .size(300)
+                    .crossfade(true)
+                    .build(),
                 contentDescription = image.name,
                 modifier = Modifier.size(100.dp),
                 contentScale = ContentScale.Crop
@@ -410,6 +418,7 @@ fun ImageListItem(
     }
 }
 
+// ... ViewModeDialog and Empty views remain the same ...
 @Composable
 fun ViewModeDialog(
     currentMode: String,
@@ -424,7 +433,7 @@ fun ViewModeDialog(
                 ViewModeOption(
                     icon = Icons.Default.FolderOpen,
                     title = "Explorer View",
-                    description = "Browse chapters in folders",
+                    description = "Browse by chapters/folders",
                     isSelected = currentMode == "explorer",
                     onClick = { onModeSelected("explorer") }
                 )
@@ -432,17 +441,9 @@ fun ViewModeDialog(
                 ViewModeOption(
                     icon = Icons.Default.Collections,
                     title = "Flat View",
-                    description = "All images in one view",
+                    description = "Show all images from all chapters",
                     isSelected = currentMode == "flat",
                     onClick = { onModeSelected("flat") }
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                ViewModeOption(
-                    icon = Icons.Default.LibraryBooks,
-                    title = "Chapter View",
-                    description = "Only chapter folders",
-                    isSelected = currentMode == "chapter",
-                    onClick = { onModeSelected("chapter") }
                 )
             }
         },
@@ -454,6 +455,7 @@ fun ViewModeDialog(
     )
 }
 
+// ... Keep ViewModeOption, EmptyChaptersView, EmptyImagesView from original file ...
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ViewModeOption(
@@ -516,20 +518,9 @@ fun EmptyChaptersView() {
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(32.dp)
         ) {
-            Text(
-                text = "📂",
-                style = MaterialTheme.typography.displayMedium
-            )
+            Text(text = "📂", style = MaterialTheme.typography.displayMedium)
             Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "No Chapters Found",
-                style = MaterialTheme.typography.titleLarge
-            )
-            Text(
-                text = "This folder doesn't contain any subfolders",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Text(text = "No Chapters Found", style = MaterialTheme.typography.titleLarge)
         }
     }
 }
@@ -544,20 +535,9 @@ fun EmptyImagesView() {
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(32.dp)
         ) {
-            Text(
-                text = "🖼️",
-                style = MaterialTheme.typography.displayMedium
-            )
+            Text(text = "🖼️", style = MaterialTheme.typography.displayMedium)
             Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "No Images Found",
-                style = MaterialTheme.typography.titleLarge
-            )
-            Text(
-                text = "This folder doesn't contain any image files",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Text(text = "No Images Found", style = MaterialTheme.typography.titleLarge)
         }
     }
 }

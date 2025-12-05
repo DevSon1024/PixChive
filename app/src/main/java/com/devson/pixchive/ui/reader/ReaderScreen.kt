@@ -31,11 +31,11 @@ import com.devson.pixchive.ui.reader.components.ReaderTopBar
 import com.devson.pixchive.ui.reader.utils.urisMatch
 import com.devson.pixchive.viewmodel.FolderViewModel
 import kotlinx.coroutines.launch
-// Telephoto Imports
 import me.saket.telephoto.zoomable.coil.ZoomableAsyncImage
 import me.saket.telephoto.zoomable.rememberZoomableImageState
 import me.saket.telephoto.zoomable.rememberZoomableState
 import me.saket.telephoto.zoomable.ZoomSpec
+import coil.size.Size
 
 @Composable
 fun ReaderScreen(
@@ -52,16 +52,27 @@ fun ReaderScreen(
 
     val isLoading by viewModel.isLoading.collectAsState()
     val chapters by viewModel.chapters.collectAsState()
+    val allImages by viewModel.allImages.collectAsState() // FIX: Collect allImages
     val currentFolder by viewModel.currentFolder.collectAsState()
 
-    val chapterImages = remember(chapters, chapterPath) {
-        chapters.find { chapter ->
-            urisMatch(chapter.path, chapterPath)
-        }?.images ?: emptyList()
+    val chapterImages = remember(chapters, allImages, chapterPath) {
+        if (chapterPath == "flat_view") {
+            // If in flat view, show ALL images from the folder
+            allImages
+        } else {
+            // Otherwise show only images from the specific chapter
+            chapters.find { chapter ->
+                urisMatch(chapter.path, chapterPath)
+            }?.images ?: emptyList()
+        }
     }
 
-    val chapterName = remember(chapterPath) {
-        chapterPath.substringAfterLast("/").substringAfterLast(":")
+    val chapterName = remember(chapterPath, currentFolder) {
+        if (chapterPath == "flat_view") {
+            currentFolder?.name ?: "Flat View"
+        } else {
+            chapterPath.substringAfterLast("/").substringAfterLast(":")
+        }
     }
 
     var showUI by remember { mutableStateOf(true) }
@@ -100,14 +111,14 @@ fun ReaderScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onTap = {
-                        showUI = !showUI
-                        if (!showUI) showBottomOptions = false
-                    }
-                )
-            }
+//            .pointerInput(Unit) {
+//                detectTapGestures(
+//                    onTap = {
+//                        showUI = !showUI
+//                        if (!showUI) showBottomOptions = false
+//                    }
+//                )
+//            }
     ) {
         when {
             isLoading -> {
@@ -128,7 +139,6 @@ fun ReaderScreen(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize()
                 ) { page ->
-                    // FIX: Use ZoomSpec for maxZoomFactor
                     val zoomableState = rememberZoomableState(
                         zoomSpec = ZoomSpec(maxZoomFactor = 10f)
                     )
@@ -136,10 +146,16 @@ fun ReaderScreen(
                     ZoomableAsyncImage(
                         model = ImageRequest.Builder(context)
                             .data(chapterImages[page].uri)
+                            .size(Size.ORIGINAL)
                             .build(),
                         contentDescription = chapterImages[page].name,
                         modifier = Modifier.fillMaxSize(),
                         state = rememberZoomableImageState(zoomableState),
+                        // ADD THIS: Handle click to toggle UI here
+                        onClick = {
+                            showUI = !showUI
+                            if (!showUI) showBottomOptions = false
+                        },
                         contentScale = when (readingMode) {
                             "fill" -> ContentScale.Crop
                             "original" -> ContentScale.None

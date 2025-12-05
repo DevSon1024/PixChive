@@ -1,7 +1,6 @@
 package com.devson.pixchive.ui.screens
 
 import android.net.Uri
-import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,8 +19,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+// FIX: Added missing imports below
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.devson.pixchive.data.ImageFile
 import com.devson.pixchive.viewmodel.FolderViewModel
 
@@ -56,7 +58,6 @@ fun ChapterViewScreen(
         val found = chapters.find { chapter ->
             urisMatch(chapter.path, chapterPath)
         }
-
         found?.images ?: emptyList()
     }
 
@@ -183,8 +184,13 @@ fun ImageGridView(
                     .aspectRatio(0.7f)
                     .clickable { onImageClick(index) }
             ) {
+                // FIX: Use ImageRequest to downsample the image
                 AsyncImage(
-                    model = image.uri,
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(image.uri)
+                        .size(600) // Downsample to prevent OOM
+                        .crossfade(true)
+                        .build(),
                     contentDescription = image.name,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
@@ -215,8 +221,13 @@ fun ImageListView(
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // FIX: Use ImageRequest to downsample here as well
                     AsyncImage(
-                        model = image.uri,
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(image.uri)
+                            .size(600)
+                            .crossfade(true)
+                            .build(),
                         contentDescription = image.name,
                         modifier = Modifier.size(100.dp),
                         contentScale = ContentScale.Crop

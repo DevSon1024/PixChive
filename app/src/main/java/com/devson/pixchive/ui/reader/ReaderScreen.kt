@@ -1,7 +1,6 @@
 package com.devson.pixchive.ui.reader
 
 import android.app.Activity
-import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -17,7 +16,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -27,16 +25,17 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import coil.size.Size
 import com.devson.pixchive.ui.reader.components.ReaderActionButton
 import com.devson.pixchive.ui.reader.components.ReaderTopBar
 import com.devson.pixchive.ui.reader.utils.urisMatch
 import com.devson.pixchive.viewmodel.FolderViewModel
 import kotlinx.coroutines.launch
-import net.engawapg.lib.zoomable.rememberZoomState
-import net.engawapg.lib.zoomable.zoomable
+// Telephoto Imports
+import me.saket.telephoto.zoomable.coil.ZoomableAsyncImage
+import me.saket.telephoto.zoomable.rememberZoomableImageState
+import me.saket.telephoto.zoomable.rememberZoomableState
+import me.saket.telephoto.zoomable.ZoomSpec
 
 @Composable
 fun ReaderScreen(
@@ -61,12 +60,9 @@ fun ReaderScreen(
         }?.images ?: emptyList()
     }
 
-    // Extract chapter name from chapterPath
     val chapterName = remember(chapterPath) {
         chapterPath.substringAfterLast("/").substringAfterLast(":")
     }
-
-    val folderName = currentFolder?.name ?: "Loading..."
 
     var showUI by remember { mutableStateOf(true) }
     var showBottomOptions by remember { mutableStateOf(false) }
@@ -78,12 +74,10 @@ fun ReaderScreen(
         pageCount = { chapterImages.size }
     )
 
-    // Get current image
     val currentImage = if (chapterImages.isNotEmpty() && pagerState.currentPage < chapterImages.size) {
         chapterImages[pagerState.currentPage]
     } else null
 
-    // Immersive mode
     LaunchedEffect(showUI) {
         activity?.window?.let { window ->
             val insetsController = WindowCompat.getInsetsController(window, view)
@@ -115,7 +109,6 @@ fun ReaderScreen(
                 )
             }
     ) {
-        // Image Viewer (Inline)
         when {
             isLoading -> {
                 CircularProgressIndicator(
@@ -135,41 +128,35 @@ fun ReaderScreen(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize()
                 ) { page ->
-                    val zoomState = rememberZoomState(maxScale = 10f)
+                    // FIX: Use ZoomSpec for maxZoomFactor
+                    val zoomableState = rememberZoomableState(
+                        zoomSpec = ZoomSpec(maxZoomFactor = 10f)
+                    )
 
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .zoomable(zoomState)
-                    ) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(context)
-                                .data(chapterImages[page].uri)
-                                .size(Size.ORIGINAL)
-                                .allowHardware(true)
-                                .build(),
-                            contentDescription = chapterImages[page].name,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = when (readingMode) {
-                                "fill" -> ContentScale.Crop
-                                "original" -> ContentScale.None
-                                else -> ContentScale.Fit
-                            },
-                            filterQuality = FilterQuality.None
-                        )
-                    }
+                    ZoomableAsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(chapterImages[page].uri)
+                            .build(),
+                        contentDescription = chapterImages[page].name,
+                        modifier = Modifier.fillMaxSize(),
+                        state = rememberZoomableImageState(zoomableState),
+                        contentScale = when (readingMode) {
+                            "fill" -> ContentScale.Crop
+                            "original" -> ContentScale.None
+                            else -> ContentScale.Fit
+                        }
+                    )
                 }
             }
         }
 
-        // Top Bar - NOW WITH CHAPTER NAME AND CURRENT IMAGE NAME
         androidx.compose.animation.AnimatedVisibility(
             visible = showUI && chapterImages.isNotEmpty(),
             modifier = Modifier.align(Alignment.TopCenter)
         ) {
             ReaderTopBar(
-                chapterFolderName = chapterName,  // NEW: Chapter folder name
-                currentImageName = currentImage?.name?.substringBeforeLast('.') ?: "",  // NEW: Image name without extension
+                chapterFolderName = chapterName,
+                currentImageName = currentImage?.name?.substringBeforeLast('.') ?: "",
                 showMoreMenu = showMoreMenu,
                 currentImage = currentImage,
                 onNavigateBack = onNavigateBack,
@@ -177,7 +164,6 @@ fun ReaderScreen(
             )
         }
 
-        // Bottom Bar (INLINE with working slider)
         androidx.compose.animation.AnimatedVisibility(
             visible = showUI && chapterImages.isNotEmpty(),
             modifier = Modifier.align(Alignment.BottomCenter)
@@ -187,7 +173,6 @@ fun ReaderScreen(
                     .fillMaxWidth()
                     .background(Color.Black.copy(alpha = 0.85f))
             ) {
-                // Toggle Arrow
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -206,14 +191,12 @@ fun ReaderScreen(
                     }
                 }
 
-                // Collapsible Options
                 AnimatedVisibility(
                     visible = showBottomOptions,
                     enter = expandVertically(),
                     exit = shrinkVertically()
                 ) {
                     Column {
-                        // Bottom Action Icons
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -235,31 +218,26 @@ fun ReaderScreen(
                                     }
                                 }
                             )
-
                             ReaderActionButton(
                                 icon = Icons.Default.RotateRight,
                                 label = "ROTATE",
                                 onClick = { /* TODO */ }
                             )
-
                             ReaderActionButton(
                                 icon = Icons.Default.Lock,
                                 label = "LOCK",
                                 onClick = { /* TODO */ }
                             )
-
                             ReaderActionButton(
                                 icon = Icons.Default.Settings,
                                 label = "SETTINGS",
                                 onClick = { /* TODO */ }
                             )
                         }
-
                         Divider(color = Color.Gray.copy(alpha = 0.3f))
                     }
                 }
 
-                // COMPACT PAGE SLIDER
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()

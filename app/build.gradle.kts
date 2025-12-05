@@ -8,14 +8,11 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
-// Keystore configuration
 val keystorePropertiesFile = rootProject.file("keystore.properties")
 val keystoreProperties = Properties()
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
-
-// Check if splits should be enabled (disable for debug builds)
 val splitApks = !project.hasProperty("noSplits") && !gradle.startParameter.taskNames.any {
     it.contains("debug", ignoreCase = true)
 }
@@ -167,6 +164,7 @@ dependencies {
 
     // EXIF metadata extraction
     implementation("androidx.exifinterface:exifinterface:1.3.7")
+    implementation(libs.telephoto.zoomable.image.coil)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

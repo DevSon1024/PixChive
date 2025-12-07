@@ -46,6 +46,7 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
 
     init {
         loadPreferences()
+        observeHiddenFilesSetting()
     }
 
     private fun loadPreferences() {
@@ -55,7 +56,19 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    private fun observeHiddenFilesSetting() {
+        viewModelScope.launch {
+            preferencesManager.showHiddenFilesFlow.collect { showHidden ->
+                // If we are currently viewing a folder, force a rescan with the new setting
+                _currentFolder.value?.let { folder ->
+                    loadFolder(folder.id, forceRescan = true)
+                }
+            }
+        }
+    }
+
     fun loadFolder(folderId: String, forceRescan: Boolean = false) {
+        // If same folder and not forced, check if we just need to respect current state
         if (_currentFolder.value?.id == folderId && !forceRescan) {
             return
         }
@@ -71,25 +84,27 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
 
             try {
                 val folders = preferencesManager.foldersFlow.first()
+                val showHidden = preferencesManager.showHiddenFilesFlow.first()
                 val folder = folders.find { it.id == folderId }
 
                 folder?.let {
                     _currentFolder.value = it
                     val uri = Uri.parse(it.uri)
 
-                    // FAST NATIVE SCAN
+                    // Pass showHidden to the scanner
                     val cachedData = FolderScanner.scanFolderWithCache(
                         getApplication(),
                         uri,
                         folderId,
-                        forceRescan
+                        forceRescan,
+                        showHidden
                     )
 
                     val chaptersList = FolderScanner.cachedDataToChapters(getApplication(), cachedData)
                     _chapters.value = chaptersList
                     _allImages.value = FolderScanner.pathsToImageFiles(getApplication(), cachedData)
 
-                    Log.d(TAG, "Loaded ${chaptersList.size} chapters and ${cachedData.allImagePaths.size} images")
+                    Log.d(TAG, "Loaded ${chaptersList.size} chapters (Hidden: $showHidden)")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading folder", e)

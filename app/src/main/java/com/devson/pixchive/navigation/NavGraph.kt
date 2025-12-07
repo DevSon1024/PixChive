@@ -10,6 +10,7 @@ import androidx.navigation.navArgument
 import com.devson.pixchive.ui.screens.ChapterViewScreen
 import com.devson.pixchive.ui.screens.FolderViewScreen
 import com.devson.pixchive.ui.screens.HomeScreen
+import com.devson.pixchive.ui.screens.SettingsScreen
 import com.devson.pixchive.ui.reader.ReaderScreen
 import com.devson.pixchive.viewmodel.FolderViewModel
 import java.net.URLDecoder
@@ -28,10 +29,18 @@ fun NavGraph(
     ) {
         composable(Screen.Home.route) {
             HomeScreen(
-                // CHANGED: Only pass folderId, remove viewMode
                 onFolderClick = { folderId ->
                     navController.navigate(Screen.FolderView.createRoute(folderId))
+                },
+                onSettingsClick = {
+                    navController.navigate(Screen.Settings.route)
                 }
+            )
+        }
+
+        composable(Screen.Settings.route) {
+            SettingsScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 
@@ -39,16 +48,12 @@ fun NavGraph(
             route = Screen.FolderView.route,
             arguments = listOf(
                 navArgument("folderId") { type = NavType.StringType }
-                // REMOVED: navArgument("viewMode")
             )
         ) { backStackEntry ->
             val folderId = backStackEntry.arguments?.getString("folderId") ?: ""
 
-            // REMOVED: val viewMode = ... logic
-
             FolderViewScreen(
                 folderId = folderId,
-                // REMOVED: viewMode = viewMode,
                 onNavigateBack = { navController.popBackStack() },
                 onChapterClick = { chapterPath ->
                     navController.navigate(Screen.ChapterView.createRoute(folderId, chapterPath))
@@ -80,14 +85,12 @@ fun NavGraph(
                 chapterPath = chapterPath,
                 onNavigateBack = { navController.popBackStack() },
                 onImageClick = { imageIndex ->
-                    // Pass chapterPath to ImageViewer
                     navController.navigate(Screen.ImageViewer.createRoute(folderId, chapterPath, imageIndex))
                 },
                 viewModel = folderViewModel
             )
         }
 
-        // Image Viewer Screen
         composable(
             route = Screen.ImageViewer.route,
             arguments = listOf(

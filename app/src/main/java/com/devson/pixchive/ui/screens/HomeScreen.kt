@@ -1,6 +1,8 @@
 package com.devson.pixchive.ui.screens
 
 import android.app.Activity
+import android.content.Intent
+import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -11,14 +13,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.pixchive.data.ComicFolder
 import com.devson.pixchive.ui.components.PermissionDeniedDialog
@@ -30,82 +36,107 @@ import com.devson.pixchive.viewmodel.HomeViewModel
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel = viewModel(),
-    onFolderClick: ( String) -> Unit = { _ -> }
+    onFolderClick: (String) -> Unit = { _ -> },
+    onSettingsClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val activity = context as? Activity
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     val folders by viewModel.folders.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
-    var permissionState by remember {
-        mutableStateOf<PermissionState>(
-            if (PermissionHelper.hasStoragePermission(context)) {
-                PermissionState.Granted
-            } else {
-                PermissionState.NotRequested
-            }
-        )
-    }
-
+    // FIX: Explicitly specify <PermissionState> type so it can hold Granted/Denied/etc.
+    var permissionState by remember { mutableStateOf<PermissionState>(PermissionState.NotRequested) }
     var showRationaleDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
 
-    // Folder picker launcher
+    // Check permission on resume (important for All Files Access return)
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                permissionState = if (PermissionHelper.hasStoragePermission(context)) {
+                    PermissionState.Granted
+                } else {
+                    PermissionState.NotRequested
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // 1. Folder Picker Launcher
     val folderPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree(),
         onResult = { uri ->
             uri?.let {
-                // Persist permissions
-                val takeFlags = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                        android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                context.contentResolver.takePersistableUriPermission(it, takeFlags)
+                try {
+                    val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                            Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                    context.contentResolver.takePersistableUriPermission(it, takeFlags)
 
-                // Get folder name
-                val folderName = it.lastPathSegment?.substringAfterLast(':') ?: "Unknown Folder"
-                viewModel.addFolder(it, folderName)
+                    val folderName = it.lastPathSegment?.substringAfterLast(':') ?: "Unknown Folder"
+                    viewModel.addFolder(it, folderName)
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Failed to access folder: ${e.message}", Toast.LENGTH_LONG).show()
+                }
             }
         }
     )
 
-    // Permission launcher
-    val permissionLauncher = rememberLauncherForActivityResult(
+    // 2. Legacy Permission Launcher (Android 10 and below)
+    val legacyPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted: Boolean ->
-            permissionState = when {
-                isGranted -> {
-                    folderPickerLauncher.launch(null)
-                    PermissionState.Granted
-                }
-                activity != null && PermissionHelper.shouldShowRationale(activity) -> {
-                    PermissionState.Denied
-                }
-                else -> {
+            if (isGranted) {
+                permissionState = PermissionState.Granted
+                folderPickerLauncher.launch(null)
+            } else {
+                if (activity != null && PermissionHelper.shouldShowRationale(activity)) {
+                    showRationaleDialog = true
+                } else {
                     showSettingsDialog = true
-                    PermissionState.PermanentlyDenied
                 }
             }
         }
     )
 
-    // Request permission and open folder picker
+    // 3. All Files Access Launcher (Android 11+)
+    val allFilesAccessLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        if (PermissionHelper.hasStoragePermission(context)) {
+            permissionState = PermissionState.Granted
+            folderPickerLauncher.launch(null)
+        } else {
+            // User returned without granting permission
+            showSettingsDialog = true
+        }
+    }
+
+    // Main Logic: Request Permission or Open Picker
     val requestPermissionAndOpenPicker: () -> Unit = {
-        when {
-            PermissionHelper.hasStoragePermission(context) -> {
-                permissionState = PermissionState.Granted
-                folderPickerLauncher.launch(null)
-            }
-            activity != null && PermissionHelper.shouldShowRationale(activity) -> {
+        if (PermissionHelper.hasStoragePermission(context)) {
+            permissionState = PermissionState.Granted
+            folderPickerLauncher.launch(null)
+        } else {
+            // Permission needed
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                // Android 11+: Show rationale first because "All Files Access" is a scary screen
                 showRationaleDialog = true
-            }
-            else -> {
-                permissionLauncher.launch(PermissionHelper.getStoragePermission())
+            } else {
+                // Android 10-: Standard flow
+                if (activity != null && PermissionHelper.shouldShowRationale(activity)) {
+                    showRationaleDialog = true
+                } else {
+                    legacyPermissionLauncher.launch(PermissionHelper.getLegacyStoragePermission())
+                }
             }
         }
     }
 
-    // Show error messages
     LaunchedEffect(errorMessage) {
         errorMessage?.let {
             Toast.makeText(context, it, Toast.LENGTH_LONG).show()
@@ -117,6 +148,11 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = { Text("PixChive") },
+                actions = {
+                    IconButton(onClick = onSettingsClick) {
+                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -143,9 +179,7 @@ fun HomeScreen(
         ) {
             when {
                 isLoading -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center)
-                    )
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
                 folders.isEmpty() -> {
                     EmptyStateContent()
@@ -153,39 +187,45 @@ fun HomeScreen(
                 else -> {
                     FolderListContent(
                         folders = folders,
-                        onDeleteFolder = { folderId ->
-                            viewModel.removeFolder(folderId)
-                        },
+                        onDeleteFolder = { folderId -> viewModel.removeFolder(folderId) },
                         onFolderClick = onFolderClick
                     )
                 }
             }
         }
 
-        // Show rationale dialog
+        // Dialogs
         if (showRationaleDialog) {
             PermissionRationaleDialog(
                 rationale = PermissionHelper.getPermissionRationale(),
                 onConfirm = {
                     showRationaleDialog = false
-                    permissionLauncher.launch(PermissionHelper.getStoragePermission())
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        try {
+                            allFilesAccessLauncher.launch(PermissionHelper.getStoragePermissionSettingsIntent(context))
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Could not open settings", Toast.LENGTH_SHORT).show()
+                        }
+                    } else {
+                        legacyPermissionLauncher.launch(PermissionHelper.getLegacyStoragePermission())
+                    }
                 },
-                onDismiss = {
-                    showRationaleDialog = false
-                }
+                onDismiss = { showRationaleDialog = false }
             )
         }
 
-        // Show settings dialog
         if (showSettingsDialog) {
             PermissionDeniedDialog(
                 onOpenSettings = {
                     showSettingsDialog = false
-                    PermissionHelper.openAppSettings(context)
+                    try {
+                        // Use the correct settings intent based on version
+                        context.startActivity(PermissionHelper.getStoragePermissionSettingsIntent(context))
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Could not open settings", Toast.LENGTH_SHORT).show()
+                    }
                 },
-                onDismiss = {
-                    showSettingsDialog = false
-                }
+                onDismiss = { showSettingsDialog = false }
             )
         }
     }
@@ -195,7 +235,6 @@ fun HomeScreen(
 fun FolderListContent(
     folders: List<ComicFolder>,
     onDeleteFolder: (String) -> Unit,
-    // CHANGED: Callback signature
     onFolderClick: (String) -> Unit
 ) {
     LazyColumn(
@@ -207,7 +246,6 @@ fun FolderListContent(
             FolderCard(
                 folder = folder,
                 onDelete = { onDeleteFolder(folder.id) },
-                // CHANGED: Just pass ID, don't force "explorer"
                 onClick = { onFolderClick(folder.id) }
             )
         }

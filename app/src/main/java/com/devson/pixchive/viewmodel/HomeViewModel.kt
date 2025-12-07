@@ -10,6 +10,7 @@ import com.devson.pixchive.utils.FolderScanner
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -45,13 +46,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
             try {
                 val folderId = UUID.randomUUID().toString()
+                val showHidden = preferencesManager.showHiddenFilesFlow.first()
 
                 // Scan and cache folder
                 val cachedData = FolderScanner.scanFolderWithCache(
                     getApplication(),
                     uri,
                     folderId,
-                    forceRescan = true
+                    forceRescan = true,
+                    showHidden = showHidden
                 )
 
                 val newFolder = ComicFolder(
@@ -76,7 +79,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun removeFolder(folderId: String) {
         viewModelScope.launch {
-            // Clear cache when removing folder
             val cache = com.devson.pixchive.data.FolderCache(getApplication())
             cache.clearCache(folderId)
 

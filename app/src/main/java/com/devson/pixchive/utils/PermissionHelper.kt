@@ -7,60 +7,70 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
 import android.provider.Settings
 import androidx.core.content.ContextCompat
 
 object PermissionHelper {
 
     /**
-     * Get required storage permission based on Android version
-     */
-    fun getStoragePermission(): String {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            Manifest.permission.READ_MEDIA_IMAGES
-        } else {
-            Manifest.permission.READ_EXTERNAL_STORAGE
-        }
-    }
-
-    /**
-     * Check if storage permission is granted
+     * Check if the app has the necessary storage permissions.
+     * On Android 11+ (SDK 30+), this checks for MANAGE_EXTERNAL_STORAGE.
+     * On older versions, it checks for READ_EXTERNAL_STORAGE.
      */
     fun hasStoragePermission(context: Context): Boolean {
-        val permission = getStoragePermission()
-        return ContextCompat.checkSelfPermission(
-            context,
-            permission
-        ) == PackageManager.PERMISSION_GRANTED
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Environment.isExternalStorageManager()
+        } else {
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            ) == PackageManager.PERMISSION_GRANTED
+        }
     }
 
     /**
-     * Open app settings page
+     * Get the Intent to request the appropriate permission.
+     * On Android 11+, opens the "All Files Access" settings page.
+     * On older versions, opens the App Details settings page.
      */
-    fun openAppSettings(context: Context) {
-        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-            data = Uri.fromParts("package", context.packageName, null)
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+    fun getStoragePermissionSettingsIntent(context: Context): Intent {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                data = Uri.parse("package:${context.packageName}")
+            }
+        } else {
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.fromParts("package", context.packageName, null)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
         }
-        context.startActivity(intent)
+    }
+
+    /**
+     * Get the permission string for the standard permission launcher (Android 10 and below).
+     * Note: This is NOT used for Android 11+ MANAGE_EXTERNAL_STORAGE request.
+     */
+    fun getLegacyStoragePermission(): String {
+        return Manifest.permission.READ_EXTERNAL_STORAGE
     }
 
     /**
      * Get user-friendly permission explanation
      */
     fun getPermissionRationale(): String {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            "PixChive needs access to your photos to display comic images from your folders."
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            "PixChive needs 'All Files Access' to quickly scan your folders and display hidden files (starting with .). Please grant this permission in the next screen."
         } else {
             "PixChive needs storage permission to read comic images from your device."
         }
     }
 
     /**
-     * Check if we should show permission rationale
+     * Check if we should show permission rationale (Legacy only)
      */
     fun shouldShowRationale(activity: Activity): Boolean {
-        val permission = getStoragePermission()
-        return activity.shouldShowRequestPermissionRationale(permission)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) return false
+        return activity.shouldShowRequestPermissionRationale(Manifest.permission.READ_EXTERNAL_STORAGE)
     }
 }

@@ -3,6 +3,7 @@ package com.devson.pixchive.data
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -21,6 +22,7 @@ class PreferencesManager(private val context: Context) {
         private val FOLDERS_KEY = stringPreferencesKey("comic_folders")
         private val VIEW_MODE_KEY = stringPreferencesKey("view_mode")
         private val LAYOUT_MODE_KEY = stringPreferencesKey("layout_mode")
+        private val SHOW_HIDDEN_FILES_KEY = booleanPreferencesKey("show_hidden_files")
     }
 
     // Save folders
@@ -46,7 +48,7 @@ class PreferencesManager(private val context: Context) {
         }
     }
 
-    // Save view mode (Explorer, Flat, Chapter)
+    // Save view mode
     suspend fun saveViewMode(mode: String) {
         context.dataStore.edit { preferences ->
             preferences[VIEW_MODE_KEY] = mode
@@ -57,7 +59,7 @@ class PreferencesManager(private val context: Context) {
         preferences[VIEW_MODE_KEY] ?: "explorer"
     }
 
-    // Save layout mode (Grid/List)
+    // Save layout mode
     suspend fun saveLayoutMode(mode: String) {
         context.dataStore.edit { preferences ->
             preferences[LAYOUT_MODE_KEY] = mode
@@ -66,5 +68,16 @@ class PreferencesManager(private val context: Context) {
 
     val layoutModeFlow: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[LAYOUT_MODE_KEY] ?: "grid"
+    }
+
+    // Show Hidden Files
+    suspend fun setShowHiddenFiles(show: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[SHOW_HIDDEN_FILES_KEY] = show
+        }
+    }
+
+    val showHiddenFilesFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[SHOW_HIDDEN_FILES_KEY] ?: false
     }
 }

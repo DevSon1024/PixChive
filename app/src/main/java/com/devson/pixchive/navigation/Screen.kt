@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")
+    object Settings : Screen("settings")
 
     object FolderView : Screen("folder/{folderId}") {
         fun createRoute(folderId: String): String {
@@ -20,7 +21,6 @@ sealed class Screen(val route: String) {
         }
     }
 
-    // UPDATED: Add chapterPath to ImageViewer
     object ImageViewer : Screen("image/{folderId}/{chapterPath}/{imageIndex}") {
         fun createRoute(folderId: String, chapterPath: String, imageIndex: Int): String {
             val encodedPath = URLEncoder.encode(chapterPath, StandardCharsets.UTF_8.toString())

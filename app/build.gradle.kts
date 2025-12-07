@@ -162,10 +162,10 @@ dependencies {
     // DocumentFile - CRITICAL FOR FILE OPERATIONS
     implementation("androidx.documentfile:documentfile:1.0.1")
 
+    implementation("com.anggrayudi:storage:2.0.0")
     // EXIF metadata extraction
     implementation("androidx.exifinterface:exifinterface:1.3.7")
     implementation(libs.telephoto.zoomable.image.coil)
-
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

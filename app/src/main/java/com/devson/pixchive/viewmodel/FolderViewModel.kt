@@ -40,9 +40,6 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     private val _layoutMode = MutableStateFlow("grid")
     val layoutMode: StateFlow<String> = _layoutMode.asStateFlow()
 
-    // REMOVED: private val loadedFolders = mutableSetOf<String>()
-    // This set was the cause of the navigation bug.
-
     companion object {
         private const val TAG = "FolderViewModel"
     }
@@ -59,19 +56,13 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun loadFolder(folderId: String, forceRescan: Boolean = false) {
-        // ✅ **THE FIX**: Check against the *current* folder ID in the state.
-        // If it's the same folder and we're not forcing a rescan, we're good.
         if (_currentFolder.value?.id == folderId && !forceRescan) {
-            Log.d(TAG, "Folder $folderId is already loaded, skipping")
             return
         }
 
-        // If it's a *different* folder, or a forced rescan, proceed.
         viewModelScope.launch {
             _isLoading.value = true
 
-            // ✅ **THE FIX**: Clear previous folder's state *immediately*
-            // to prevent showing stale data from the wrong folder while loading.
             if (_currentFolder.value?.id != folderId) {
                 _currentFolder.value = null
                 _chapters.value = emptyList()
@@ -82,14 +73,11 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
                 val folders = preferencesManager.foldersFlow.first()
                 val folder = folders.find { it.id == folderId }
 
-                Log.d(TAG, "Loading folder: ${folder?.name}")
-
                 folder?.let {
-                    // Set the current folder *after* finding it
                     _currentFolder.value = it
                     val uri = Uri.parse(it.uri)
 
-                    // Load from cache or scan
+                    // FAST NATIVE SCAN
                     val cachedData = FolderScanner.scanFolderWithCache(
                         getApplication(),
                         uri,
@@ -97,22 +85,14 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
                         forceRescan
                     )
 
-                    Log.d(TAG, "Cached data loaded: ${cachedData.chapters.size} chapters, ${cachedData.allImagePaths.size} images")
-
-                    // Convert cached data to live objects WITH CONTEXT
                     val chaptersList = FolderScanner.cachedDataToChapters(getApplication(), cachedData)
                     _chapters.value = chaptersList
                     _allImages.value = FolderScanner.pathsToImageFiles(getApplication(), cachedData)
 
-                    // Debug: Print chapter info
-                    chaptersList.forEach { chapter ->
-                        Log.d(TAG, "Chapter: ${chapter.name}, Path: ${chapter.path}, Images: ${chapter.images.size}")
-                    }
-
+                    Log.d(TAG, "Loaded ${chaptersList.size} chapters and ${cachedData.allImagePaths.size} images")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading folder", e)
-                e.printStackTrace()
             } finally {
                 _isLoading.value = false
             }
@@ -120,9 +100,6 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun refreshFolder(folderId: String) {
-        Log.d(TAG, "Refreshing folder: $folderId")
-        // ✅ **THE FIX**: No need to manage the loadedFolders set.
-        // Just clear the JSON cache and call loadFolder with forceRescan = true.
         folderCache.clearCache(folderId)
         loadFolder(folderId, forceRescan = true)
     }
@@ -140,16 +117,5 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
             _layoutMode.value = newMode
             preferencesManager.saveLayoutMode(newMode)
         }
-    }
-
-    fun getChapterImages(chapterPath: String): List<ImageFile> {
-        val images = _chapters.value.find { it.path == chapterPath }?.images ?: emptyList()
-        Log.d(TAG, "getChapterImages for path: $chapterPath, found: ${images.size} images")
-        return images
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        Log.d(TAG, "FolderViewModel onCleared")
     }
 }

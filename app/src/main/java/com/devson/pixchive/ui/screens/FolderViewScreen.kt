@@ -61,9 +61,15 @@ fun FolderViewScreen(
         viewModel.loadFolder(folderId)
     }
 
-    // Callback to refresh data after deletion
+    // Callback to refresh data after deletion (for images)
     val onRefresh = {
         viewModel.refreshFolder(folderId)
+    }
+
+    // Callback to remove folder from list (for chapters)
+    val onRemoveFolder = { path: String ->
+        viewModel.removeFolder(path)
+        Toast.makeText(context, "Folder removed from list", Toast.LENGTH_SHORT).show()
     }
 
     Scaffold(
@@ -126,7 +132,7 @@ fun FolderViewScreen(
                             chapters = chapters,
                             layoutMode = layoutMode,
                             onChapterClick = onChapterClick,
-                            onRefresh = onRefresh
+                            onRemove = onRemoveFolder
                         )
                         "flat" -> FlatView(
                             images = allImages,
@@ -138,7 +144,7 @@ fun FolderViewScreen(
                             chapters = chapters,
                             layoutMode = layoutMode,
                             onChapterClick = onChapterClick,
-                            onRefresh = onRefresh
+                            onRemove = onRemoveFolder
                         )
                     }
                 }
@@ -163,7 +169,7 @@ fun ExplorerView(
     chapters: List<Chapter>,
     layoutMode: String,
     onChapterClick: (String) -> Unit,
-    onRefresh: () -> Unit
+    onRemove: (String) -> Unit
 ) {
     if (chapters.isEmpty()) {
         EmptyChaptersView()
@@ -181,7 +187,7 @@ fun ExplorerView(
                 ChapterGridItem(
                     chapter = chapter,
                     onClick = { onChapterClick(chapter.path) },
-                    onRefresh = onRefresh
+                    onRemove = { onRemove(chapter.path) }
                 )
             }
         }
@@ -193,7 +199,7 @@ fun ExplorerView(
                 ChapterListItem(
                     chapter = chapter,
                     onClick = { onChapterClick(chapter.path) },
-                    onRefresh = onRefresh
+                    onRemove = { onRemove(chapter.path) }
                 )
             }
         }
@@ -249,11 +255,10 @@ fun FlatView(
 fun ChapterGridItem(
     chapter: Chapter,
     onClick: () -> Unit,
-    onRefresh: () -> Unit
+    onRemove: () -> Unit
 ) {
-    val context = LocalContext.current
-    var showMenu by remember { mutableStateOf(false) }
     val haptics = LocalHapticFeedback.current
+    var showMenu by remember { mutableStateOf(false) }
 
     Box {
         Card(
@@ -314,17 +319,20 @@ fun ChapterGridItem(
             }
         }
 
-        ItemContextMenu(
+        // Folder Menu: Remove Only
+        DropdownMenu(
             expanded = showMenu,
-            onDismiss = { showMenu = false },
-            onShare = { /* Sharing folder is complex, typically involves zipping. Skipped for now. */ },
-            onDelete = {
-                if (deleteItem(context, File(chapter.path))) {
-                    onRefresh()
+            onDismissRequest = { showMenu = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text("Remove from list") },
+                leadingIcon = { Icon(Icons.Default.Close, null) },
+                onClick = {
+                    showMenu = false
+                    onRemove()
                 }
-            },
-            isFolder = true
-        )
+            )
+        }
     }
 }
 
@@ -332,9 +340,8 @@ fun ChapterGridItem(
 fun ChapterListItem(
     chapter: Chapter,
     onClick: () -> Unit,
-    onRefresh: () -> Unit
+    onRemove: () -> Unit
 ) {
-    val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
 
     Column {
@@ -400,17 +407,21 @@ fun ChapterListItem(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                ItemContextMenu(
+
+                // Folder Menu: Remove Only
+                DropdownMenu(
                     expanded = showMenu,
-                    onDismiss = { showMenu = false },
-                    onShare = {},
-                    onDelete = {
-                        if (deleteItem(context, File(chapter.path))) {
-                            onRefresh()
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Remove from list") },
+                        leadingIcon = { Icon(Icons.Default.Close, null) },
+                        onClick = {
+                            showMenu = false
+                            onRemove()
                         }
-                    },
-                    isFolder = true
-                )
+                    )
+                }
             }
         }
         HorizontalDivider(
@@ -457,6 +468,7 @@ fun ImageGridItem(
             )
         }
 
+        // Image Menu: Share & Delete
         ItemContextMenu(
             expanded = showMenu,
             onDismiss = { showMenu = false },
@@ -532,6 +544,8 @@ fun ImageListItem(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+
+                // Image Menu: Share & Delete
                 ItemContextMenu(
                     expanded = showMenu,
                     onDismiss = { showMenu = false },
@@ -557,23 +571,20 @@ fun ItemContextMenu(
     expanded: Boolean,
     onDismiss: () -> Unit,
     onShare: () -> Unit,
-    onDelete: () -> Unit,
-    isFolder: Boolean = false
+    onDelete: () -> Unit
 ) {
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismiss
     ) {
-        if (!isFolder) {
-            DropdownMenuItem(
-                text = { Text("Share") },
-                leadingIcon = { Icon(Icons.Default.Share, null) },
-                onClick = {
-                    onDismiss()
-                    onShare()
-                }
-            )
-        }
+        DropdownMenuItem(
+            text = { Text("Share") },
+            leadingIcon = { Icon(Icons.Default.Share, null) },
+            onClick = {
+                onDismiss()
+                onShare()
+            }
+        )
         DropdownMenuItem(
             text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
             leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },

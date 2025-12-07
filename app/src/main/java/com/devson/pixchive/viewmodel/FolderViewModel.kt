@@ -46,7 +46,6 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
 
     init {
         loadPreferences()
-        observeHiddenFilesSetting()
     }
 
     private fun loadPreferences() {
@@ -56,19 +55,7 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    private fun observeHiddenFilesSetting() {
-        viewModelScope.launch {
-            preferencesManager.showHiddenFilesFlow.collect { showHidden ->
-                // If we are currently viewing a folder, force a rescan with the new setting
-                _currentFolder.value?.let { folder ->
-                    loadFolder(folder.id, forceRescan = true)
-                }
-            }
-        }
-    }
-
     fun loadFolder(folderId: String, forceRescan: Boolean = false) {
-        // If same folder and not forced, check if we just need to respect current state
         if (_currentFolder.value?.id == folderId && !forceRescan) {
             return
         }
@@ -84,14 +71,15 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
 
             try {
                 val folders = preferencesManager.foldersFlow.first()
+                val ignoredPaths = preferencesManager.ignoredPathsFlow.first()
                 val showHidden = preferencesManager.showHiddenFilesFlow.first()
+
                 val folder = folders.find { it.id == folderId }
 
                 folder?.let {
                     _currentFolder.value = it
                     val uri = Uri.parse(it.uri)
 
-                    // Pass showHidden to the scanner
                     val cachedData = FolderScanner.scanFolderWithCache(
                         getApplication(),
                         uri,
@@ -100,17 +88,40 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
                         showHidden
                     )
 
-                    val chaptersList = FolderScanner.cachedDataToChapters(getApplication(), cachedData)
-                    _chapters.value = chaptersList
-                    _allImages.value = FolderScanner.pathsToImageFiles(getApplication(), cachedData)
+                    // Convert cached data to live objects
+                    val allChapters = FolderScanner.cachedDataToChapters(getApplication(), cachedData)
 
-                    Log.d(TAG, "Loaded ${chaptersList.size} chapters (Hidden: $showHidden)")
+                    // FILTER: Exclude ignored chapters
+                    val filteredChapters = allChapters.filter { chapter ->
+                        !ignoredPaths.contains(chapter.path)
+                    }
+
+                    _chapters.value = filteredChapters
+
+                    // REBUILD allImages from filtered chapters
+                    _allImages.value = filteredChapters.flatMap { it.images }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading folder", e)
+                e.printStackTrace()
             } finally {
                 _isLoading.value = false
             }
+        }
+    }
+
+    fun removeFolder(path: String) {
+        viewModelScope.launch {
+            // 1. INSTANT UI UPDATE: Remove from current list immediately
+            // This ensures the item disappears before the background DB work finishes
+            val updatedChapters = _chapters.value.filter { it.path != path }
+            _chapters.value = updatedChapters
+
+            // Also update flat view images instantly
+            _allImages.value = updatedChapters.flatMap { it.images }
+
+            // 2. Persist to Database (Background)
+            preferencesManager.addIgnoredPath(path)
         }
     }
 
@@ -132,5 +143,10 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
             _layoutMode.value = newMode
             preferencesManager.saveLayoutMode(newMode)
         }
+    }
+
+    fun getChapterImages(chapterPath: String): List<ImageFile> {
+        val images = _chapters.value.find { it.path == chapterPath }?.images ?: emptyList()
+        return images
     }
 }

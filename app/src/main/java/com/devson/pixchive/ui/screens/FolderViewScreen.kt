@@ -1,6 +1,12 @@
 package com.devson.pixchive.ui.screens
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -15,8 +21,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -25,7 +34,10 @@ import coil.request.ImageRequest
 import com.devson.pixchive.data.Chapter
 import com.devson.pixchive.data.ImageFile
 import com.devson.pixchive.viewmodel.FolderViewModel
-import com.devson.pixchive.ui.components.ImageListItem
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,6 +48,7 @@ fun FolderViewScreen(
     onImageClick: (Int) -> Unit,
     viewModel: FolderViewModel = viewModel()
 ) {
+    val context = LocalContext.current
     val currentFolder by viewModel.currentFolder.collectAsState()
     val chapters by viewModel.chapters.collectAsState()
     val allImages by viewModel.allImages.collectAsState()
@@ -46,6 +59,11 @@ fun FolderViewScreen(
 
     LaunchedEffect(folderId) {
         viewModel.loadFolder(folderId)
+    }
+
+    // Callback to refresh data after deletion
+    val onRefresh = {
+        viewModel.refreshFolder(folderId)
     }
 
     Scaffold(
@@ -64,15 +82,9 @@ fun FolderViewScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
-                        viewModel.refreshFolder(folderId)
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Refresh"
-                        )
+                    IconButton(onClick = { viewModel.refreshFolder(folderId) }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
-                    // View Mode Selector
                     IconButton(onClick = { showViewModeDialog = true }) {
                         Icon(
                             imageVector = when (currentViewMode) {
@@ -83,8 +95,6 @@ fun FolderViewScreen(
                             contentDescription = "Change View Mode"
                         )
                     }
-
-                    // Layout Toggle
                     IconButton(onClick = { viewModel.toggleLayoutMode() }) {
                         Icon(
                             imageVector = if (layoutMode == "grid") {
@@ -115,18 +125,20 @@ fun FolderViewScreen(
                         "explorer" -> ExplorerView(
                             chapters = chapters,
                             layoutMode = layoutMode,
-                            onChapterClick = onChapterClick
+                            onChapterClick = onChapterClick,
+                            onRefresh = onRefresh
                         )
                         "flat" -> FlatView(
                             images = allImages,
                             layoutMode = layoutMode,
-                            onImageClick = onImageClick
+                            onImageClick = onImageClick,
+                            onRefresh = onRefresh
                         )
-                        // Removed "chapter" view mode logic to reduce redundancy
-                        "chapter" -> ExplorerView(
+                        else -> ExplorerView(
                             chapters = chapters,
                             layoutMode = layoutMode,
-                            onChapterClick = onChapterClick
+                            onChapterClick = onChapterClick,
+                            onRefresh = onRefresh
                         )
                     }
                 }
@@ -137,7 +149,6 @@ fun FolderViewScreen(
             ViewModeDialog(
                 currentMode = currentViewMode,
                 onModeSelected = { mode ->
-                    // This saves to prefs via ViewModel
                     viewModel.setViewMode(mode)
                     showViewModeDialog = false
                 },
@@ -151,7 +162,8 @@ fun FolderViewScreen(
 fun ExplorerView(
     chapters: List<Chapter>,
     layoutMode: String,
-    onChapterClick: (String) -> Unit
+    onChapterClick: (String) -> Unit,
+    onRefresh: () -> Unit
 ) {
     if (chapters.isEmpty()) {
         EmptyChaptersView()
@@ -168,19 +180,20 @@ fun ExplorerView(
             items(chapters) { chapter ->
                 ChapterGridItem(
                     chapter = chapter,
-                    onClick = { onChapterClick(chapter.path) }
+                    onClick = { onChapterClick(chapter.path) },
+                    onRefresh = onRefresh
                 )
             }
         }
     } else {
         LazyColumn(
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            contentPadding = PaddingValues(bottom = 16.dp)
         ) {
             items(chapters) { chapter ->
                 ChapterListItem(
                     chapter = chapter,
-                    onClick = { onChapterClick(chapter.path) }
+                    onClick = { onChapterClick(chapter.path) },
+                    onRefresh = onRefresh
                 )
             }
         }
@@ -191,7 +204,8 @@ fun ExplorerView(
 fun FlatView(
     images: List<ImageFile>,
     layoutMode: String,
-    onImageClick: (Int) -> Unit
+    onImageClick: (Int) -> Unit,
+    onRefresh: () -> Unit
 ) {
     if (images.isEmpty()) {
         EmptyImagesView()
@@ -208,127 +222,165 @@ fun FlatView(
             items(images.size) { index ->
                 ImageGridItem(
                     image = images[index],
-                    onClick = { onImageClick(index) }
+                    onClick = { onImageClick(index) },
+                    onRefresh = onRefresh
                 )
             }
         }
     } else {
         LazyColumn(
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(bottom = 16.dp)
         ) {
             items(images.size) { index ->
                 ImageListItem(
                     image = images[index],
                     onClick = { onImageClick(index) },
-                    onOptionClick = { /* Handle option click */ }
+                    onRefresh = onRefresh
                 )
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+// --- Components ---
+
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun ChapterGridItem(
     chapter: Chapter,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onRefresh: () -> Unit
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(0.75f),
-        onClick = onClick
-    ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            if (chapter.images.isNotEmpty()) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(chapter.images.first().uri)
-                        .size(600) // Optimization: Small thumbnail for chapter cover
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = chapter.displayName,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Default.Folder,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .size(64.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
+    val context = LocalContext.current
+    var showMenu by remember { mutableStateOf(false) }
+    val haptics = LocalHapticFeedback.current
 
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter),
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text(
-                        text = chapter.displayName,
-                        style = MaterialTheme.typography.titleSmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+    Box {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(0.75f)
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        showMenu = true
+                    }
+                )
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (chapter.images.isNotEmpty()) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(chapter.images.first().uri)
+                            .size(600)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = chapter.displayName,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
                     )
-                    Text(
-                        text = "${chapter.imageCount} images",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Folder,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .size(64.dp),
+                        tint = MaterialTheme.colorScheme.primary
                     )
+                }
+
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = chapter.displayName,
+                            style = MaterialTheme.typography.titleSmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "${chapter.imageCount} images",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }
+
+        ItemContextMenu(
+            expanded = showMenu,
+            onDismiss = { showMenu = false },
+            onShare = { /* Sharing folder is complex, typically involves zipping. Skipped for now. */ },
+            onDelete = {
+                if (deleteItem(context, File(chapter.path))) {
+                    onRefresh()
+                }
+            },
+            isFolder = true
+        )
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChapterListItem(
     chapter: Chapter,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onRefresh: () -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick
-    ) {
+    val context = LocalContext.current
+    var showMenu by remember { mutableStateOf(false) }
+
+    Column {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (chapter.images.isNotEmpty()) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(chapter.images.first().uri)
-                        .size(300) // Optimization: Small thumbnail
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = chapter.displayName,
-                    modifier = Modifier.size(80.dp),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Default.Folder,
-                    contentDescription = null,
-                    modifier = Modifier.size(80.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
+            // Thumbnail
+            Card(
+                shape = MaterialTheme.shapes.extraSmall,
+                modifier = Modifier.size(48.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                if (chapter.images.isNotEmpty()) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(chapter.images.first().uri)
+                            .size(200)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Folder,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.width(16.dp))
 
+            // Text
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = chapter.displayName,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 2,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(4.dp))
@@ -338,84 +390,246 @@ fun ChapterListItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-        }
-    }
-}
 
-@Composable
-fun ImageGridItem(
-    image: ImageFile,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(0.7f)
-            .clickable(onClick = onClick)
-    ) {
-        // OPTIMIZATION: Load small thumbnail for grid
-        AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current)
-                .data(image.uri)
-                .size(600) // Critical for performance in Flat View
-                .crossfade(true)
-                .build(),
-            contentDescription = image.name,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
+            // Menu
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "Options",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                ItemContextMenu(
+                    expanded = showMenu,
+                    onDismiss = { showMenu = false },
+                    onShare = {},
+                    onDelete = {
+                        if (deleteItem(context, File(chapter.path))) {
+                            onRefresh()
+                        }
+                    },
+                    isFolder = true
+                )
+            }
+        }
+        HorizontalDivider(
+            modifier = Modifier.padding(start = 80.dp),
+            thickness = 0.5.dp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
         )
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ImageListItem(
+fun ImageGridItem(
     image: ImageFile,
-    index: Int,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onRefresh: () -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick
-    ) {
-        Row(
+    val context = LocalContext.current
+    var showMenu by remember { mutableStateOf(false) }
+    val haptics = LocalHapticFeedback.current
+
+    Box {
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .aspectRatio(0.7f)
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        showMenu = true
+                    }
+                )
         ) {
-            // OPTIMIZATION: Load small thumbnail for list
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(image.uri)
-                    .size(300)
+                    .size(600)
                     .crossfade(true)
                     .build(),
                 contentDescription = image.name,
-                modifier = Modifier.size(100.dp),
+                modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column {
-                Text(
-                    text = "Image #$index",
-                    style = MaterialTheme.typography.titleSmall
-                )
-                Text(
-                    text = image.name,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
         }
+
+        ItemContextMenu(
+            expanded = showMenu,
+            onDismiss = { showMenu = false },
+            onShare = { shareItem(context, image.uri) },
+            onDelete = {
+                if (deleteItem(context, File(image.path))) {
+                    onRefresh()
+                }
+            }
+        )
     }
 }
 
-// ... ViewModeDialog and Empty views remain the same ...
+@Composable
+fun ImageListItem(
+    image: ImageFile,
+    onClick: () -> Unit,
+    onRefresh: () -> Unit
+) {
+    val context = LocalContext.current
+    var showMenu by remember { mutableStateOf(false) }
+
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Thumbnail
+            Card(
+                shape = MaterialTheme.shapes.extraSmall,
+                modifier = Modifier.size(48.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.LightGray)
+            ) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(image.uri)
+                        .size(200)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            // Details
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = image.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "${formatFileSize(image.size)} | ${formatDate(image.dateModified)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Menu
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "Options",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                ItemContextMenu(
+                    expanded = showMenu,
+                    onDismiss = { showMenu = false },
+                    onShare = { shareItem(context, image.uri) },
+                    onDelete = {
+                        if (deleteItem(context, File(image.path))) {
+                            onRefresh()
+                        }
+                    }
+                )
+            }
+        }
+        HorizontalDivider(
+            modifier = Modifier.padding(start = 80.dp),
+            thickness = 0.5.dp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+        )
+    }
+}
+
+@Composable
+fun ItemContextMenu(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    onShare: () -> Unit,
+    onDelete: () -> Unit,
+    isFolder: Boolean = false
+) {
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss
+    ) {
+        if (!isFolder) {
+            DropdownMenuItem(
+                text = { Text("Share") },
+                leadingIcon = { Icon(Icons.Default.Share, null) },
+                onClick = {
+                    onDismiss()
+                    onShare()
+                }
+            )
+        }
+        DropdownMenuItem(
+            text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+            leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
+            onClick = {
+                onDismiss()
+                onDelete()
+            }
+        )
+    }
+}
+
+// --- Helpers ---
+
+private fun shareItem(context: Context, uri: Uri) {
+    try {
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "image/*"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(shareIntent, "Share Image"))
+    } catch (e: Exception) {
+        Toast.makeText(context, "Failed to share: ${e.message}", Toast.LENGTH_SHORT).show()
+    }
+}
+
+private fun deleteItem(context: Context, file: File): Boolean {
+    return try {
+        val deleted = if (file.isDirectory) file.deleteRecursively() else file.delete()
+        if (deleted) {
+            Toast.makeText(context, "Item deleted", Toast.LENGTH_SHORT).show()
+            true
+        } else {
+            Toast.makeText(context, "Failed to delete item", Toast.LENGTH_SHORT).show()
+            false
+        }
+    } catch (e: Exception) {
+        Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+        false
+    }
+}
+
+private fun formatFileSize(bytes: Long): String {
+    if (bytes <= 0) return "0 B"
+    val units = arrayOf("B", "KB", "MB", "GB", "TB")
+    val digitGroups = (Math.log10(bytes.toDouble()) / Math.log10(1024.0)).toInt()
+    return String.format("%.1f %s", bytes / Math.pow(1024.0, digitGroups.toDouble()), units[digitGroups])
+}
+
+private fun formatDate(timestamp: Long): String {
+    if (timestamp == 0L) return "Unknown Date"
+    val sdf = SimpleDateFormat("d MMM yyyy", Locale.getDefault())
+    return sdf.format(Date(timestamp))
+}
+
+// ... Keep existing ViewModeDialog, EmptyChaptersView, EmptyImagesView ...
 @Composable
 fun ViewModeDialog(
     currentMode: String,
@@ -452,7 +666,6 @@ fun ViewModeDialog(
     )
 }
 
-// ... Keep ViewModeOption, EmptyChaptersView, EmptyImagesView from original file ...
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ViewModeOption(

@@ -10,6 +10,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "pixchive_prefs")
@@ -34,19 +35,21 @@ class PreferencesManager(private val context: Context) {
     }
 
     // Get folders
+    // FIX: Added distinctUntilChanged to prevent rescanning on layout changes
+    // FIX: Added explicit <ComicFolder> type to emptyList() to solve compilation errors
     val foldersFlow: Flow<List<ComicFolder>> = context.dataStore.data.map { preferences ->
         val json = preferences[FOLDERS_KEY] ?: ""
         if (json.isEmpty()) {
-            emptyList()
+            emptyList<ComicFolder>()
         } else {
             try {
                 val type = object : TypeToken<List<ComicFolder>>() {}.type
-                gson.fromJson(json, type)
+                gson.fromJson<List<ComicFolder>>(json, type) ?: emptyList<ComicFolder>()
             } catch (e: Exception) {
-                emptyList()
+                emptyList<ComicFolder>()
             }
         }
-    }
+    }.distinctUntilChanged()
 
     // Save view mode
     suspend fun saveViewMode(mode: String) {
@@ -57,7 +60,7 @@ class PreferencesManager(private val context: Context) {
 
     val viewModeFlow: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[VIEW_MODE_KEY] ?: "explorer"
-    }
+    }.distinctUntilChanged()
 
     // Save layout mode
     suspend fun saveLayoutMode(mode: String) {
@@ -68,7 +71,7 @@ class PreferencesManager(private val context: Context) {
 
     val layoutModeFlow: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[LAYOUT_MODE_KEY] ?: "grid"
-    }
+    }.distinctUntilChanged()
 
     // Show Hidden Files
     suspend fun setShowHiddenFiles(show: Boolean) {
@@ -79,5 +82,5 @@ class PreferencesManager(private val context: Context) {
 
     val showHiddenFilesFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[SHOW_HIDDEN_FILES_KEY] ?: false
-    }
+    }.distinctUntilChanged()
 }

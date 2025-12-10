@@ -24,6 +24,11 @@ class PreferencesManager(private val context: Context) {
         private val FOLDERS_KEY = stringPreferencesKey("comic_folders")
         private val VIEW_MODE_KEY = stringPreferencesKey("view_mode")
         private val LAYOUT_MODE_KEY = stringPreferencesKey("layout_mode")
+
+        // New Keys for Home Screen
+        private val HOME_LAYOUT_MODE_KEY = stringPreferencesKey("home_layout_mode")
+        private val HOME_SORT_OPTION_KEY = stringPreferencesKey("home_sort_option")
+
         private val SHOW_HIDDEN_FILES_KEY = booleanPreferencesKey("show_hidden_files")
         private val IGNORED_PATHS_KEY = stringSetPreferencesKey("ignored_paths")
     }
@@ -51,7 +56,7 @@ class PreferencesManager(private val context: Context) {
         }
     }.distinctUntilChanged()
 
-    // Save view mode
+    // Save view mode (Folder Screen)
     suspend fun saveViewMode(mode: String) {
         context.dataStore.edit { preferences ->
             preferences[VIEW_MODE_KEY] = mode
@@ -62,7 +67,7 @@ class PreferencesManager(private val context: Context) {
         preferences[VIEW_MODE_KEY] ?: "explorer"
     }.distinctUntilChanged()
 
-    // Save layout mode
+    // Save layout mode (Folder Screen)
     suspend fun saveLayoutMode(mode: String) {
         context.dataStore.edit { preferences ->
             preferences[LAYOUT_MODE_KEY] = mode
@@ -72,6 +77,32 @@ class PreferencesManager(private val context: Context) {
     val layoutModeFlow: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[LAYOUT_MODE_KEY] ?: "grid"
     }.distinctUntilChanged()
+
+    // --- Home Screen Preferences ---
+
+    // Save Home Layout Mode
+    suspend fun saveHomeLayoutMode(mode: String) {
+        context.dataStore.edit { preferences ->
+            preferences[HOME_LAYOUT_MODE_KEY] = mode
+        }
+    }
+
+    val homeLayoutModeFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[HOME_LAYOUT_MODE_KEY] ?: "list"
+    }.distinctUntilChanged()
+
+    // Save Home Sort Option
+    suspend fun saveHomeSortOption(option: String) {
+        context.dataStore.edit { preferences ->
+            preferences[HOME_SORT_OPTION_KEY] = option
+        }
+    }
+
+    val homeSortOptionFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[HOME_SORT_OPTION_KEY] ?: "date_newest"
+    }.distinctUntilChanged()
+
+    // --- End Home Screen Preferences ---
 
     // Show Hidden Files
     suspend fun setShowHiddenFiles(show: Boolean) {

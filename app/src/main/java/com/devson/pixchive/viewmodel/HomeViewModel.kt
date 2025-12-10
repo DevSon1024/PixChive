@@ -8,9 +8,12 @@ import com.devson.pixchive.data.ComicFolder
 import com.devson.pixchive.data.PreferencesManager
 import com.devson.pixchive.utils.FolderScanner
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -18,8 +21,25 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val preferencesManager = PreferencesManager(application)
 
-    private val _folders = MutableStateFlow<List<ComicFolder>>(emptyList())
-    val folders: StateFlow<List<ComicFolder>> = _folders.asStateFlow()
+    // Layout Mode (grid/list)
+    private val _layoutMode = MutableStateFlow("list")
+    val layoutMode: StateFlow<String> = _layoutMode.asStateFlow()
+
+    // Sort Option
+    private val _sortOption = MutableStateFlow("date_newest")
+    val sortOption: StateFlow<String> = _sortOption.asStateFlow()
+
+    // Folders are now derived from the data store + sort option
+    val folders: StateFlow<List<ComicFolder>> = combine(
+        preferencesManager.foldersFlow,
+        _sortOption
+    ) { folderList, sortOption ->
+        sortFolders(folderList, sortOption)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -28,14 +48,38 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
     init {
-        loadFolders()
+        loadPreferences()
     }
 
-    private fun loadFolders() {
+    private fun loadPreferences() {
         viewModelScope.launch {
-            preferencesManager.foldersFlow.collect { folderList ->
-                _folders.value = folderList
-            }
+            _layoutMode.value = preferencesManager.homeLayoutModeFlow.first()
+            _sortOption.value = preferencesManager.homeSortOptionFlow.first()
+        }
+    }
+
+    private fun sortFolders(folders: List<ComicFolder>, option: String): List<ComicFolder> {
+        return when (option) {
+            "name_asc" -> folders.sortedBy { it.displayName.lowercase() }
+            "name_desc" -> folders.sortedByDescending { it.displayName.lowercase() }
+            "date_newest" -> folders.sortedByDescending { it.dateAdded }
+            "date_oldest" -> folders.sortedBy { it.dateAdded }
+            else -> folders.sortedByDescending { it.dateAdded }
+        }
+    }
+
+    fun toggleLayoutMode() {
+        viewModelScope.launch {
+            val newMode = if (_layoutMode.value == "grid") "list" else "grid"
+            _layoutMode.value = newMode
+            preferencesManager.saveHomeLayoutMode(newMode)
+        }
+    }
+
+    fun setSortOption(option: String) {
+        viewModelScope.launch {
+            _sortOption.value = option
+            preferencesManager.saveHomeSortOption(option)
         }
     }
 
@@ -66,7 +110,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     imageCount = cachedData.allImagePaths.size
                 )
 
-                val updatedFolders = _folders.value + newFolder
+                // We get the current raw list from preferences to append
+                val currentFolders = preferencesManager.foldersFlow.first()
+                val updatedFolders = currentFolders + newFolder
                 preferencesManager.saveFolders(updatedFolders)
 
             } catch (e: Exception) {
@@ -82,7 +128,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             val cache = com.devson.pixchive.data.FolderCache(getApplication())
             cache.clearCache(folderId)
 
-            val updatedFolders = _folders.value.filter { it.id != folderId }
+            val currentFolders = preferencesManager.foldersFlow.first()
+            val updatedFolders = currentFolders.filter { it.id != folderId }
             preferencesManager.saveFolders(updatedFolders)
         }
     }

@@ -6,19 +6,30 @@ import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -46,13 +57,15 @@ fun HomeScreen(
     val folders by viewModel.folders.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val layoutMode by viewModel.layoutMode.collectAsState()
+    val currentSortOption by viewModel.sortOption.collectAsState()
 
-    // FIX: Explicitly specify <PermissionState> type so it can hold Granted/Denied/etc.
     var permissionState by remember { mutableStateOf<PermissionState>(PermissionState.NotRequested) }
     var showRationaleDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
+    var showSortMenu by remember { mutableStateOf(false) }
 
-    // Check permission on resume (important for All Files Access return)
+    // Check permission on resume
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -67,7 +80,7 @@ fun HomeScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    // 1. Folder Picker Launcher
+    // Permission Launchers
     val folderPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree(),
         onResult = { uri ->
@@ -86,7 +99,6 @@ fun HomeScreen(
         }
     )
 
-    // 2. Legacy Permission Launcher (Android 10 and below)
     val legacyPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted: Boolean ->
@@ -103,7 +115,6 @@ fun HomeScreen(
         }
     )
 
-    // 3. All Files Access Launcher (Android 11+)
     val allFilesAccessLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) {
@@ -111,23 +122,18 @@ fun HomeScreen(
             permissionState = PermissionState.Granted
             folderPickerLauncher.launch(null)
         } else {
-            // User returned without granting permission
             showSettingsDialog = true
         }
     }
 
-    // Main Logic: Request Permission or Open Picker
     val requestPermissionAndOpenPicker: () -> Unit = {
         if (PermissionHelper.hasStoragePermission(context)) {
             permissionState = PermissionState.Granted
             folderPickerLauncher.launch(null)
         } else {
-            // Permission needed
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                // Android 11+: Show rationale first because "All Files Access" is a scary screen
                 showRationaleDialog = true
             } else {
-                // Android 10-: Standard flow
                 if (activity != null && PermissionHelper.shouldShowRationale(activity)) {
                     showRationaleDialog = true
                 } else {
@@ -149,6 +155,80 @@ fun HomeScreen(
             TopAppBar(
                 title = { Text("PixChive") },
                 actions = {
+                    // Sort Menu
+                    Box {
+                        IconButton(onClick = { showSortMenu = true }) {
+                            Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Sort")
+                        }
+                        DropdownMenu(
+                            expanded = showSortMenu,
+                            onDismissRequest = { showSortMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Date (Newest First)") },
+                                onClick = {
+                                    viewModel.setSortOption("date_newest")
+                                    showSortMenu = false
+                                },
+                                leadingIcon = {
+                                    if (currentSortOption == "date_newest") {
+                                        Icon(Icons.Default.Check, null)
+                                    }
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Date (Oldest First)") },
+                                onClick = {
+                                    viewModel.setSortOption("date_oldest")
+                                    showSortMenu = false
+                                },
+                                leadingIcon = {
+                                    if (currentSortOption == "date_oldest") {
+                                        Icon(Icons.Default.Check, null)
+                                    }
+                                }
+                            )
+                            HorizontalDivider()
+                            DropdownMenuItem(
+                                text = { Text("Name (A-Z)") },
+                                onClick = {
+                                    viewModel.setSortOption("name_asc")
+                                    showSortMenu = false
+                                },
+                                leadingIcon = {
+                                    if (currentSortOption == "name_asc") {
+                                        Icon(Icons.Default.Check, null)
+                                    }
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Name (Z-A)") },
+                                onClick = {
+                                    viewModel.setSortOption("name_desc")
+                                    showSortMenu = false
+                                },
+                                leadingIcon = {
+                                    if (currentSortOption == "name_desc") {
+                                        Icon(Icons.Default.Check, null)
+                                    }
+                                }
+                            )
+                        }
+                    }
+
+                    // Layout Toggle
+                    IconButton(onClick = { viewModel.toggleLayoutMode() }) {
+                        Icon(
+                            imageVector = if (layoutMode == "grid") {
+                                Icons.AutoMirrored.Filled.ViewList
+                            } else {
+                                Icons.Default.GridView
+                            },
+                            contentDescription = "Toggle Layout"
+                        )
+                    }
+
+                    // Settings
                     IconButton(onClick = onSettingsClick) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
@@ -185,11 +265,19 @@ fun HomeScreen(
                     EmptyStateContent()
                 }
                 else -> {
-                    FolderListContent(
-                        folders = folders,
-                        onDeleteFolder = { folderId -> viewModel.removeFolder(folderId) },
-                        onFolderClick = onFolderClick
-                    )
+                    if (layoutMode == "grid") {
+                        FolderGridContent(
+                            folders = folders,
+                            onDeleteFolder = { viewModel.removeFolder(it) },
+                            onFolderClick = onFolderClick
+                        )
+                    } else {
+                        FolderListContent(
+                            folders = folders,
+                            onDeleteFolder = { viewModel.removeFolder(it) },
+                            onFolderClick = onFolderClick
+                        )
+                    }
                 }
             }
         }
@@ -219,7 +307,6 @@ fun HomeScreen(
                 onOpenSettings = {
                     showSettingsDialog = false
                     try {
-                        // Use the correct settings intent based on version
                         context.startActivity(PermissionHelper.getStoragePermissionSettingsIntent(context))
                     } catch (e: Exception) {
                         Toast.makeText(context, "Could not open settings", Toast.LENGTH_SHORT).show()
@@ -244,6 +331,29 @@ fun FolderListContent(
     ) {
         items(folders, key = { it.id }) { folder ->
             FolderCard(
+                folder = folder,
+                onDelete = { onDeleteFolder(folder.id) },
+                onClick = { onFolderClick(folder.id) }
+            )
+        }
+    }
+}
+
+@Composable
+fun FolderGridContent(
+    folders: List<ComicFolder>,
+    onDeleteFolder: (String) -> Unit,
+    onFolderClick: (String) -> Unit
+) {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        contentPadding = PaddingValues(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        items(folders, key = { it.id }) { folder ->
+            FolderGridItem(
                 folder = folder,
                 onDelete = { onDeleteFolder(folder.id) },
                 onClick = { onFolderClick(folder.id) }
@@ -300,6 +410,84 @@ fun FolderCard(
                     tint = MaterialTheme.colorScheme.error
                 )
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun FolderGridItem(
+    folder: ComicFolder,
+    onDelete: () -> Unit,
+    onClick: () -> Unit
+) {
+    val haptics = LocalHapticFeedback.current
+    var showMenu by remember { mutableStateOf(false) }
+
+    Box {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f) // Square card
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        showMenu = true
+                    }
+                )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Folder,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = folder.displayName,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = "${folder.imageCount} imgs",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+
+        // Context Menu for Grid Item
+        DropdownMenu(
+            expanded = showMenu,
+            onDismissRequest = { showMenu = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text("Delete Folder", color = MaterialTheme.colorScheme.error) },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                },
+                onClick = {
+                    showMenu = false
+                    onDelete()
+                }
+            )
         }
     }
 }

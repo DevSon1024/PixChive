@@ -198,7 +198,8 @@ object FolderScanner {
         return Comparator { a, b -> compareNatural(a.name, b.name) }
     }
 
-    private fun compareNatural(s1: String, s2: String): Int {
+    // CHANGE: Made public (removed 'private')
+    fun compareNatural(s1: String, s2: String): Int {
         val regex = Regex("(\\d+)|(\\D+)")
         val s1Parts = regex.findAll(s1).map { it.value }.toList()
         val s2Parts = regex.findAll(s2).map { it.value }.toList()

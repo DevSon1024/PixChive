@@ -14,8 +14,11 @@ import com.devson.pixchive.utils.FolderScanner
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.stateIn
 
 class FolderViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -25,11 +28,22 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     private val _currentFolder = MutableStateFlow<ComicFolder?>(null)
     val currentFolder: StateFlow<ComicFolder?> = _currentFolder.asStateFlow()
 
-    private val _chapters = MutableStateFlow<List<Chapter>>(emptyList())
-    val chapters: StateFlow<List<Chapter>> = _chapters.asStateFlow()
+    // Raw chapters from scanner
+    private val _rawChapters = MutableStateFlow<List<Chapter>>(emptyList())
 
-    private val _allImages = MutableStateFlow<List<ImageFile>>(emptyList())
-    val allImages: StateFlow<List<ImageFile>> = _allImages.asStateFlow()
+    // Sort Option
+    private val _sortOption = MutableStateFlow("name_asc")
+    val sortOption: StateFlow<String> = _sortOption.asStateFlow()
+
+    // Sorted Chapters (Exposed to UI)
+    val chapters: StateFlow<List<Chapter>> = combine(_rawChapters, _sortOption) { raw, sort ->
+        sortChapters(raw, sort)
+    }.stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(), emptyList())
+
+    // All images (derived from sorted chapters)
+    val allImages: StateFlow<List<ImageFile>> = chapters.map { chapterList ->
+        chapterList.flatMap { it.images }
+    }.stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(), emptyList())
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -39,6 +53,9 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _layoutMode = MutableStateFlow("grid")
     val layoutMode: StateFlow<String> = _layoutMode.asStateFlow()
+
+    private val _gridColumns = MutableStateFlow(3)
+    val gridColumns: StateFlow<Int> = _gridColumns.asStateFlow()
 
     companion object {
         private const val TAG = "FolderViewModel"
@@ -52,7 +69,22 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             _viewMode.value = preferencesManager.viewModeFlow.first()
             _layoutMode.value = preferencesManager.layoutModeFlow.first()
+            _gridColumns.value = preferencesManager.folderGridColumnsFlow.first()
+            _sortOption.value = preferencesManager.folderSortOptionFlow.first()
         }
+    }
+
+    private fun sortChapters(chapters: List<Chapter>, option: String): List<Chapter> {
+        return when (option) {
+            "name_asc" -> chapters.sortedWith(naturalOrderChapterComparator())
+            "name_desc" -> chapters.sortedWith(naturalOrderChapterComparator()).reversed()
+            "date_newest" -> chapters // Date sorting logic would require chapter modification date, usually same as name for chapters
+            else -> chapters.sortedWith(naturalOrderChapterComparator())
+        }
+    }
+
+    private fun naturalOrderChapterComparator(): Comparator<Chapter> {
+        return Comparator { a, b -> FolderScanner.compareNatural(a.name, b.name) }
     }
 
     fun loadFolder(folderId: String, forceRescan: Boolean = false) {
@@ -65,8 +97,7 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
 
             if (_currentFolder.value?.id != folderId) {
                 _currentFolder.value = null
-                _chapters.value = emptyList()
-                _allImages.value = emptyList()
+                _rawChapters.value = emptyList()
             }
 
             try {
@@ -96,10 +127,7 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
                         !ignoredPaths.contains(chapter.path)
                     }
 
-                    _chapters.value = filteredChapters
-
-                    // REBUILD allImages from filtered chapters
-                    _allImages.value = filteredChapters.flatMap { it.images }
+                    _rawChapters.value = filteredChapters
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading folder", e)
@@ -112,15 +140,8 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
 
     fun removeFolder(path: String) {
         viewModelScope.launch {
-            // 1. INSTANT UI UPDATE: Remove from current list immediately
-            // This ensures the item disappears before the background DB work finishes
-            val updatedChapters = _chapters.value.filter { it.path != path }
-            _chapters.value = updatedChapters
-
-            // Also update flat view images instantly
-            _allImages.value = updatedChapters.flatMap { it.images }
-
-            // 2. Persist to Database (Background)
+            val updatedChapters = _rawChapters.value.filter { it.path != path }
+            _rawChapters.value = updatedChapters
             preferencesManager.addIgnoredPath(path)
         }
     }
@@ -137,16 +158,30 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun toggleLayoutMode() {
+    fun setLayoutMode(mode: String) {
         viewModelScope.launch {
-            val newMode = if (_layoutMode.value == "grid") "list" else "grid"
-            _layoutMode.value = newMode
-            preferencesManager.saveLayoutMode(newMode)
+            _layoutMode.value = mode
+            preferencesManager.saveLayoutMode(mode)
         }
     }
 
-    fun getChapterImages(chapterPath: String): List<ImageFile> {
-        val images = _chapters.value.find { it.path == chapterPath }?.images ?: emptyList()
-        return images
+    fun setGridColumns(columns: Int) {
+        viewModelScope.launch {
+            _gridColumns.value = columns
+            preferencesManager.saveFolderGridColumns(columns)
+        }
+    }
+
+    fun setSortOption(option: String) {
+        viewModelScope.launch {
+            _sortOption.value = option
+            preferencesManager.saveFolderSortOption(option)
+        }
+    }
+
+    // Toggle function not needed for DisplayOptionsSheet but kept for backward compatibility if any
+    fun toggleLayoutMode() {
+        val newMode = if (_layoutMode.value == "grid") "list" else "grid"
+        setLayoutMode(newMode)
     }
 }

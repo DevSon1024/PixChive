@@ -15,14 +15,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Sort
-import androidx.compose.material.icons.automirrored.filled.ViewList
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,6 +24,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -38,6 +32,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.pixchive.data.ComicFolder
+import com.devson.pixchive.ui.components.DisplayOptionsSheet
 import com.devson.pixchive.ui.components.PermissionDeniedDialog
 import com.devson.pixchive.ui.components.PermissionRationaleDialog
 import com.devson.pixchive.utils.PermissionHelper
@@ -57,13 +52,18 @@ fun HomeScreen(
     val folders by viewModel.folders.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+
+    // UI State from ViewModel
     val layoutMode by viewModel.layoutMode.collectAsState()
-    val currentSortOption by viewModel.sortOption.collectAsState()
+    val sortOption by viewModel.sortOption.collectAsState()
+    val gridColumns by viewModel.gridColumns.collectAsState()
 
     var permissionState by remember { mutableStateOf<PermissionState>(PermissionState.NotRequested) }
     var showRationaleDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
-    var showSortMenu by remember { mutableStateOf(false) }
+
+    // Display Options Sheet
+    var showDisplayOptions by remember { mutableStateOf(false) }
 
     // Check permission on resume
     DisposableEffect(lifecycleOwner) {
@@ -155,77 +155,9 @@ fun HomeScreen(
             TopAppBar(
                 title = { Text("PixChive") },
                 actions = {
-                    // Sort Menu
-                    Box {
-                        IconButton(onClick = { showSortMenu = true }) {
-                            Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Sort")
-                        }
-                        DropdownMenu(
-                            expanded = showSortMenu,
-                            onDismissRequest = { showSortMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Date (Newest First)") },
-                                onClick = {
-                                    viewModel.setSortOption("date_newest")
-                                    showSortMenu = false
-                                },
-                                leadingIcon = {
-                                    if (currentSortOption == "date_newest") {
-                                        Icon(Icons.Default.Check, null)
-                                    }
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Date (Oldest First)") },
-                                onClick = {
-                                    viewModel.setSortOption("date_oldest")
-                                    showSortMenu = false
-                                },
-                                leadingIcon = {
-                                    if (currentSortOption == "date_oldest") {
-                                        Icon(Icons.Default.Check, null)
-                                    }
-                                }
-                            )
-                            HorizontalDivider()
-                            DropdownMenuItem(
-                                text = { Text("Name (A-Z)") },
-                                onClick = {
-                                    viewModel.setSortOption("name_asc")
-                                    showSortMenu = false
-                                },
-                                leadingIcon = {
-                                    if (currentSortOption == "name_asc") {
-                                        Icon(Icons.Default.Check, null)
-                                    }
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Name (Z-A)") },
-                                onClick = {
-                                    viewModel.setSortOption("name_desc")
-                                    showSortMenu = false
-                                },
-                                leadingIcon = {
-                                    if (currentSortOption == "name_desc") {
-                                        Icon(Icons.Default.Check, null)
-                                    }
-                                }
-                            )
-                        }
-                    }
-
-                    // Layout Toggle
-                    IconButton(onClick = { viewModel.toggleLayoutMode() }) {
-                        Icon(
-                            imageVector = if (layoutMode == "grid") {
-                                Icons.AutoMirrored.Filled.ViewList
-                            } else {
-                                Icons.Default.GridView
-                            },
-                            contentDescription = "Toggle Layout"
-                        )
+                    // Display Options (Replacing Sort/Layout icons)
+                    IconButton(onClick = { showDisplayOptions = true }) {
+                        Icon(Icons.Default.Tune, contentDescription = "Display Options")
                     }
 
                     // Settings
@@ -268,6 +200,7 @@ fun HomeScreen(
                     if (layoutMode == "grid") {
                         FolderGridContent(
                             folders = folders,
+                            columns = gridColumns, // Dynamic columns
                             onDeleteFolder = { viewModel.removeFolder(it) },
                             onFolderClick = onFolderClick
                         )
@@ -280,6 +213,20 @@ fun HomeScreen(
                     }
                 }
             }
+        }
+
+        // Display Options Sheet
+        if (showDisplayOptions) {
+            DisplayOptionsSheet(
+                onDismiss = { showDisplayOptions = false },
+                viewMode = null, // Home screen doesn't have view mode (Explorer/Flat)
+                layoutMode = layoutMode,
+                gridColumns = gridColumns,
+                sortOption = sortOption,
+                onLayoutModeChange = { viewModel.setLayoutMode(it) },
+                onGridColumnsChange = { viewModel.setGridColumns(it) },
+                onSortOptionChange = { viewModel.setSortOption(it) }
+            )
         }
 
         // Dialogs
@@ -342,11 +289,12 @@ fun FolderListContent(
 @Composable
 fun FolderGridContent(
     folders: List<ComicFolder>,
+    columns: Int,
     onDeleteFolder: (String) -> Unit,
     onFolderClick: (String) -> Unit
 ) {
     LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
+        columns = GridCells.Fixed(columns), // Using dynamic columns
         contentPadding = PaddingValues(16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -361,6 +309,8 @@ fun FolderGridContent(
         }
     }
 }
+
+// ... FolderCard, FolderGridItem, EmptyStateContent (Keep existing or copy from previous response if needed) ...
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -440,18 +390,18 @@ fun FolderGridItem(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp),
+                    .padding(8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Folder,
                     contentDescription = null,
-                    modifier = Modifier.size(64.dp),
+                    modifier = Modifier.size(48.dp), // Slightly smaller icon for dense grids
                     tint = MaterialTheme.colorScheme.primary
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
                     text = folder.displayName,
@@ -461,7 +411,7 @@ fun FolderGridItem(
                     textAlign = TextAlign.Center
                 )
                 Text(
-                    text = "${folder.imageCount} imgs",
+                    text = "${folder.imageCount}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center

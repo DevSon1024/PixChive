@@ -1,12 +1,9 @@
 package com.devson.pixchive.ui.screens
 
-import android.content.Context
-import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -15,26 +12,22 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ViewList
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.devson.pixchive.data.ImageFile
+import com.devson.pixchive.ui.components.DisplayOptionsSheet
+import com.devson.pixchive.ui.components.ImageGridItem
 import com.devson.pixchive.viewmodel.FolderViewModel
 import java.io.File
 import java.text.SimpleDateFormat
@@ -64,9 +57,14 @@ fun ChapterViewScreen(
     onImageClick: (Int) -> Unit,
     viewModel: FolderViewModel = viewModel()
 ) {
+    // State from ViewModel
     val layoutMode by viewModel.layoutMode.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val chapters by viewModel.chapters.collectAsState()
+    val gridColumns by viewModel.gridColumns.collectAsState()
+
+    // Local UI State
+    var showDisplayOptions by remember { mutableStateOf(false) }
 
     val chapterImages = remember(chapters, chapterPath) {
         val found = chapters.find { chapter ->
@@ -104,14 +102,11 @@ fun ChapterViewScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.toggleLayoutMode() }) {
+                    // Display Options Button
+                    IconButton(onClick = { showDisplayOptions = true }) {
                         Icon(
-                            imageVector = if (layoutMode == "grid") {
-                                Icons.AutoMirrored.Filled.ViewList
-                            } else {
-                                Icons.Default.GridView
-                            },
-                            contentDescription = "Toggle Layout"
+                            imageVector = Icons.Default.Tune,
+                            contentDescription = "Display Options"
                         )
                     }
                 }
@@ -136,6 +131,7 @@ fun ChapterViewScreen(
                     if (layoutMode == "grid") {
                         ChapterImageGridView(
                             images = chapterImages,
+                            columns = gridColumns, // Dynamic columns
                             onImageClick = onImageClick,
                             onRefresh = onRefresh
                         )
@@ -149,68 +145,42 @@ fun ChapterViewScreen(
                 }
             }
         }
+
+        // Display Options Sheet
+        if (showDisplayOptions) {
+            DisplayOptionsSheet(
+                onDismiss = { showDisplayOptions = false },
+                viewMode = null, // Chapters are just images, no sub-view mode
+                layoutMode = layoutMode,
+                gridColumns = gridColumns,
+                sortOption = null, // Hide sort options for chapter images (usually just filename order is desired)
+                onLayoutModeChange = { viewModel.setLayoutMode(it) },
+                onGridColumnsChange = { viewModel.setGridColumns(it) }
+            )
+        }
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ChapterImageGridView(
     images: List<ImageFile>,
+    columns: Int,
     onImageClick: (Int) -> Unit,
     onRefresh: () -> Unit
 ) {
-    val context = LocalContext.current
-    val haptics = LocalHapticFeedback.current
-
-    // State for context menu
-    var showMenu by remember { mutableStateOf(false) }
-    var selectedImage by remember { mutableStateOf<ImageFile?>(null) }
-
     LazyVerticalGrid(
-        columns = GridCells.Fixed(3),
+        columns = GridCells.Fixed(columns),
         contentPadding = PaddingValues(8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         itemsIndexed(images) { index, image ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(0.7f)
-                    .combinedClickable(
-                        onClick = { onImageClick(index) },
-                        onLongClick = {
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            selectedImage = image
-                            showMenu = true
-                        }
-                    )
-            ) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(image.uri)
-                        .size(600)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = image.name,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            }
+            ImageGridItem(
+                image = image,
+                onClick = { onImageClick(index) },
+                onRefresh = onRefresh
+            )
         }
-    }
-
-    if (showMenu && selectedImage != null) {
-        ChapterItemContextMenu(
-            expanded = showMenu,
-            onDismiss = { showMenu = false },
-            onShare = { shareFile(context, selectedImage!!.uri) },
-            onDelete = {
-                if (deleteFile(context, File(selectedImage!!.path))) {
-                    onRefresh()
-                }
-            }
-        )
     }
 }
 
@@ -377,21 +347,23 @@ fun EmptyChapterImagesView(
 }
 
 // --- Helpers ---
+// Duplicated here for ChapterList specifically or can be sharedUtils
+// shareFile and deleteFile logic is identical to ImageGridItem, kept for list items
 
-private fun shareFile(context: Context, uri: Uri) {
+private fun shareFile(context: android.content.Context, uri: Uri) {
     try {
-        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+        val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
             type = "image/*"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            putExtra(android.content.Intent.EXTRA_STREAM, uri)
+            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        context.startActivity(Intent.createChooser(shareIntent, "Share Image"))
+        context.startActivity(android.content.Intent.createChooser(shareIntent, "Share Image"))
     } catch (e: Exception) {
         Toast.makeText(context, "Failed to share: ${e.message}", Toast.LENGTH_SHORT).show()
     }
 }
 
-private fun deleteFile(context: Context, file: File): Boolean {
+private fun deleteFile(context: android.content.Context, file: File): Boolean {
     return try {
         val deleted = file.delete()
         if (deleted) {

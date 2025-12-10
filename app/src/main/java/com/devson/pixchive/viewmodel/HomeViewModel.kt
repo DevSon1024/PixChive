@@ -25,6 +25,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _layoutMode = MutableStateFlow("list")
     val layoutMode: StateFlow<String> = _layoutMode.asStateFlow()
 
+    // Grid Columns
+    private val _gridColumns = MutableStateFlow(2)
+    val gridColumns: StateFlow<Int> = _gridColumns.asStateFlow()
+
     // Sort Option
     private val _sortOption = MutableStateFlow("date_newest")
     val sortOption: StateFlow<String> = _sortOption.asStateFlow()
@@ -55,6 +59,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _layoutMode.value = preferencesManager.homeLayoutModeFlow.first()
             _sortOption.value = preferencesManager.homeSortOptionFlow.first()
+            _gridColumns.value = preferencesManager.homeGridColumnsFlow.first()
         }
     }
 
@@ -68,11 +73,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun toggleLayoutMode() {
+    fun setLayoutMode(mode: String) {
         viewModelScope.launch {
-            val newMode = if (_layoutMode.value == "grid") "list" else "grid"
-            _layoutMode.value = newMode
-            preferencesManager.saveHomeLayoutMode(newMode)
+            _layoutMode.value = mode
+            preferencesManager.saveHomeLayoutMode(mode)
         }
     }
 
@@ -80,6 +84,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _sortOption.value = option
             preferencesManager.saveHomeSortOption(option)
+        }
+    }
+
+    fun setGridColumns(columns: Int) {
+        viewModelScope.launch {
+            _gridColumns.value = columns
+            preferencesManager.saveHomeGridColumns(columns)
         }
     }
 
@@ -107,7 +118,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     uri = uri.toString(),
                     path = uri.path ?: "",
                     chapterCount = cachedData.chapters.size,
-                    imageCount = cachedData.allImagePaths.size
+                    imageCount = cachedData.allImagePaths.size,
+                    dateAdded = System.currentTimeMillis()
                 )
 
                 // We get the current raw list from preferences to append

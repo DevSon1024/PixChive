@@ -2,8 +2,11 @@ package com.devson.pixchive.ui.reader
 
 import android.app.Activity
 import android.widget.Toast
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -15,13 +18,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -94,49 +93,23 @@ fun ReaderScreen(
 
     val isFavorite = currentImage?.uri.toString() in favorites
 
-    // Animation values
-    val uiAlpha by animateFloatAsState(
-        targetValue = if (showUI) 1f else 0f,
-        animationSpec = tween(300, easing = FastOutSlowInEasing),
-        label = "uiAlpha"
-    )
-
+    // KEY FIX: Only HIDE system bars. Never show them, even if showUI is true.
     LaunchedEffect(showUI) {
         activity?.window?.let { window ->
             val insets = WindowCompat.getInsetsController(window, view)
             insets.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            if (showUI) insets.show(WindowInsetsCompat.Type.systemBars())
-            else insets.hide(WindowInsetsCompat.Type.systemBars())
+            // Always hide, regardless of showUI state
+            insets.hide(WindowInsetsCompat.Type.systemBars())
         }
     }
 
     LaunchedEffect(folderId) { viewModel.loadFolder(folderId) }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
+        modifier = Modifier.fillMaxSize().background(Color.Black)
     ) {
         if (isLoading && chapterImages.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(
-                                Color(0xFF1A1A1A),
-                                Color.Black
-                            )
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(
-                    color = MaterialTheme.colorScheme.primary,
-                    strokeWidth = 3.dp,
-                    modifier = Modifier.size(48.dp)
-                )
-            }
+            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = Color.White)
         } else if (chapterImages.isNotEmpty()) {
             HorizontalPager(
                 state = pagerState,
@@ -152,7 +125,7 @@ fun ReaderScreen(
                                 .data(chapterImages.getOrNull(page)?.uri)
                                 .size(2048)
                                 .scale(Scale.FIT)
-                                .crossfade(true)
+                                .crossfade(false)
                                 .build(),
                             contentDescription = null,
                             modifier = Modifier
@@ -176,66 +149,15 @@ fun ReaderScreen(
                 }
             }
         } else if (!isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color(0xFF0D0D0D),
-                                Color.Black
-                            )
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PhotoLibrary,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.3f),
-                        modifier = Modifier.size(64.dp)
-                    )
-                    Text(
-                        "No images found",
-                        color = Color.White.copy(alpha = 0.6f),
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                }
-            }
+            Text("No images", Modifier.align(Alignment.Center), color = Color.White)
         }
 
-        // --- Enhanced UI Overlay ---
-
-        // Top gradient backdrop
-        AnimatedVisibility(
-            visible = showUI,
-            enter = fadeIn(tween(300)),
-            exit = fadeOut(tween(200)),
-            modifier = Modifier.align(Alignment.TopCenter)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(180.dp)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Black.copy(alpha = 0.7f),
-                                Color.Transparent
-                            )
-                        )
-                    )
-            )
-        }
+        // --- UI Overlay ---
 
         AnimatedVisibility(
             visible = showUI,
-            enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { -it / 2 },
-            exit = fadeOut(tween(200)) + slideOutVertically(tween(200)) { -it / 2 },
+            enter = fadeIn() + slideInVertically(),
+            exit = fadeOut() + slideOutVertically(),
             modifier = Modifier.align(Alignment.TopCenter)
         ) {
             ReaderTopBar(
@@ -252,63 +174,43 @@ fun ReaderScreen(
             )
         }
 
-        // --- Enhanced Bottom Controls ---
+        // --- Bottom Floating Controls ---
         AnimatedVisibility(
             visible = showUI,
-            enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { it / 2 },
-            exit = fadeOut(tween(200)) + slideOutVertically(tween(200)) { it / 2 },
+            enter = slideInVertically { it } + fadeIn(),
+            exit = slideOutVertically { it } + fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter)
         ) {
+            // Container for all bottom elements
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 24.dp, start = 20.dp, end = 20.dp)
+                    .padding(bottom = 32.dp, start = 16.dp, end = 16.dp)
             ) {
-                // Floating toggle button with pulse effect
-                val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-                val pulseScale by infiniteTransition.animateFloat(
-                    initialValue = 1f,
-                    targetValue = if (showBottomOptions) 1f else 1.08f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(1500, easing = FastOutSlowInEasing),
-                        repeatMode = RepeatMode.Reverse
-                    ),
-                    label = "pulseScale"
-                )
-
+                // Floating Arrow (Separate Pill)
                 Surface(
                     onClick = { showBottomOptions = !showBottomOptions },
                     shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier
-                        .size(52.dp)
-                        .scale(if (showBottomOptions) 1f else pulseScale)
-                        .padding(bottom = 12.dp),
-                    tonalElevation = 8.dp
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.9f),
+                    modifier = Modifier.size(40.dp).padding(bottom = 8.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            imageVector = if (showBottomOptions) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
-                            contentDescription = "Toggle Options",
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier
-                                .size(28.dp)
-                                .graphicsLayer {
-                                    rotationZ = if (showBottomOptions) 0f else 0f
-                                }
+                            imageVector = if (showBottomOptions) Icons.Default.ExpandMore else Icons.Default.ExpandLess,
+                            contentDescription = "Options",
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Enhanced floating panel with glassmorphism
+                // Floating "Dynamic" Panel
                 Surface(
-                    shape = RoundedCornerShape(28.dp),
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
-                    tonalElevation = 12.dp,
-                    shadowElevation = 8.dp,
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.95f),
+                    tonalElevation = 6.dp,
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable(
@@ -317,120 +219,78 @@ fun ReaderScreen(
                             onClick = {}
                         )
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .padding(20.dp)
-                    ) {
-                        // Animated options row
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        // Options Row
                         AnimatedVisibility(
                             visible = showBottomOptions,
-                            enter = expandVertically(tween(300, easing = FastOutSlowInEasing)) + fadeIn(tween(300)),
-                            exit = shrinkVertically(tween(200, easing = FastOutSlowInEasing)) + fadeOut(tween(200))
+                            enter = androidx.compose.animation.expandVertically(),
+                            exit = androidx.compose.animation.shrinkVertically()
                         ) {
-                            Column {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 20.dp),
-                                    horizontalArrangement = Arrangement.SpaceEvenly
-                                ) {
-                                    EnhancedReaderActionButton(
-                                        icon = Icons.Default.RotateRight,
-                                        label = "Rotate",
-                                        onClick = {
-                                            val currentRot = rotationStates[pagerState.currentPage] ?: 0f
-                                            rotationStates[pagerState.currentPage] = currentRot + 90f
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 16.dp),
+                                horizontalArrangement = Arrangement.SpaceEvenly
+                            ) {
+                                ReaderActionButton(
+                                    icon = Icons.Default.RotateRight,
+                                    label = "ROTATE",
+                                    onClick = {
+                                        val currentRot = rotationStates[pagerState.currentPage] ?: 0f
+                                        rotationStates[pagerState.currentPage] = currentRot + 90f
+                                    }
+                                )
+                                ReaderActionButton(
+                                    icon = when (readingMode) {
+                                        "fill" -> Icons.Default.CropSquare
+                                        "original" -> Icons.Default.PhotoSizeSelectActual
+                                        else -> Icons.Default.FitScreen
+                                    },
+                                    label = readingMode.uppercase(),
+                                    onClick = {
+                                        readingMode = when (readingMode) {
+                                            "fit" -> "fill"
+                                            "fill" -> "original"
+                                            else -> "fit"
                                         }
-                                    )
-                                    EnhancedReaderActionButton(
-                                        icon = when (readingMode) {
-                                            "fill" -> Icons.Default.CropSquare
-                                            "original" -> Icons.Default.PhotoSizeSelectActual
-                                            else -> Icons.Default.FitScreen
-                                        },
-                                        label = when (readingMode) {
-                                            "fill" -> "Fill"
-                                            "original" -> "Original"
-                                            else -> "Fit"
-                                        },
-                                        onClick = {
-                                            readingMode = when (readingMode) {
-                                                "fit" -> "fill"
-                                                "fill" -> "original"
-                                                else -> "fit"
-                                            }
-                                        }
-                                    )
-                                    EnhancedReaderActionButton(
-                                        icon = Icons.Default.Share,
-                                        label = "Share",
-                                        onClick = {
-                                            currentImage?.let { image ->
-                                                try {
-                                                    val file = File(image.path)
-                                                    val uri = FileProvider.getUriForFile(
-                                                        context,
-                                                        "${context.packageName}.provider",
-                                                        file
-                                                    )
-                                                    val shareIntent = android.content.Intent(
-                                                        android.content.Intent.ACTION_SEND
-                                                    ).apply {
-                                                        type = "image/*"
-                                                        putExtra(android.content.Intent.EXTRA_STREAM, uri)
-                                                        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                                    }
-                                                    context.startActivity(
-                                                        android.content.Intent.createChooser(
-                                                            shareIntent,
-                                                            "Share"
-                                                        )
-                                                    )
-                                                } catch (e: Exception) {
-                                                    Toast.makeText(
-                                                        context,
-                                                        "Error sharing",
-                                                        Toast.LENGTH_SHORT
-                                                    ).show()
+                                    }
+                                )
+                                ReaderActionButton(
+                                    icon = Icons.Default.Share,
+                                    label = "SHARE",
+                                    onClick = {
+                                        currentImage?.let { image ->
+                                            try {
+                                                val file = File(image.path)
+                                                val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+                                                val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                                    type = "image/*"
+                                                    putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                                                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                                 }
+                                                context.startActivity(android.content.Intent.createChooser(shareIntent, "Share"))
+                                            } catch (e: Exception) {
+                                                Toast.makeText(context, "Error sharing", Toast.LENGTH_SHORT).show()
                                             }
                                         }
-                                    )
-                                }
-
-                                // Divider
-                                HorizontalDivider(
-                                    modifier = Modifier.padding(vertical = 8.dp),
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                                    }
                                 )
                             }
                         }
 
-                        // Enhanced slider row
+                        // Slider Row
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                                modifier = Modifier.padding(end = 12.dp)
-                            ) {
-                                Text(
-                                    text = "${pagerState.currentPage + 1}",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                                )
-                            }
-
+                            Text(
+                                text = "${pagerState.currentPage + 1}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
                             Slider(
                                 value = pagerState.currentPage.toFloat(),
-                                onValueChange = {
-                                    scope.launch {
-                                        pagerState.scrollToPage(it.toInt())
-                                    }
-                                },
+                                onValueChange = { scope.launch { pagerState.scrollToPage(it.toInt()) } },
                                 valueRange = 0f..maxOf(0f, (chapterImages.size - 1).toFloat()),
                                 modifier = Modifier
                                     .weight(1f)
@@ -438,81 +298,18 @@ fun ReaderScreen(
                                 colors = SliderDefaults.colors(
                                     thumbColor = MaterialTheme.colorScheme.primary,
                                     activeTrackColor = MaterialTheme.colorScheme.primary,
-                                    inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                                    inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant
                                 )
                             )
-
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.secondaryContainer,
-                                modifier = Modifier.padding(start = 12.dp)
-                            ) {
-                                Text(
-                                    text = "${chapterImages.size}",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                                )
-                            }
+                            Text(
+                                text = "${chapterImages.size}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
                         }
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun EnhancedReaderActionButton(
-    icon: ImageVector,
-    label: String,
-    onClick: () -> Unit
-) {
-    var isPressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.9f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "buttonScale"
-    )
-
-    Surface(
-        onClick = {
-            isPressed = true
-            onClick()
-        },
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
-        modifier = Modifier
-            .scale(scale)
-            .defaultMinSize(minWidth = 80.dp)
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = label,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                style = MaterialTheme.typography.labelMedium
-            )
-        }
-    }
-
-    LaunchedEffect(isPressed) {
-        if (isPressed) {
-            kotlinx.coroutines.delay(100)
-            isPressed = false
         }
     }
 }

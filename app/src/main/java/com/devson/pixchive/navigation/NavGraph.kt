@@ -22,6 +22,7 @@ fun NavGraph(
     navController: NavHostController,
     startDestination: String = Screen.Home.route
 ) {
+    // Shared ViewModel for all Folder/Reader/Favorites screens
     val folderViewModel: FolderViewModel = viewModel()
 
     NavHost(
@@ -42,13 +43,15 @@ fun NavGraph(
             )
         }
 
+        // Favorites Route - Now uses shared folderViewModel
         composable("favorites") {
             FavoritesScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onImageClick = { _, index ->
-                    // For now, favorites in reader is tricky without a dedicated folder structure.
-                    // This is a placeholder or you can pass a special "favorites" ID to reader.
-                }
+                onImageClick = { index ->
+                    // Pass "favorites" as ID so Reader knows what to load
+                    navController.navigate(Screen.ImageViewer.createRoute("favorites", "flat_view", index))
+                },
+                viewModel = folderViewModel // PASS SHARED VIEWMODEL HERE
             )
         }
 

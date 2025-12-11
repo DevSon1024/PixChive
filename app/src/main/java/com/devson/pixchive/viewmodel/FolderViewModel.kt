@@ -11,14 +11,18 @@ import com.devson.pixchive.data.FolderCache
 import com.devson.pixchive.data.ImageFile
 import com.devson.pixchive.data.PreferencesManager
 import com.devson.pixchive.utils.FolderScanner
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 
 class FolderViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -28,19 +32,14 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     private val _currentFolder = MutableStateFlow<ComicFolder?>(null)
     val currentFolder: StateFlow<ComicFolder?> = _currentFolder.asStateFlow()
 
-    // Raw chapters from scanner
     private val _rawChapters = MutableStateFlow<List<Chapter>>(emptyList())
-
-    // Sort Option
     private val _sortOption = MutableStateFlow("name_asc")
     val sortOption: StateFlow<String> = _sortOption.asStateFlow()
 
-    // Sorted Chapters (Exposed to UI)
     val chapters: StateFlow<List<Chapter>> = combine(_rawChapters, _sortOption) { raw, sort ->
         sortChapters(raw, sort)
     }.stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(), emptyList())
 
-    // All images (derived from sorted chapters)
     val allImages: StateFlow<List<ImageFile>> = chapters.map { chapterList ->
         chapterList.flatMap { it.images }
     }.stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(), emptyList())
@@ -57,9 +56,8 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     private val _gridColumns = MutableStateFlow(3)
     val gridColumns: StateFlow<Int> = _gridColumns.asStateFlow()
 
-    companion object {
-        private const val TAG = "FolderViewModel"
-    }
+    // Job to track the live favorites query
+    private var favoritesJob: Job? = null
 
     init {
         loadPreferences()
@@ -78,7 +76,6 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
         return when (option) {
             "name_asc" -> chapters.sortedWith(naturalOrderChapterComparator())
             "name_desc" -> chapters.sortedWith(naturalOrderChapterComparator()).reversed()
-            "date_newest" -> chapters // Date sorting logic would require chapter modification date, usually same as name for chapters
             else -> chapters.sortedWith(naturalOrderChapterComparator())
         }
     }
@@ -88,6 +85,15 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun loadFolder(folderId: String, forceRescan: Boolean = false) {
+        if (folderId == "favorites") {
+            loadFavorites()
+            return
+        }
+
+        // Cancel favorites observation if switching to a normal folder
+        favoritesJob?.cancel()
+        favoritesJob = null
+
         if (_currentFolder.value?.id == folderId && !forceRescan) {
             return
         }
@@ -95,6 +101,7 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             _isLoading.value = true
 
+            // Clear previous data
             if (_currentFolder.value?.id != folderId) {
                 _currentFolder.value = null
                 _rawChapters.value = emptyList()
@@ -119,10 +126,7 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
                         showHidden
                     )
 
-                    // Convert cached data to live objects
                     val allChapters = FolderScanner.cachedDataToChapters(getApplication(), cachedData)
-
-                    // FILTER: Exclude ignored chapters
                     val filteredChapters = allChapters.filter { chapter ->
                         !ignoredPaths.contains(chapter.path)
                     }
@@ -130,9 +134,49 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
                     _rawChapters.value = filteredChapters
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error loading folder", e)
                 e.printStackTrace()
             } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    private fun loadFavorites() {
+        // If already observing favorites, don't restart
+        if (favoritesJob?.isActive == true) return
+
+        favoritesJob = viewModelScope.launch {
+            _isLoading.value = true
+            _currentFolder.value = ComicFolder("favorites", "Favorites", "", "", 0, 0, 0)
+
+            // Live observation of favorites
+            preferencesManager.favoritesFlow.collect { favoriteUris ->
+                val images = withContext(Dispatchers.IO) {
+                    favoriteUris.mapNotNull { uriString ->
+                        try {
+                            val uri = Uri.parse(uriString)
+                            val file = File(uri.path ?: "")
+                            ImageFile(
+                                name = file.name,
+                                path = file.absolutePath,
+                                uri = uri,
+                                size = file.length(),
+                                dateModified = file.lastModified()
+                            )
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }.sortedByDescending { it.dateModified }
+                }
+
+                val favoritesChapter = Chapter(
+                    name = "All Favorites",
+                    path = "favorites_root",
+                    imageCount = images.size,
+                    images = images
+                )
+
+                _rawChapters.value = listOf(favoritesChapter)
                 _isLoading.value = false
             }
         }
@@ -147,8 +191,14 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun refreshFolder(folderId: String) {
-        folderCache.clearCache(folderId)
-        loadFolder(folderId, forceRescan = true)
+        if (folderId == "favorites") {
+            // Re-trigger flow collection if needed, but usually flow handles it
+            favoritesJob?.cancel()
+            loadFavorites()
+        } else {
+            folderCache.clearCache(folderId)
+            loadFolder(folderId, forceRescan = true)
+        }
     }
 
     fun setViewMode(mode: String) {
@@ -177,11 +227,5 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
             _sortOption.value = option
             preferencesManager.saveFolderSortOption(option)
         }
-    }
-
-    // Toggle function not needed for DisplayOptionsSheet but kept for backward compatibility if any
-    fun toggleLayoutMode() {
-        val newMode = if (_layoutMode.value == "grid") "list" else "grid"
-        setLayoutMode(newMode)
     }
 }

@@ -95,11 +95,6 @@ fun VerticalFastScroller(
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
                         )
-                        // Grip dots
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Box(Modifier.size(4.dp).background(MaterialTheme.colorScheme.onSurfaceVariant, CircleShape))
-                            Box(Modifier.size(4.dp).background(MaterialTheme.colorScheme.onSurfaceVariant, CircleShape))
-                        }
                         Icon(
                             imageVector = Icons.Default.ArrowDropDown,
                             contentDescription = null,

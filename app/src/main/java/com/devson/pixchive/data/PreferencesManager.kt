@@ -23,20 +23,37 @@ class PreferencesManager(private val context: Context) {
 
     companion object {
         private val FOLDERS_KEY = stringPreferencesKey("comic_folders")
+        private val FAVORITES_KEY = stringSetPreferencesKey("favorite_images") // NEW
 
         // Folder Screen Prefs
         private val VIEW_MODE_KEY = stringPreferencesKey("view_mode")
         private val LAYOUT_MODE_KEY = stringPreferencesKey("layout_mode")
-        private val FOLDER_GRID_COLUMNS_KEY = intPreferencesKey("folder_grid_columns") // NEW
-        private val FOLDER_SORT_OPTION_KEY = stringPreferencesKey("folder_sort_option") // NEW
+        private val FOLDER_GRID_COLUMNS_KEY = intPreferencesKey("folder_grid_columns")
+        private val FOLDER_SORT_OPTION_KEY = stringPreferencesKey("folder_sort_option")
 
         // Home Screen Prefs
         private val HOME_LAYOUT_MODE_KEY = stringPreferencesKey("home_layout_mode")
         private val HOME_SORT_OPTION_KEY = stringPreferencesKey("home_sort_option")
-        private val HOME_GRID_COLUMNS_KEY = intPreferencesKey("home_grid_columns") // NEW
+        private val HOME_GRID_COLUMNS_KEY = intPreferencesKey("home_grid_columns")
 
         private val SHOW_HIDDEN_FILES_KEY = booleanPreferencesKey("show_hidden_files")
         private val IGNORED_PATHS_KEY = stringSetPreferencesKey("ignored_paths")
+    }
+
+    // --- Favorites ---
+    val favoritesFlow: Flow<Set<String>> = context.dataStore.data.map { preferences ->
+        preferences[FAVORITES_KEY] ?: emptySet()
+    }.distinctUntilChanged()
+
+    suspend fun toggleFavorite(uri: String) {
+        context.dataStore.edit { preferences ->
+            val current = preferences[FAVORITES_KEY] ?: emptySet()
+            if (current.contains(uri)) {
+                preferences[FAVORITES_KEY] = current - uri
+            } else {
+                preferences[FAVORITES_KEY] = current + uri
+            }
+        }
     }
 
     // --- Common / Folders Data ---

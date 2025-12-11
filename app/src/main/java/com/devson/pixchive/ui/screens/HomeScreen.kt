@@ -24,7 +24,6 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -43,7 +42,8 @@ import com.devson.pixchive.viewmodel.HomeViewModel
 fun HomeScreen(
     viewModel: HomeViewModel = viewModel(),
     onFolderClick: (String) -> Unit = { _ -> },
-    onSettingsClick: () -> Unit = {}
+    onSettingsClick: () -> Unit = {},
+    onFavoritesClick: () -> Unit = {} // Added callback
 ) {
     val context = LocalContext.current
     val activity = context as? Activity
@@ -53,7 +53,6 @@ fun HomeScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
-    // UI State from ViewModel
     val layoutMode by viewModel.layoutMode.collectAsState()
     val sortOption by viewModel.sortOption.collectAsState()
     val gridColumns by viewModel.gridColumns.collectAsState()
@@ -61,35 +60,25 @@ fun HomeScreen(
     var permissionState by remember { mutableStateOf<PermissionState>(PermissionState.NotRequested) }
     var showRationaleDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
-
-    // Display Options Sheet
     var showDisplayOptions by remember { mutableStateOf(false) }
 
-    // Check permission on resume
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                permissionState = if (PermissionHelper.hasStoragePermission(context)) {
-                    PermissionState.Granted
-                } else {
-                    PermissionState.NotRequested
-                }
+                permissionState = if (PermissionHelper.hasStoragePermission(context)) PermissionState.Granted else PermissionState.NotRequested
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    // Permission Launchers
     val folderPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree(),
         onResult = { uri ->
             uri?.let {
                 try {
-                    val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                            Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                    val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                     context.contentResolver.takePersistableUriPermission(it, takeFlags)
-
                     val folderName = it.lastPathSegment?.substringAfterLast(':') ?: "Unknown Folder"
                     viewModel.addFolder(it, folderName)
                 } catch (e: Exception) {
@@ -106,24 +95,17 @@ fun HomeScreen(
                 permissionState = PermissionState.Granted
                 folderPickerLauncher.launch(null)
             } else {
-                if (activity != null && PermissionHelper.shouldShowRationale(activity)) {
-                    showRationaleDialog = true
-                } else {
-                    showSettingsDialog = true
-                }
+                if (activity != null && PermissionHelper.shouldShowRationale(activity)) showRationaleDialog = true
+                else showSettingsDialog = true
             }
         }
     )
 
-    val allFilesAccessLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) {
+    val allFilesAccessLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.StartActivityForResult()) {
         if (PermissionHelper.hasStoragePermission(context)) {
             permissionState = PermissionState.Granted
             folderPickerLauncher.launch(null)
-        } else {
-            showSettingsDialog = true
-        }
+        } else showSettingsDialog = true
     }
 
     val requestPermissionAndOpenPicker: () -> Unit = {
@@ -131,14 +113,10 @@ fun HomeScreen(
             permissionState = PermissionState.Granted
             folderPickerLauncher.launch(null)
         } else {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                showRationaleDialog = true
-            } else {
-                if (activity != null && PermissionHelper.shouldShowRationale(activity)) {
-                    showRationaleDialog = true
-                } else {
-                    legacyPermissionLauncher.launch(PermissionHelper.getLegacyStoragePermission())
-                }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) showRationaleDialog = true
+            else {
+                if (activity != null && PermissionHelper.shouldShowRationale(activity)) showRationaleDialog = true
+                else legacyPermissionLauncher.launch(PermissionHelper.getLegacyStoragePermission())
             }
         }
     }
@@ -155,12 +133,13 @@ fun HomeScreen(
             TopAppBar(
                 title = { Text("PixChive") },
                 actions = {
-                    // Display Options (Replacing Sort/Layout icons)
+                    // Favorites Shortcut
+                    IconButton(onClick = onFavoritesClick) {
+                        Icon(Icons.Default.Favorite, contentDescription = "Favorites", tint = MaterialTheme.colorScheme.error)
+                    }
                     IconButton(onClick = { showDisplayOptions = true }) {
                         Icon(Icons.Default.Tune, contentDescription = "Display Options")
                     }
-
-                    // Settings
                     IconButton(onClick = onSettingsClick) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
@@ -176,11 +155,7 @@ fun HomeScreen(
                 onClick = requestPermissionAndOpenPicker,
                 containerColor = MaterialTheme.colorScheme.primary
             ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Add Folder",
-                    modifier = Modifier.size(32.dp)
-                )
+                Icon(Icons.Default.Add, "Add Folder", Modifier.size(32.dp))
             }
         }
     ) { paddingValues ->
@@ -190,36 +165,22 @@ fun HomeScreen(
                 .padding(paddingValues)
         ) {
             when {
-                isLoading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                }
-                folders.isEmpty() -> {
-                    EmptyStateContent()
-                }
+                isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                folders.isEmpty() -> EmptyStateContent()
                 else -> {
                     if (layoutMode == "grid") {
-                        FolderGridContent(
-                            folders = folders,
-                            columns = gridColumns, // Dynamic columns
-                            onDeleteFolder = { viewModel.removeFolder(it) },
-                            onFolderClick = onFolderClick
-                        )
+                        FolderGridContent(folders, gridColumns, { viewModel.removeFolder(it) }, onFolderClick)
                     } else {
-                        FolderListContent(
-                            folders = folders,
-                            onDeleteFolder = { viewModel.removeFolder(it) },
-                            onFolderClick = onFolderClick
-                        )
+                        FolderListContent(folders, { viewModel.removeFolder(it) }, onFolderClick)
                     }
                 }
             }
         }
 
-        // Display Options Sheet
         if (showDisplayOptions) {
             DisplayOptionsSheet(
                 onDismiss = { showDisplayOptions = false },
-                viewMode = null, // Home screen doesn't have view mode (Explorer/Flat)
+                viewMode = null,
                 layoutMode = layoutMode,
                 gridColumns = gridColumns,
                 sortOption = sortOption,
@@ -229,7 +190,6 @@ fun HomeScreen(
             )
         }
 
-        // Dialogs
         if (showRationaleDialog) {
             PermissionRationaleDialog(
                 rationale = PermissionHelper.getPermissionRationale(),
@@ -266,207 +226,76 @@ fun HomeScreen(
 }
 
 @Composable
-fun FolderListContent(
-    folders: List<ComicFolder>,
-    onDeleteFolder: (String) -> Unit,
-    onFolderClick: (String) -> Unit
-) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
+fun FolderListContent(folders: List<ComicFolder>, onDeleteFolder: (String) -> Unit, onFolderClick: (String) -> Unit) {
+    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         items(folders, key = { it.id }) { folder ->
-            FolderCard(
-                folder = folder,
-                onDelete = { onDeleteFolder(folder.id) },
-                onClick = { onFolderClick(folder.id) }
-            )
+            FolderCard(folder, { onDeleteFolder(folder.id) }, { onFolderClick(folder.id) })
         }
     }
 }
 
 @Composable
-fun FolderGridContent(
-    folders: List<ComicFolder>,
-    columns: Int,
-    onDeleteFolder: (String) -> Unit,
-    onFolderClick: (String) -> Unit
-) {
+fun FolderGridContent(folders: List<ComicFolder>, columns: Int, onDeleteFolder: (String) -> Unit, onFolderClick: (String) -> Unit) {
     LazyVerticalGrid(
-        columns = GridCells.Fixed(columns), // Using dynamic columns
+        columns = GridCells.Fixed(columns),
         contentPadding = PaddingValues(16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize()
     ) {
         items(folders, key = { it.id }) { folder ->
-            FolderGridItem(
-                folder = folder,
-                onDelete = { onDeleteFolder(folder.id) },
-                onClick = { onFolderClick(folder.id) }
-            )
+            FolderGridItem(folder, { onDeleteFolder(folder.id) }, { onFolderClick(folder.id) })
         }
     }
 }
 
-// ... FolderCard, FolderGridItem, EmptyStateContent (Keep existing or copy from previous response if needed) ...
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FolderCard(
-    folder: ComicFolder,
-    onDelete: () -> Unit,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.Folder,
-                contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-
+fun FolderCard(folder: ComicFolder, onDelete: () -> Unit, onClick: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth(), onClick = onClick) {
+        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Folder, null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.width(16.dp))
-
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = folder.displayName,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Text(folder.displayName, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "${folder.chapterCount} chapters • ${folder.imageCount} images",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Text("${folder.chapterCount} chapters • ${folder.imageCount} images", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-
-            IconButton(onClick = onDelete) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete folder",
-                    tint = MaterialTheme.colorScheme.error
-                )
-            }
+            IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, "Delete", tint = MaterialTheme.colorScheme.error) }
         }
     }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun FolderGridItem(
-    folder: ComicFolder,
-    onDelete: () -> Unit,
-    onClick: () -> Unit
-) {
+fun FolderGridItem(folder: ComicFolder, onDelete: () -> Unit, onClick: () -> Unit) {
     val haptics = LocalHapticFeedback.current
     var showMenu by remember { mutableStateOf(false) }
 
     Box {
         Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f) // Square card
-                .combinedClickable(
-                    onClick = onClick,
-                    onLongClick = {
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        showMenu = true
-                    }
-                )
+            modifier = Modifier.fillMaxWidth().aspectRatio(1f).combinedClickable(onClick = onClick, onLongClick = { haptics.performHapticFeedback(HapticFeedbackType.LongPress); showMenu = true })
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Folder,
-                    contentDescription = null,
-                    modifier = Modifier.size(48.dp), // Slightly smaller icon for dense grids
-                    tint = MaterialTheme.colorScheme.primary
-                )
-
+            Column(modifier = Modifier.fillMaxSize().padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                Icon(Icons.Default.Folder, null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = folder.displayName,
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center
-                )
-                Text(
-                    text = "${folder.imageCount}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
+                Text(folder.displayName, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+                Text("${folder.imageCount}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
             }
         }
-
-        // Context Menu for Grid Item
-        DropdownMenu(
-            expanded = showMenu,
-            onDismissRequest = { showMenu = false }
-        ) {
-            DropdownMenuItem(
-                text = { Text("Delete Folder", color = MaterialTheme.colorScheme.error) },
-                leadingIcon = {
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                },
-                onClick = {
-                    showMenu = false
-                    onDelete()
-                }
-            )
+        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+            DropdownMenuItem(text = { Text("Delete", color = MaterialTheme.colorScheme.error) }, onClick = { showMenu = false; onDelete() }, leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) })
         }
     }
 }
 
 @Composable
 fun EmptyStateContent() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = "📚",
-            style = MaterialTheme.typography.displayLarge
-        )
+    Column(modifier = Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Text("📚", style = MaterialTheme.typography.displayLarge)
         Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "No Folders Added",
-            style = MaterialTheme.typography.headlineSmall,
-            textAlign = TextAlign.Center
-        )
+        Text("No Folders Added", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
         Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Tap the + button to add your comic folders",
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Text("Tap the + button to add your comic folders", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

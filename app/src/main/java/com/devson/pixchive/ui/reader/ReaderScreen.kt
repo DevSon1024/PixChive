@@ -1,14 +1,17 @@
 package com.devson.pixchive.ui.reader
 
 import android.app.Activity
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -16,16 +19,19 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.request.ImageRequest
+import coil.size.Scale
+import com.devson.pixchive.data.PreferencesManager
 import com.devson.pixchive.ui.reader.components.ReaderActionButton
 import com.devson.pixchive.ui.reader.components.ReaderTopBar
 import com.devson.pixchive.ui.reader.utils.urisMatch
@@ -35,8 +41,7 @@ import me.saket.telephoto.zoomable.coil.ZoomableAsyncImage
 import me.saket.telephoto.zoomable.rememberZoomableImageState
 import me.saket.telephoto.zoomable.rememberZoomableState
 import me.saket.telephoto.zoomable.ZoomSpec
-import coil.size.Size
-import coil.size.Scale
+import java.io.File
 
 @Composable
 fun ReaderScreen(
@@ -50,116 +55,73 @@ fun ReaderScreen(
     val activity = context as? Activity
     val view = LocalView.current
     val scope = rememberCoroutineScope()
+    val prefs = remember { PreferencesManager(context) }
 
     val isLoading by viewModel.isLoading.collectAsState()
     val chapters by viewModel.chapters.collectAsState()
-    val allImages by viewModel.allImages.collectAsState() // FIX: Collect allImages
+    val allImages by viewModel.allImages.collectAsState()
     val currentFolder by viewModel.currentFolder.collectAsState()
+    val favorites by prefs.favoritesFlow.collectAsState(initial = emptySet())
 
     val chapterImages = remember(chapters, allImages, chapterPath) {
-        if (chapterPath == "flat_view") {
-            // If in flat view, show ALL images from the folder
-            allImages
-        } else {
-            // Otherwise show only images from the specific chapter
-            chapters.find { chapter ->
-                urisMatch(chapter.path, chapterPath)
-            }?.images ?: emptyList()
-        }
+        if (chapterPath == "flat_view") allImages
+        else chapters.find { urisMatch(it.path, chapterPath) }?.images ?: emptyList()
     }
 
     val chapterName = remember(chapterPath, currentFolder) {
-        if (chapterPath == "flat_view") {
-            currentFolder?.name ?: "Flat View"
-        } else {
-            chapterPath.substringAfterLast("/").substringAfterLast(":")
-        }
+        if (chapterPath == "flat_view") currentFolder?.name ?: "Flat View"
+        else chapterPath.substringAfterLast("/").substringAfterLast(":")
     }
 
     var showUI by remember { mutableStateOf(true) }
     var showBottomOptions by remember { mutableStateOf(false) }
-    var showMoreMenu by remember { mutableStateOf(false) }
     var readingMode by remember { mutableStateOf("fit") }
+
+    // Per-image rotation state
+    val rotationStates = remember { mutableStateMapOf<Int, Float>() }
 
     val pagerState = rememberPagerState(
         initialPage = initialIndex.coerceIn(0, maxOf(0, chapterImages.size - 1)),
         pageCount = { chapterImages.size }
     )
-
-    val currentImage = if (chapterImages.isNotEmpty() && pagerState.currentPage < chapterImages.size) {
-        chapterImages[pagerState.currentPage]
-    } else null
+    val currentImage = if (chapterImages.isNotEmpty()) chapterImages[pagerState.currentPage] else null
+    val isFavorite = currentImage?.uri.toString() in favorites
 
     LaunchedEffect(showUI) {
         activity?.window?.let { window ->
-            val insetsController = WindowCompat.getInsetsController(window, view)
-            insetsController.systemBarsBehavior =
-                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-
-            if (showUI) {
-                insetsController.show(WindowInsetsCompat.Type.systemBars())
-            } else {
-                insetsController.hide(WindowInsetsCompat.Type.systemBars())
-            }
+            val insets = WindowCompat.getInsetsController(window, view)
+            insets.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            if (showUI) insets.show(WindowInsetsCompat.Type.systemBars())
+            else insets.hide(WindowInsetsCompat.Type.systemBars())
         }
     }
 
-    LaunchedEffect(folderId) {
-        viewModel.loadFolder(folderId)
-    }
+    LaunchedEffect(folderId) { viewModel.loadFolder(folderId) }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-//            .pointerInput(Unit) {
-//                detectTapGestures(
-//                    onTap = {
-//                        showUI = !showUI
-//                        if (!showUI) showBottomOptions = false
-//                    }
-//                )
-//            }
+        modifier = Modifier.fillMaxSize().background(Color.Black)
     ) {
-        when {
-            isLoading -> {
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center),
-                    color = Color.White
-                )
-            }
-            chapterImages.isEmpty() -> {
-                Text(
-                    text = "No images to display",
-                    modifier = Modifier.align(Alignment.Center),
-                    color = Color.White
-                )
-            }
-            else -> {
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.fillMaxSize()
-                ) { page ->
-                    val zoomableState = rememberZoomableState(
-                        zoomSpec = ZoomSpec(maxZoomFactor = 10f)
-                    )
+        if (isLoading) {
+            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = Color.White)
+        } else if (chapterImages.isNotEmpty()) {
+            HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
+                val rotation = rotationStates[page] ?: 0f
 
+                Box(modifier = Modifier.fillMaxSize()) {
+                    val zoomableState = rememberZoomableState(zoomSpec = ZoomSpec(maxZoomFactor = 5f))
                     ZoomableAsyncImage(
                         model = ImageRequest.Builder(context)
                             .data(chapterImages[page].uri)
-                            // FIX: Replace Size.ORIGINAL with a safe 4K limit
-                            // This prevents the "Canvas: trying to draw too large" crash
-                            // while maintaining very high quality (UHD).
-                            .size(4096)
+                            .size(2048)
                             .scale(Scale.FIT)
+                            .crossfade(false)
                             .build(),
-                        contentDescription = chapterImages[page].name,
-                        modifier = Modifier.fillMaxSize(),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer { rotationZ = rotation }, // Better rotation handling
                         state = rememberZoomableImageState(zoomableState),
-                        onClick = {
-                            showUI = !showUI
-                            if (!showUI) showBottomOptions = false
-                        },
+                        onClick = { showUI = !showUI; if (!showUI) showBottomOptions = false },
                         contentScale = when (readingMode) {
                             "fill" -> ContentScale.Crop
                             "original" -> ContentScale.None
@@ -168,61 +130,88 @@ fun ReaderScreen(
                     )
                 }
             }
+        } else {
+            Text("No images", Modifier.align(Alignment.Center), color = Color.White)
         }
 
-        androidx.compose.animation.AnimatedVisibility(
-            visible = showUI && chapterImages.isNotEmpty(),
+        // Top Bar
+        AnimatedVisibility(
+            visible = showUI,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically(),
             modifier = Modifier.align(Alignment.TopCenter)
         ) {
             ReaderTopBar(
                 chapterFolderName = chapterName,
-                currentImageName = currentImage?.name?.substringBeforeLast('.') ?: "",
-                showMoreMenu = showMoreMenu,
+                currentImageName = currentImage?.name ?: "",
+                showMoreMenu = false,
                 currentImage = currentImage,
                 onNavigateBack = onNavigateBack,
-                onMoreMenuToggle = { showMoreMenu = it }
+                onMoreMenuToggle = {},
+                isFavorite = isFavorite,
+                onToggleFavorite = {
+                    currentImage?.let { scope.launch { prefs.toggleFavorite(it.uri.toString()) } }
+                }
             )
         }
 
-        androidx.compose.animation.AnimatedVisibility(
-            visible = showUI && chapterImages.isNotEmpty(),
-            modifier = Modifier.align(Alignment.BottomCenter)
+        // Bottom Controls Container
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
         ) {
-            Column(
+            // 1. The Expand Arrow (Floating above the dark bar)
+            AnimatedVisibility(
+                visible = showUI,
+                enter = fadeIn(),
+                exit = fadeOut(),
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.85f))
+                    .align(Alignment.TopCenter)
+                    .offset(y = (-60).dp) // Float above the bottom controls
             ) {
-                Row(
+                IconButton(
+                    onClick = { showBottomOptions = !showBottomOptions },
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = if (showBottomOptions) Icons.Default.ExpandMore else Icons.Default.ExpandLess,
+                        contentDescription = "Options",
+                        tint = Color.White
+                    )
+                }
+            }
+
+            // 2. The Dark Bottom Bar (Slider + Options)
+            AnimatedVisibility(
+                visible = showUI,
+                enter = expandVertically(expandFrom = Alignment.Bottom) + fadeIn(),
+                exit = shrinkVertically(shrinkTowards = Alignment.Bottom) + fadeOut()
+            ) {
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.Center
+                        .background(Color.Black.copy(alpha = 0.85f))
+                        .padding(bottom = 16.dp)
                 ) {
-                    IconButton(
-                        onClick = { showBottomOptions = !showBottomOptions },
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (showBottomOptions) Icons.Default.ExpandMore else Icons.Default.ExpandLess,
-                            contentDescription = if (showBottomOptions) "Hide Options" else "Show Options",
-                            tint = Color.White.copy(alpha = 0.7f)
-                        )
-                    }
-                }
-
-                AnimatedVisibility(
-                    visible = showBottomOptions,
-                    enter = expandVertically(),
-                    exit = shrinkVertically()
-                ) {
-                    Column {
+                    // Extra Options (Hidden by default)
+                    AnimatedVisibility(visible = showBottomOptions) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 8.dp),
+                                .padding(vertical = 12.dp),
                             horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
+                            ReaderActionButton(
+                                icon = Icons.Default.RotateRight,
+                                label = "ROTATE",
+                                onClick = {
+                                    val currentRot = rotationStates[pagerState.currentPage] ?: 0f
+                                    rotationStates[pagerState.currentPage] = currentRot + 90f
+                                }
+                            )
                             ReaderActionButton(
                                 icon = when (readingMode) {
                                     "fill" -> Icons.Default.CropSquare
@@ -239,99 +228,43 @@ fun ReaderScreen(
                                 }
                             )
                             ReaderActionButton(
-                                icon = Icons.Default.RotateRight,
-                                label = "ROTATE",
-                                onClick = { /* TODO */ }
-                            )
-                            ReaderActionButton(
-                                icon = Icons.Default.Lock,
-                                label = "LOCK",
-                                onClick = { /* TODO */ }
-                            )
-                            ReaderActionButton(
-                                icon = Icons.Default.Settings,
-                                label = "SETTINGS",
-                                onClick = { /* TODO */ }
+                                icon = Icons.Default.Share,
+                                label = "SHARE",
+                                onClick = {
+                                    currentImage?.let { image ->
+                                        try {
+                                            val file = File(image.path)
+                                            val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+                                            val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                                type = "image/*"
+                                                putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                            }
+                                            context.startActivity(android.content.Intent.createChooser(shareIntent, "Share"))
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "Error sharing: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }
                             )
                         }
-                        Divider(color = Color.Gray.copy(alpha = 0.3f))
-                    }
-                }
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    IconButton(
-                        onClick = {
-                            if (pagerState.currentPage > 0) {
-                                scope.launch {
-                                    pagerState.animateScrollToPage(pagerState.currentPage - 1)
-                                }
-                            }
-                        },
-                        enabled = pagerState.currentPage > 0,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.SkipPrevious,
-                            contentDescription = "Previous",
-                            tint = if (pagerState.currentPage > 0) Color.White else Color.Gray,
-                            modifier = Modifier.size(20.dp)
-                        )
                     }
 
-                    Text(
-                        text = "${pagerState.currentPage + 1}",
-                        color = Color.White,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.width(32.dp)
-                    )
-
-                    Slider(
-                        value = pagerState.currentPage.toFloat(),
-                        onValueChange = { newValue ->
-                            scope.launch {
-                                pagerState.scrollToPage(newValue.toInt())
-                            }
-                        },
-                        valueRange = 0f..(chapterImages.size - 1).toFloat(),
-                        steps = if (chapterImages.size > 2) chapterImages.size - 2 else 0,
-                        modifier = Modifier.weight(1f),
-                        colors = SliderDefaults.colors(
-                            thumbColor = MaterialTheme.colorScheme.primary,
-                            activeTrackColor = MaterialTheme.colorScheme.primary,
-                            inactiveTrackColor = Color.Gray
-                        )
-                    )
-
-                    Text(
-                        text = "${chapterImages.size}",
-                        color = Color.White,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.width(32.dp)
-                    )
-
-                    IconButton(
-                        onClick = {
-                            if (pagerState.currentPage < chapterImages.size - 1) {
-                                scope.launch {
-                                    pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                                }
-                            }
-                        },
-                        enabled = pagerState.currentPage < chapterImages.size - 1,
-                        modifier = Modifier.size(36.dp)
+                    // Page Slider (Always in bottom bar)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            Icons.Default.SkipNext,
-                            contentDescription = "Next",
-                            tint = if (pagerState.currentPage < chapterImages.size - 1) Color.White else Color.Gray,
-                            modifier = Modifier.size(20.dp)
+                        Text("${pagerState.currentPage + 1}", color = Color.White)
+                        Slider(
+                            value = pagerState.currentPage.toFloat(),
+                            onValueChange = { scope.launch { pagerState.scrollToPage(it.toInt()) } },
+                            valueRange = 0f..(chapterImages.size - 1).toFloat(),
+                            modifier = Modifier.weight(1f)
                         )
+                        Text("${chapterImages.size}", color = Color.White)
                     }
                 }
             }

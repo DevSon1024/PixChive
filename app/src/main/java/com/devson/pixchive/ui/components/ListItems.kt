@@ -7,7 +7,9 @@ import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
@@ -22,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.devson.pixchive.data.Chapter
 import com.devson.pixchive.data.ImageFile
 import java.io.File
 import java.text.SimpleDateFormat
@@ -29,7 +32,71 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun ImageListItem(
+fun ChapterListItem(
+    chapter: Chapter,
+    onClick: () -> Unit,
+    onRemove: () -> Unit
+) {
+    var showMenu by remember { mutableStateOf(false) }
+
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Card(
+                shape = MaterialTheme.shapes.extraSmall,
+                modifier = Modifier.size(48.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                if (chapter.images.isNotEmpty()) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(chapter.images.first().uri)
+                            .size(200)
+                            .crossfade(false)
+                            .build(),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Folder, null, tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(chapter.displayName, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("${chapter.imageCount} images", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(Icons.Default.MoreVert, "Options", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Remove from list") },
+                        leadingIcon = { Icon(Icons.Default.Close, null) },
+                        onClick = { showMenu = false; onRemove() }
+                    )
+                }
+            }
+        }
+        HorizontalDivider(modifier = Modifier.padding(start = 80.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
+    }
+}
+
+@Composable
+fun ChapterImageListItem(
     image: ImageFile,
     onClick: () -> Unit,
     onRefresh: () -> Unit
@@ -65,15 +132,10 @@ fun ImageListItem(
             Spacer(modifier = Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = image.name,
-                    style = MaterialTheme.typography.bodyLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Text(image.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "${formatFileSize(image.size)} | ${formatDate(image.dateModified)}",
+                    text = "${formatSize(image.size)} | ${formatDateString(image.dateModified)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -81,48 +143,31 @@ fun ImageListItem(
 
             Box {
                 IconButton(onClick = { showMenu = true }) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Options",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Icon(Icons.Default.MoreVert, "Options", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false }
-                ) {
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                     DropdownMenuItem(
                         text = { Text("Share") },
                         leadingIcon = { Icon(Icons.Default.Share, null) },
-                        onClick = {
-                            showMenu = false
-                            shareItem(context, image)
-                        }
+                        onClick = { showMenu = false; shareFile(context, image) }
                     )
                     DropdownMenuItem(
                         text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
                         leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
                         onClick = {
                             showMenu = false
-                            if (deleteItem(context, File(image.path))) {
-                                onRefresh()
-                            }
+                            if (deleteFile(context, File(image.path))) onRefresh()
                         }
                     )
                 }
             }
         }
-        HorizontalDivider(
-            modifier = Modifier.padding(start = 80.dp),
-            thickness = 0.5.dp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
-        )
+        HorizontalDivider(modifier = Modifier.padding(start = 80.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
     }
 }
 
-// Helpers
-private fun shareItem(context: Context, image: ImageFile) {
+// Helpers for ListItems
+private fun shareFile(context: Context, image: ImageFile) {
     try {
         val file = File(image.path)
         val uri = FileProvider.getUriForFile(
@@ -138,28 +183,25 @@ private fun shareItem(context: Context, image: ImageFile) {
         }
         context.startActivity(Intent.createChooser(shareIntent, "Share Image"))
     } catch (e: Exception) {
-        e.printStackTrace()
         Toast.makeText(context, "Failed to share: ${e.message}", Toast.LENGTH_SHORT).show()
     }
 }
 
-private fun deleteItem(context: Context, file: File): Boolean {
+private fun deleteFile(context: Context, file: File): Boolean {
     return try {
-        val deleted = if (file.isDirectory) file.deleteRecursively() else file.delete()
-        if (deleted) {
-            Toast.makeText(context, "Item deleted", Toast.LENGTH_SHORT).show()
+        if (file.delete()) {
+            Toast.makeText(context, "Image deleted", Toast.LENGTH_SHORT).show()
             true
         } else {
-            Toast.makeText(context, "Failed to delete item", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Failed to delete image", Toast.LENGTH_SHORT).show()
             false
         }
     } catch (e: Exception) {
-        Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
         false
     }
 }
 
-private fun formatFileSize(bytes: Long): String {
+private fun formatSize(bytes: Long): String {
     if (bytes <= 0) return "0 B"
     val units = arrayOf("B", "KB", "MB", "GB", "TB")
     val digitGroups = (Math.log10(bytes.toDouble()) / Math.log10(1024.0)).toInt()
@@ -167,8 +209,8 @@ private fun formatFileSize(bytes: Long): String {
     return String.format("%.1f %s", bytes / Math.pow(1024.0, group.toDouble()), units[group])
 }
 
-private fun formatDate(timestamp: Long): String {
+private fun formatDateString(timestamp: Long): String {
     if (timestamp == 0L) return "Unknown Date"
-    val sdf = SimpleDateFormat("d MMM yyyy", Locale.getDefault())
+    val sdf = SimpleDateFormat("d MMMM", Locale.getDefault())
     return sdf.format(Date(timestamp))
 }

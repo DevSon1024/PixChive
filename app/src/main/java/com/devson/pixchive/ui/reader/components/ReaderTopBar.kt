@@ -15,7 +15,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import com.devson.pixchive.data.ImageFile
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -24,8 +26,10 @@ fun ReaderTopBar(
     currentImageName: String,
     showMoreMenu: Boolean,
     currentImage: ImageFile?,
+    isFavorite: Boolean = false,
     onNavigateBack: () -> Unit,
-    onMoreMenuToggle: (Boolean) -> Unit
+    onMoreMenuToggle: (Boolean) -> Unit,
+    onToggleFavorite: () -> Unit = {}
 ) {
     val context = LocalContext.current
     var showDetailsDialog by remember { mutableStateOf(false) }
@@ -38,7 +42,6 @@ fun ReaderTopBar(
         TopAppBar(
             title = {
                 Column {
-                    // Top line: Chapter folder name
                     Text(
                         text = chapterFolderName,
                         style = MaterialTheme.typography.titleMedium,
@@ -46,7 +49,6 @@ fun ReaderTopBar(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    // Bottom line: Current image name (without extension)
                     Text(
                         text = currentImageName,
                         style = MaterialTheme.typography.bodySmall,
@@ -58,105 +60,29 @@ fun ReaderTopBar(
             },
             navigationIcon = {
                 IconButton(onClick = onNavigateBack) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Color.White
-                    )
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White)
                 }
             },
             actions = {
-                // Image Details (Opens Dialog)
-                IconButton(onClick = {
-                    showDetailsDialog = true
-                    onMoreMenuToggle(false)
-                }) {
+                // Favorite Button
+                IconButton(onClick = onToggleFavorite) {
                     Icon(
-                        Icons.Default.Info,
-                        contentDescription = "Details",
-                        tint = Color.White
+                        imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = "Favorite",
+                        tint = if (isFavorite) Color.Red else Color.White
                     )
                 }
 
-                IconButton(onClick = { /* TODO: Bookmark */ }) {
-                    Icon(
-                        Icons.Default.BookmarkBorder,
-                        contentDescription = "Bookmark",
-                        tint = Color.White
-                    )
-                }
-
-                Box {
-                    IconButton(onClick = { onMoreMenuToggle(!showMoreMenu) }) {
-                        Icon(
-                            Icons.Default.MoreVert,
-                            contentDescription = "More",
-                            tint = Color.White
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = showMoreMenu,
-                        onDismissRequest = { onMoreMenuToggle(false) }
-                    ) {
-                        // Share
-                        DropdownMenuItem(
-                            text = { Text("Share Image") },
-                            leadingIcon = {
-                                Icon(Icons.Default.Share, contentDescription = null)
-                            },
-                            onClick = {
-                                currentImage?.let { shareImage(context, it) }
-                                onMoreMenuToggle(false)
-                            }
-                        )
-
-                        // Delete
-                        DropdownMenuItem(
-                            text = { Text("Delete Image", color = MaterialTheme.colorScheme.error) },
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Default.Delete,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.error
-                                )
-                            },
-                            onClick = {
-                                currentImage?.let { deleteImage(context, it) }
-                                onMoreMenuToggle(false)
-                            }
-                        )
-                    }
+                // Info Button
+                IconButton(onClick = { showDetailsDialog = true; onMoreMenuToggle(false) }) {
+                    Icon(Icons.Default.Info, "Details", tint = Color.White)
                 }
             },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = Color.Transparent
-            )
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
         )
     }
 
-    // Image Details Dialog
     if (showDetailsDialog && currentImage != null) {
-        ImageDetailsDialog(
-            image = currentImage,
-            onDismiss = { showDetailsDialog = false }
-        )
+        ImageDetailsDialog(image = currentImage, onDismiss = { showDetailsDialog = false })
     }
-}
-
-private fun shareImage(context: Context, image: ImageFile) {
-    try {
-        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-            type = "image/*"
-            putExtra(Intent.EXTRA_STREAM, image.uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-        context.startActivity(Intent.createChooser(shareIntent, "Share Image"))
-    } catch (e: Exception) {
-        Toast.makeText(context, "Failed to share image", Toast.LENGTH_SHORT).show()
-    }
-}
-
-private fun deleteImage(context: Context, image: ImageFile) {
-    // TODO: Implement delete with confirmation dialog
-    Toast.makeText(context, "Delete functionality coming soon", Toast.LENGTH_SHORT).show()
 }

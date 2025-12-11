@@ -11,6 +11,7 @@ import com.devson.pixchive.ui.screens.ChapterViewScreen
 import com.devson.pixchive.ui.screens.FolderViewScreen
 import com.devson.pixchive.ui.screens.HomeScreen
 import com.devson.pixchive.ui.screens.SettingsScreen
+import com.devson.pixchive.ui.screens.FavoritesScreen
 import com.devson.pixchive.ui.reader.ReaderScreen
 import com.devson.pixchive.viewmodel.FolderViewModel
 import java.net.URLDecoder
@@ -34,6 +35,19 @@ fun NavGraph(
                 },
                 onSettingsClick = {
                     navController.navigate(Screen.Settings.route)
+                },
+                onFavoritesClick = {
+                    navController.navigate("favorites")
+                }
+            )
+        }
+
+        composable("favorites") {
+            FavoritesScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onImageClick = { _, index ->
+                    // For now, favorites in reader is tricky without a dedicated folder structure.
+                    // This is a placeholder or you can pass a special "favorites" ID to reader.
                 }
             )
         }

@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.max
 
@@ -37,6 +38,7 @@ fun VerticalFastScroller(
 
         val scope = rememberCoroutineScope()
         var isDragging by remember { mutableStateOf(false) }
+        var isVisible by remember { mutableStateOf(false) }
 
         val firstVisibleItemIndex by remember { derivedStateOf { listState.firstVisibleItemIndex } }
         val totalItemsCount by remember { derivedStateOf { listState.layoutInfo.totalItemsCount } }
@@ -48,9 +50,20 @@ fun VerticalFastScroller(
             }
         }
 
-        // Fade out when not scrolling/dragging
+        // Logic to handle auto-hide with delay
+        LaunchedEffect(isDragging, listState.isScrollInProgress) {
+            if (isDragging || listState.isScrollInProgress) {
+                isVisible = true
+            } else {
+                // Wait for 3 seconds before hiding
+                delay(3000)
+                isVisible = false
+            }
+        }
+
+        // Fade out based on isVisible state
         val alpha by animateFloatAsState(
-            targetValue = if (isDragging || listState.isScrollInProgress) 1f else 0f,
+            targetValue = if (isVisible) 1f else 0f,
             animationSpec = tween(durationMillis = 300),
             label = "alpha"
         )
@@ -126,6 +139,3 @@ fun VerticalFastScroller(
         }
     }
 }
-
-// Helper shape
-val CircleShape = androidx.compose.foundation.shape.CircleShape

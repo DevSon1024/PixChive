@@ -23,7 +23,7 @@ class PreferencesManager(private val context: Context) {
 
     companion object {
         private val FOLDERS_KEY = stringPreferencesKey("comic_folders")
-        private val FAVORITES_KEY = stringSetPreferencesKey("favorite_images") // NEW
+        private val FAVORITES_KEY = stringSetPreferencesKey("favorite_images")
 
         // Folder Screen Prefs
         private val VIEW_MODE_KEY = stringPreferencesKey("view_mode")
@@ -36,8 +36,12 @@ class PreferencesManager(private val context: Context) {
         private val HOME_SORT_OPTION_KEY = stringPreferencesKey("home_sort_option")
         private val HOME_GRID_COLUMNS_KEY = intPreferencesKey("home_grid_columns")
 
+        // Global Settings
         private val SHOW_HIDDEN_FILES_KEY = booleanPreferencesKey("show_hidden_files")
         private val IGNORED_PATHS_KEY = stringSetPreferencesKey("ignored_paths")
+
+        // Theme Settings [ADDED]
+        private val APP_THEME_KEY = stringPreferencesKey("app_theme")
     }
 
     // --- Favorites ---
@@ -159,5 +163,16 @@ class PreferencesManager(private val context: Context) {
 
     val ignoredPathsFlow: Flow<Set<String>> = context.dataStore.data.map { preferences ->
         preferences[IGNORED_PATHS_KEY] ?: emptySet()
+    }.distinctUntilChanged()
+
+    // --- Theme Settings ---
+
+    suspend fun saveAppTheme(theme: String) {
+        context.dataStore.edit { preferences -> preferences[APP_THEME_KEY] = theme }
+    }
+
+    // Values: "system", "light", "dark"
+    val appThemeFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[APP_THEME_KEY] ?: "system"
     }.distinctUntilChanged()
 }

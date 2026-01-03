@@ -11,9 +11,18 @@ import java.io.File
 object FolderScanner {
 
     private const val TAG = "FolderScanner"
-    // OPTIMIZATION: Increased to 500 to reduce DB transaction overhead and Flow emissions
     private const val BATCH_SIZE = 500
     private val imageExtensions = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp")
+
+    // Define folders that should ALWAYS be ignored
+    private val ignoredDirNames = setOf(
+        ".thumbnails",
+        ".trash",
+        ".Trash",
+        "Trash",
+        "\$RECYCLE.BIN",
+        "lost+found"
+    )
 
     suspend fun scanAndInsert(
         folderUri: Uri,
@@ -77,6 +86,12 @@ object FolderScanner {
         val files = directory.listFiles() ?: return
 
         for (file in files) {
+            // 1. Check for specific ignored folders (Thumbnails, Trash)
+            if (file.isDirectory && isIgnoredDirectory(file.name)) {
+                continue
+            }
+
+            // 2. Handle Hidden Files setting (skip if hidden AND showHidden is false)
             if (!showHidden && file.name.startsWith(".")) {
                 continue
             }
@@ -87,6 +102,16 @@ object FolderScanner {
                 onImageFound(file)
             }
         }
+    }
+
+    private fun isIgnoredDirectory(name: String): Boolean {
+        // Exact matches
+        if (name in ignoredDirNames) return true
+
+        // Pattern matches (e.g., .Trash-1000)
+        if (name.startsWith(".trash", ignoreCase = true)) return true
+
+        return false
     }
 
     private fun getAbsolutePathFromSafUri(uri: Uri): String? {

@@ -53,6 +53,15 @@ android {
         }
     }
     buildTypes {
+        debug {
+            isMinifyEnabled = false
+            isDebuggable = true
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+            // Add this line for dynamic app name
+            resValue("string", "app_name", "PixChive Beta")
+        }
+
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -60,16 +69,13 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            resValue("string", "app_name", "PixChive")
             if (keystorePropertiesFile.exists()) {
                 signingConfig = signingConfigs.getByName("release")
             }
         }
-        debug {
-            isMinifyEnabled = false
-            isDebuggable = true
-            applicationIdSuffix = ".debug"
-        }
     }
+
 
     if (splitApks) {
         splits {
@@ -92,7 +98,7 @@ android {
     buildFeatures {
         compose = true
         viewBinding = true
-        resValues = false
+        resValues = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.8"
@@ -136,6 +142,9 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
+
+    implementation("androidx.core:core:1.12.0")
+    implementation("androidx.activity:activity-ktx:1.8.2")
 
     // ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")

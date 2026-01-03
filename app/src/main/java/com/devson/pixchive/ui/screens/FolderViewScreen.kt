@@ -1,6 +1,5 @@
 package com.devson.pixchive.ui.screens
 
-import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
@@ -34,7 +33,7 @@ import com.devson.pixchive.ui.components.ImageListItem
 import com.devson.pixchive.ui.components.ChapterListItem
 import com.devson.pixchive.ui.components.EmptyChaptersView
 import com.devson.pixchive.ui.components.EmptyImagesView
-import com.devson.pixchive.ui.components.VerticalFastScroller
+// import com.devson.pixchive.ui.components.VerticalFastScroller <-- REMOVED
 import com.devson.pixchive.viewmodel.FolderViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -110,17 +109,16 @@ fun ExplorerView(
 
     if (layoutMode == "grid") {
         val gridState = rememberLazyGridState()
-        VerticalFastScroller(listState = gridState) {
-            LazyVerticalGrid(
-                state = gridState,
-                columns = GridCells.Fixed(gridColumns),
-                contentPadding = PaddingValues(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(chapters) { chapter ->
-                    ChapterGridItem(chapter, gridColumns, { onChapterClick(chapter.path) }, { onRemove(chapter.path) })
-                }
+        // REMOVED VerticalFastScroller wrapper
+        LazyVerticalGrid(
+            state = gridState,
+            columns = GridCells.Fixed(gridColumns),
+            contentPadding = PaddingValues(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(chapters) { chapter ->
+                ChapterGridItem(chapter, gridColumns, { onChapterClick(chapter.path) }, { onRemove(chapter.path) })
             }
         }
     } else {
@@ -144,17 +142,16 @@ fun FlatView(
 
     if (layoutMode == "grid") {
         val gridState = rememberLazyGridState()
-        VerticalFastScroller(listState = gridState) {
-            LazyVerticalGrid(
-                state = gridState,
-                columns = GridCells.Fixed(gridColumns),
-                contentPadding = PaddingValues(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(images.size) { index ->
-                    ImageGridItem(images[index], gridColumns, { onImageClick(index) }, onRefresh)
-                }
+        // REMOVED VerticalFastScroller wrapper
+        LazyVerticalGrid(
+            state = gridState,
+            columns = GridCells.Fixed(gridColumns),
+            contentPadding = PaddingValues(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(images.size) { index ->
+                ImageGridItem(images[index], gridColumns, { onImageClick(index) }, onRefresh)
             }
         }
     } else {
@@ -177,11 +174,8 @@ fun ChapterGridItem(
     val haptics = LocalHapticFeedback.current
     var showMenu by remember { mutableStateOf(false) }
 
-    // Smart display logic
     val showDetails = columns <= 2
     val showName = columns <= 4
-
-    // Approx size fetch
     val fetchSize = if (columns <= 2) 600 else 300
 
     Box {

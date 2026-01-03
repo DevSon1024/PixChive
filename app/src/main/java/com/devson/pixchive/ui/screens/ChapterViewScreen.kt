@@ -23,7 +23,7 @@ import com.devson.pixchive.ui.components.DisplayOptionsSheet
 import com.devson.pixchive.ui.components.ImageGridItem
 import com.devson.pixchive.ui.components.ChapterImageListItem
 import com.devson.pixchive.ui.components.EmptyChapterImagesView
-import com.devson.pixchive.ui.components.VerticalFastScroller
+// import com.devson.pixchive.ui.components.VerticalFastScroller <-- REMOVED
 import com.devson.pixchive.viewmodel.FolderViewModel
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
@@ -77,17 +77,16 @@ fun ChapterViewScreen(
             } else {
                 if (layoutMode == "grid") {
                     val gridState = rememberLazyGridState()
-                    VerticalFastScroller(listState = gridState) {
-                        LazyVerticalGrid(
-                            state = gridState,
-                            columns = GridCells.Fixed(gridColumns),
-                            contentPadding = PaddingValues(8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            itemsIndexed(chapterImages) { index, image ->
-                                ImageGridItem(image, gridColumns, { onImageClick(index) }, onRefresh)
-                            }
+                    // REMOVED VerticalFastScroller wrapper
+                    LazyVerticalGrid(
+                        state = gridState,
+                        columns = GridCells.Fixed(gridColumns),
+                        contentPadding = PaddingValues(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        itemsIndexed(chapterImages) { index, image ->
+                            ImageGridItem(image, gridColumns, { onImageClick(index) }, onRefresh)
                         }
                     }
                 } else {

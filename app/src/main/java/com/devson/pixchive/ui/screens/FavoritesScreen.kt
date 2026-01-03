@@ -20,7 +20,7 @@ import com.devson.pixchive.ui.components.DisplayOptionsSheet
 import com.devson.pixchive.ui.components.EmptyFavoritesView
 import com.devson.pixchive.ui.components.ImageGridItem
 import com.devson.pixchive.ui.components.ImageListItem
-import com.devson.pixchive.ui.components.VerticalFastScroller
+// import com.devson.pixchive.ui.components.VerticalFastScroller <-- REMOVED
 import com.devson.pixchive.viewmodel.FolderViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -113,22 +113,22 @@ fun FavoritesGridView(
     onRefresh: () -> Unit
 ) {
     val gridState = rememberLazyGridState()
-    VerticalFastScroller(listState = gridState) {
-        LazyVerticalGrid(
-            state = gridState,
-            columns = GridCells.Fixed(columns),
-            contentPadding = PaddingValues(8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(images.size) { index ->
-                ImageGridItem(
-                    image = images[index],
-                    columns = columns,
-                    onClick = { onImageClick(index) },
-                    onRefresh = onRefresh
-                )
-            }
+
+    // REMOVED VerticalFastScroller wrapper
+    LazyVerticalGrid(
+        state = gridState,
+        columns = GridCells.Fixed(columns),
+        contentPadding = PaddingValues(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(images.size) { index ->
+            ImageGridItem(
+                image = images[index],
+                columns = columns,
+                onClick = { onImageClick(index) },
+                onRefresh = onRefresh
+            )
         }
     }
 }

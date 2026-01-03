@@ -1,129 +1,92 @@
 package com.devson.pixchive.utils
 
-import android.content.Context
 import android.net.Uri
 import android.util.Log
-import com.devson.pixchive.data.CachedChapter
-import com.devson.pixchive.data.CachedFolderData
-import com.devson.pixchive.data.CachedImageInfo
-import com.devson.pixchive.data.Chapter
-import com.devson.pixchive.data.ImageFile
+import com.devson.pixchive.data.local.ImageDao
+import com.devson.pixchive.data.local.ImageEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.util.Collections
 
 object FolderScanner {
 
     private const val TAG = "FolderScanner"
+    // OPTIMIZATION: Increased to 500 to reduce DB transaction overhead and Flow emissions
+    private const val BATCH_SIZE = 500
     private val imageExtensions = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp")
 
-    suspend fun scanFolderWithCache(
-        context: Context,
+    suspend fun scanAndInsert(
         folderUri: Uri,
         folderId: String,
-        forceRescan: Boolean = false,
-        showHidden: Boolean = false
-    ): CachedFolderData = withContext(Dispatchers.IO) {
-        val cache = com.devson.pixchive.data.FolderCache(context)
-
-        // Return cached data if valid and no force rescan
-        if (!forceRescan && cache.isCacheValid(folderId)) {
-            cache.getCachedData(folderId)?.let { return@withContext it }
-        }
-
+        imageDao: ImageDao,
+        showHidden: Boolean
+    ) = withContext(Dispatchers.IO) {
         try {
-            // Convert URI to absolute path
             val rootPath = getAbsolutePathFromSafUri(folderUri)
             if (rootPath == null) {
                 Log.e(TAG, "Could not resolve path for URI: $folderUri")
-                return@withContext CachedFolderData(folderId, emptyList(), emptyList(), emptyList())
+                return@withContext
             }
 
             val rootFile = File(rootPath)
             if (!rootFile.exists() || !rootFile.isDirectory) {
-                return@withContext CachedFolderData(folderId, emptyList(), emptyList(), emptyList())
+                return@withContext
             }
 
-            // Recursive Scan
-            val chapters = scanDirectoryRecursive(rootFile, showHidden)
+            // 1. Clear previous data
+            imageDao.deleteFolderContent(folderId)
 
-            // Sort chapters
-            val sortedChapters = chapters.sortedWith(naturalOrderChapterComparator())
+            // 2. Buffer for batch insertion
+            val buffer = mutableListOf<ImageEntity>()
 
-            // Flatten for Flat View
-            val allImagePaths = sortedChapters.flatMap { it.imagePaths }
-            val allImageInfo = sortedChapters.flatMap { it.imageInfo }
+            // 3. Recursive Scan
+            scanRecursive(rootFile, showHidden) { file ->
+                val entity = ImageEntity(
+                    path = file.absolutePath,
+                    folderId = folderId,
+                    name = file.name,
+                    size = file.length(),
+                    dateModified = file.lastModified(),
+                    parentFolderPath = file.parentFile?.absolutePath ?: "",
+                    parentFolderName = file.parentFile?.name ?: ""
+                )
+                buffer.add(entity)
 
-            val cachedData = CachedFolderData(
-                folderId = folderId,
-                chapters = sortedChapters,
-                allImagePaths = allImagePaths,
-                allImageInfo = allImageInfo
-            )
+                if (buffer.size >= BATCH_SIZE) {
+                    imageDao.insertImages(buffer.toList())
+                    buffer.clear()
+                }
+            }
 
-            // Save to disk
-            cache.saveToCache(folderId, cachedData)
-            cachedData
+            // 4. Flush remaining items
+            if (buffer.isNotEmpty()) {
+                imageDao.insertImages(buffer)
+            }
 
         } catch (e: Exception) {
             Log.e(TAG, "Error scanning folder", e)
             e.printStackTrace()
-            CachedFolderData(folderId, emptyList(), emptyList(), emptyList())
         }
     }
 
-    private fun scanDirectoryRecursive(
+    private suspend fun scanRecursive(
         directory: File,
-        showHidden: Boolean
-    ): List<CachedChapter> {
-        val chapters = mutableListOf<CachedChapter>()
-        val currentDirImages = mutableListOf<File>()
-
-        val files = directory.listFiles() ?: return emptyList()
+        showHidden: Boolean,
+        onImageFound: suspend (File) -> Unit
+    ) {
+        val files = directory.listFiles() ?: return
 
         for (file in files) {
-            // Handle Hidden Files filter
             if (!showHidden && file.name.startsWith(".")) {
                 continue
             }
 
             if (file.isDirectory) {
-                // Recursion
-                chapters.addAll(scanDirectoryRecursive(file, showHidden))
+                scanRecursive(file, showHidden, onImageFound)
             } else if (file.isFile && isImageFile(file.name)) {
-                currentDirImages.add(file)
+                onImageFound(file)
             }
         }
-
-        // If current directory has images, create a chapter
-        if (currentDirImages.isNotEmpty()) {
-            // Sort images
-            currentDirImages.sortWith { f1, f2 -> compareNatural(f1.name, f2.name) }
-
-            val imagePaths = currentDirImages.map { it.absolutePath }
-            val imageInfos = currentDirImages.map { file ->
-                CachedImageInfo(
-                    path = file.absolutePath,
-                    name = file.name,
-                    size = file.length(),
-                    dateModified = file.lastModified()
-                )
-            }
-
-            chapters.add(
-                CachedChapter(
-                    name = directory.name,
-                    path = directory.absolutePath,
-                    imageCount = imagePaths.size,
-                    thumbnailPath = imagePaths.firstOrNull(),
-                    imagePaths = imagePaths,
-                    imageInfo = imageInfos
-                )
-            )
-        }
-
-        return chapters
     }
 
     private fun getAbsolutePathFromSafUri(uri: Uri): String? {
@@ -131,11 +94,9 @@ object FolderScanner {
             val path = Uri.decode(uri.toString())
             if (path.contains(":")) {
                 val id = path.substringAfterLast(":")
-                // Primary storage
                 if (path.contains("primary") || !path.contains("/tree/")) {
                     return "/storage/emulated/0/$id"
                 }
-                // SD Card heuristic
                 val volumeId = path.substringAfter("/tree/").substringBefore(":")
                 return "/storage/$volumeId/$id"
             }
@@ -150,55 +111,6 @@ object FolderScanner {
         return extension in imageExtensions
     }
 
-    // --- Converters ---
-
-    fun cachedChapterToChapter(context: Context, cached: CachedChapter): Chapter {
-        val infoMap = cached.imageInfo.associateBy { it.path }
-
-        val images = cached.imagePaths.map { path ->
-            val info = infoMap[path]
-            ImageFile(
-                name = info?.name ?: File(path).name,
-                path = path,
-                uri = Uri.fromFile(File(path)),
-                size = info?.size ?: 0L,
-                dateModified = info?.dateModified ?: 0L
-            )
-        }
-
-        return Chapter(
-            name = cached.name,
-            path = cached.path,
-            imageCount = cached.imageCount,
-            images = images
-        )
-    }
-
-    fun cachedDataToChapters(context: Context, cached: CachedFolderData): List<Chapter> {
-        return cached.chapters.map { cachedChapterToChapter(context, it) }
-    }
-
-    fun pathsToImageFiles(context: Context, cached: CachedFolderData): List<ImageFile> {
-        val infoMap = cached.allImageInfo.associateBy { it.path }
-        return cached.allImagePaths.map { path ->
-            val info = infoMap[path]
-            ImageFile(
-                name = info?.name ?: File(path).name,
-                path = path,
-                uri = Uri.fromFile(File(path)),
-                size = info?.size ?: 0L,
-                dateModified = info?.dateModified ?: 0L
-            )
-        }
-    }
-
-    // --- Comparators ---
-
-    private fun naturalOrderChapterComparator(): Comparator<CachedChapter> {
-        return Comparator { a, b -> compareNatural(a.name, b.name) }
-    }
-
-    // CHANGE: Made public (removed 'private')
     fun compareNatural(s1: String, s2: String): Int {
         val regex = Regex("(\\d+)|(\\D+)")
         val s1Parts = regex.findAll(s1).map { it.value }.toList()

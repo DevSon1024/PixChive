@@ -7,29 +7,36 @@ import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import coil.request.CachePolicy
+import com.devson.pixchive.data.local.AppDatabase
 
 class PixChiveApplication : Application(), ImageLoaderFactory {
+
+    // Expose database instance
+    lateinit var database: AppDatabase
+        private set
+
+    override fun onCreate() {
+        super.onCreate()
+        database = AppDatabase.getDatabase(this)
+    }
 
     override fun newImageLoader(): ImageLoader {
         return ImageLoader.Builder(this)
             .memoryCache {
                 MemoryCache.Builder(this)
-                    .maxSizePercent(0.25) // Use 25% of avail memory
+                    .maxSizePercent(0.25)
                     .build()
             }
             .diskCache {
                 DiskCache.Builder()
                     .directory(cacheDir.resolve("image_cache"))
-                    .maxSizeBytes(512L * 1024 * 1024) // 512MB Disk Cache
+                    .maxSizeBytes(512L * 1024 * 1024)
                     .build()
             }
-            // Aggressive caching
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
             .networkCachePolicy(CachePolicy.ENABLED)
-            // Disable crossfade for smoother scrolling in lists/grids
             .crossfade(false)
-            // Use RGB_565 to save 50% memory (no alpha channel needed for photos)
             .bitmapConfig(Bitmap.Config.RGB_565)
             .allowHardware(true)
             .build()

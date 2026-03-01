@@ -47,11 +47,6 @@ fun PixChiveTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            // KEY FIX: Set both bars to Transparent.
-            // This ensures that if they appear, they float OVER the content instead of pushing it.
-            window.statusBarColor = Color.Transparent.toArgb()
-            window.navigationBarColor = Color.Transparent.toArgb()
-
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }

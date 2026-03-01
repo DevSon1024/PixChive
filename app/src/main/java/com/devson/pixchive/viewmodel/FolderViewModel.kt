@@ -77,7 +77,7 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
         .flowOn(Dispatchers.Default) // Offload this flattening too
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private val _isLoading = MutableStateFlow(false)
+    private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     private val _viewMode = MutableStateFlow("explorer")
@@ -119,19 +119,28 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
         if (folderId == "favorites") return
 
         scanJob?.cancel()
+        _isLoading.value = true
 
         viewModelScope.launch {
             val folders = preferencesManager.foldersFlow.first()
-            val folder = folders.find { it.id == folderId } ?: return@launch
+            val folder = folders.find { it.id == folderId }
 
-            _currentFolder.value = folder
-
-            val count = imageDao.getImageCount(folderId)
-            if (count > 0 && !forceRescan) {
+            if (folder != null) {
+                _currentFolder.value = folder
+            } else {
+                _isLoading.value = false
                 return@launch
             }
 
-            _isLoading.value = true
+            val count = imageDao.getImageCount(folderId)
+            if (count > 0 && !forceRescan) {
+                // To prevent the "No Chapters Available" flash, give the Flow 
+                // a small amount of time to emit its initial DB values into the UI state
+                kotlinx.coroutines.delay(300)
+                _isLoading.value = false
+                return@launch
+            }
+
             scanJob = launch(Dispatchers.IO) {
                 val showHidden = preferencesManager.showHiddenFilesFlow.first()
                 val uri = Uri.parse(folder.uri)

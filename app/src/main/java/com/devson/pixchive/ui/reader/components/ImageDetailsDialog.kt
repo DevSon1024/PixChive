@@ -59,6 +59,7 @@ fun ImageDetailsDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    @Suppress("DEPRECATION")
     val clipboardManager = LocalClipboardManager.current
     var metadata by remember { mutableStateOf<ImageMetadata?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -68,7 +69,7 @@ fun ImageDetailsDialog(
         isLoading = false
     }
 
-    AlertDialog(
+    BasicAlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.fillMaxHeight(0.8f)
     ) {
@@ -98,7 +99,7 @@ fun ImageDetailsDialog(
                     }
                 }
 
-                Divider()
+                HorizontalDivider()
 
                 // Content
                 if (isLoading) {
@@ -335,8 +336,8 @@ private suspend fun loadImageMetadata(
                 }
 
                 // GPS Location
-                val latLong = FloatArray(2)
-                if (exif.getLatLong(latLong)) {
+                val latLong = exif.latLong
+                if (latLong != null) {
                     gpsLocation = "${latLong[0]}, ${latLong[1]}"
                 }
 

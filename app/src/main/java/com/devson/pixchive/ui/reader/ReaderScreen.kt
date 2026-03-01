@@ -16,6 +16,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -93,13 +94,17 @@ fun ReaderScreen(
 
     val isFavorite = currentImage?.uri.toString() in favorites
 
-    // KEY FIX: Only HIDE system bars. Never show them, even if showUI is true.
-    LaunchedEffect(showUI) {
-        activity?.window?.let { window ->
-            val insets = WindowCompat.getInsetsController(window, view)
-            insets.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            // Always hide, regardless of showUI state
-            insets.hide(WindowInsetsCompat.Type.systemBars())
+    // KEY FIX: Only HIDE system bars when Reader is shown.
+    // Use DisposableEffect to RESTORE them when navigating away.
+    DisposableEffect(showUI) {
+        val window = activity?.window
+        val insets = window?.let { WindowCompat.getInsetsController(it, view) }
+        
+        insets?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        insets?.hide(WindowInsetsCompat.Type.systemBars())
+
+        onDispose {
+            insets?.show(WindowInsetsCompat.Type.systemBars())
         }
     }
 
@@ -233,7 +238,7 @@ fun ReaderScreen(
                                 horizontalArrangement = Arrangement.SpaceEvenly
                             ) {
                                 ReaderActionButton(
-                                    icon = Icons.Default.RotateRight,
+                                    icon = Icons.AutoMirrored.Filled.RotateRight,
                                     label = "ROTATE",
                                     onClick = {
                                         val currentRot = rotationStates[pagerState.currentPage] ?: 0f

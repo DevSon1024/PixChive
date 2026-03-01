@@ -23,7 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -34,6 +34,8 @@ import com.devson.pixchive.data.ComicFolder
 import com.devson.pixchive.ui.components.DisplayOptionsSheet
 import com.devson.pixchive.ui.components.PermissionDeniedDialog
 import com.devson.pixchive.ui.components.PermissionRationaleDialog
+import com.devson.pixchive.ui.components.SkeletonGrid
+import com.devson.pixchive.ui.components.SkeletonList
 import com.devson.pixchive.utils.PermissionHelper
 import com.devson.pixchive.viewmodel.HomeViewModel
 
@@ -165,7 +167,13 @@ fun HomeScreen(
                 .padding(paddingValues)
         ) {
             when {
-                isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                isLoading -> {
+                    if (layoutMode == "grid") {
+                        SkeletonGrid(columns = gridColumns)
+                    } else {
+                        SkeletonList()
+                    }
+                }
                 folders.isEmpty() -> EmptyStateContent()
                 else -> {
                     if (layoutMode == "grid") {

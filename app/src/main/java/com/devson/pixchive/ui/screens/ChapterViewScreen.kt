@@ -23,7 +23,8 @@ import com.devson.pixchive.ui.components.DisplayOptionsSheet
 import com.devson.pixchive.ui.components.ImageGridItem
 import com.devson.pixchive.ui.components.ChapterImageListItem
 import com.devson.pixchive.ui.components.EmptyChapterImagesView
-// import com.devson.pixchive.ui.components.VerticalFastScroller <-- REMOVED
+import com.devson.pixchive.ui.components.SkeletonGrid
+import com.devson.pixchive.ui.components.SkeletonList
 import com.devson.pixchive.viewmodel.FolderViewModel
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
@@ -71,7 +72,11 @@ fun ChapterViewScreen(
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                if (layoutMode == "grid") {
+                    SkeletonGrid(columns = gridColumns)
+                } else {
+                    SkeletonList()
+                }
             } else if (chapterImages.isEmpty()) {
                 EmptyChapterImagesView(chapterName, chapters.size)
             } else {

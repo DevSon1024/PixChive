@@ -33,7 +33,8 @@ import com.devson.pixchive.ui.components.ImageListItem
 import com.devson.pixchive.ui.components.ChapterListItem
 import com.devson.pixchive.ui.components.EmptyChaptersView
 import com.devson.pixchive.ui.components.EmptyImagesView
-// import com.devson.pixchive.ui.components.VerticalFastScroller <-- REMOVED
+import com.devson.pixchive.ui.components.SkeletonGrid
+import com.devson.pixchive.ui.components.SkeletonList
 import com.devson.pixchive.viewmodel.FolderViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -74,7 +75,11 @@ fun FolderViewScreen(
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                if (layoutMode == "grid") {
+                    SkeletonGrid(columns = gridColumns)
+                } else {
+                    SkeletonList()
+                }
             } else {
                 when (currentViewMode) {
                     "explorer" -> ExplorerView(chapters, layoutMode, gridColumns, onChapterClick) { viewModel.removeFolder(it) }

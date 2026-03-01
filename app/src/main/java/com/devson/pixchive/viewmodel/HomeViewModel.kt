@@ -8,6 +8,7 @@ import com.devson.pixchive.PixChiveApplication
 import com.devson.pixchive.data.ComicFolder
 import com.devson.pixchive.data.PreferencesManager
 import com.devson.pixchive.utils.FolderScanner
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -32,7 +33,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         _sortOption
     ) { folderList, sortOption ->
         sortFolders(folderList, sortOption)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.flowOn(Dispatchers.Default)
+     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()

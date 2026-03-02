@@ -18,7 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.devson.pixchive.data.ImageFile
+import com.devson.pixchive.data.local.ImageEntity
 import com.devson.pixchive.ui.components.DisplayOptionsSheet
 import com.devson.pixchive.ui.components.ImageGridItem
 import com.devson.pixchive.ui.components.ChapterImageListItem
@@ -54,7 +54,7 @@ fun ChapterViewScreen(
     var showDisplayOptions by remember { mutableStateOf(false) }
 
     val chapterImages = remember(chapters, chapterPath) {
-        chapters.find { urisMatch(it.path, chapterPath) }?.images ?: emptyList()
+        chapters.find { urisMatch(it.path, chapterPath) }?.images?.filterIsInstance<ImageEntity>() ?: emptyList()
     }
     val chapterName = remember(chapterPath) { chapterPath.substringAfterLast("/").substringAfterLast(":") }
     val onRefresh = { viewModel.refreshFolder(folderId) }

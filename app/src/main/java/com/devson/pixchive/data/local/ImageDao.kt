@@ -1,5 +1,6 @@
 package com.devson.pixchive.data.local
 
+import androidx.paging.PagingSource
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -17,6 +18,13 @@ interface ImageDao {
     // Returns a continuous stream of images for a specific folder
     @Query("SELECT * FROM images WHERE folderId = :folderId")
     fun getImagesFlow(folderId: String): Flow<List<ImageEntity>>
+
+    /**
+     * Returns a [PagingSource] for Paging 3. Room invalidates it automatically
+     * whenever rows for this folderId change, so the UI updates live during scanning.
+     */
+    @Query("SELECT * FROM images WHERE folderId = :folderId ORDER BY parentFolderPath ASC, name ASC")
+    fun getImagesByFolderPaged(folderId: String): PagingSource<Int, ImageEntity>
 
     @Query("SELECT COUNT(*) FROM images WHERE folderId = :folderId")
     suspend fun getImageCount(folderId: String): Int

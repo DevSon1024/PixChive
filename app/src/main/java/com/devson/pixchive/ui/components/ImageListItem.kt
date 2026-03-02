@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.devson.pixchive.data.ImageFile
+import com.devson.pixchive.data.local.ImageEntity
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -30,7 +30,7 @@ import java.util.Locale
 
 @Composable
 fun ImageListItem(
-    image: ImageFile,
+    image: ImageEntity,
     onClick: () -> Unit,
     onRefresh: () -> Unit
 ) {
@@ -128,7 +128,7 @@ fun ImageListItem(
 }
 
 // Helpers
-private fun shareItem(context: Context, image: ImageFile) {
+private fun shareItem(context: Context, image: ImageEntity) {
     try {
         val file = File(image.path)
         val uri = FileProvider.getUriForFile(

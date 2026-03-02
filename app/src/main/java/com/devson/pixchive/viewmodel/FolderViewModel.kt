@@ -7,7 +7,6 @@ import androidx.lifecycle.viewModelScope
 import com.devson.pixchive.PixChiveApplication
 import com.devson.pixchive.data.Chapter
 import com.devson.pixchive.data.ComicFolder
-import com.devson.pixchive.data.ImageFile
 import com.devson.pixchive.data.PreferencesManager
 import com.devson.pixchive.utils.FolderScanner
 import kotlinx.coroutines.Dispatchers
@@ -16,6 +15,16 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.io.File
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
+import androidx.work.ExistingWorkPolicy
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
+import com.devson.pixchive.data.local.ImageEntity
+import com.devson.pixchive.workers.FolderSyncWorker
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class, kotlinx.coroutines.FlowPreview::class)
 class FolderViewModel(application: Application) : AndroidViewModel(application) {
@@ -50,16 +59,7 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
                         name = images.first().parentFolderName,
                         path = path,
                         imageCount = images.size,
-                        images = images.map { entity ->
-                            ImageFile(
-                                name = entity.name,
-                                path = entity.path,
-                                uri = Uri.fromFile(File(entity.path)),
-                                size = entity.size,
-                                dateModified = entity.dateModified
-                            )
-                            // Heavy Sort #1
-                        }.sortedWith { a, b -> FolderScanner.compareNatural(a.name, b.name) }
+                        images = images.sortedWith { a, b -> FolderScanner.compareNatural(a.name, b.name) }
                     )
                 }
                 // Heavy Sort #2
@@ -71,11 +71,19 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     }.flatMapLatest { it }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val allImages: StateFlow<List<ImageFile>> = chapters.map { chapterList ->
-        chapterList.flatMap { it.images }
-    }
-        .flowOn(Dispatchers.Default) // Offload this flattening too
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    // --- PAGING 3 FOR FLAT VIEW ---
+    val flatImages: Flow<PagingData<ImageEntity>> = _currentFolder.filterNotNull()
+        .flatMapLatest { folder ->
+            Pager(
+                config = PagingConfig(
+                    pageSize = 60,
+                    enablePlaceholders = true,
+                    maxSize = 200, // keep memory footprint low
+                    prefetchDistance = 10
+                ),
+                pagingSourceFactory = { imageDao.getImagesByFolderPaged(folder.id) }
+            ).flow
+        }.cachedIn(viewModelScope)
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -141,19 +149,32 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
                 return@launch
             }
 
-            scanJob = launch(Dispatchers.IO) {
-                val showHidden = preferencesManager.showHiddenFilesFlow.first()
-                val uri = Uri.parse(folder.uri)
-
-                FolderScanner.scanAndInsert(
-                    uri,
-                    folderId,
-                    imageDao,
-                    showHidden
-                )
-                _isLoading.value = false
-            }
+            val showHidden = preferencesManager.showHiddenFilesFlow.first()
+            val uri = Uri.parse(folder.uri)
+            enqueueSyncWorker(folderId, uri.toString(), showHidden)
+            _isLoading.value = false
         }
+    }
+
+    private fun enqueueSyncWorker(folderId: String, folderUri: String, showHidden: Boolean) {
+        val workManager = WorkManager.getInstance(getApplication())
+        
+        val workRequest = OneTimeWorkRequestBuilder<FolderSyncWorker>()
+            .setInputData(
+                workDataOf(
+                    FolderSyncWorker.KEY_FOLDER_ID to folderId,
+                    FolderSyncWorker.KEY_FOLDER_URI to folderUri,
+                    FolderSyncWorker.KEY_SHOW_HIDDEN to showHidden
+                )
+            )
+            .build()
+            
+        // Use KEEP policy so if it's already scanning, we let it finish
+        workManager.enqueueUniqueWork(
+            "sync_folder_$folderId",
+            ExistingWorkPolicy.KEEP,
+            workRequest
+        )
     }
 
     fun refreshFolder(folderId: String) {

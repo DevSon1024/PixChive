@@ -14,6 +14,7 @@ import androidx.room.PrimaryKey
 data class ImageEntity(
     @PrimaryKey val path: String,
     val folderId: String,          // The ID of the root folder imported (e.g., "UUID...")
+    val uri: String = "",          // SAF content URI string (for SAF-granted folders)
     val name: String,
     val size: Long,
     val dateModified: Long,

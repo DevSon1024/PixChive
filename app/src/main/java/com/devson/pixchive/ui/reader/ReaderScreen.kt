@@ -40,6 +40,8 @@ import com.devson.pixchive.ui.reader.components.ReaderActionButton
 import com.devson.pixchive.ui.reader.components.ReaderTopBar
 import com.devson.pixchive.ui.reader.utils.urisMatch
 import com.devson.pixchive.viewmodel.FolderViewModel
+import com.devson.pixchive.data.local.ImageEntity
+import androidx.paging.compose.collectAsLazyPagingItems
 import kotlinx.coroutines.launch
 import me.saket.telephoto.zoomable.coil.ZoomableAsyncImage
 import me.saket.telephoto.zoomable.rememberZoomableImageState
@@ -63,12 +65,13 @@ fun ReaderScreen(
 
     val isLoading by viewModel.isLoading.collectAsState()
     val chapters by viewModel.chapters.collectAsState()
-    val allImages by viewModel.allImages.collectAsState()
+    val lazyImages = viewModel.flatImages.collectAsLazyPagingItems()
+    val allImages = lazyImages.itemSnapshotList.items
     val currentFolder by viewModel.currentFolder.collectAsState()
     val favorites by prefs.favoritesFlow.collectAsState(initial = emptySet())
 
     val chapterImages = remember(chapters, allImages, chapterPath) {
-        if (chapterPath == "flat_view") allImages
+        if (chapterPath == "flat_view") allImages.filterIsInstance<ImageEntity>()
         else chapters.find { urisMatch(it.path, chapterPath) }?.images ?: emptyList()
     }
 
@@ -89,10 +92,14 @@ fun ReaderScreen(
     )
 
     val currentImage = if (chapterImages.isNotEmpty() && pagerState.currentPage < chapterImages.size) {
-        chapterImages[pagerState.currentPage]
+        chapterImages[pagerState.currentPage] as? ImageEntity ?: chapterImages[pagerState.currentPage] as? com.devson.pixchive.data.ImageFile
     } else null
 
-    val isFavorite = currentImage?.uri.toString() in favorites
+    val isFavorite = when(currentImage) {
+        is ImageEntity -> currentImage.uri in favorites
+        is com.devson.pixchive.data.ImageFile -> currentImage.uri.toString() in favorites
+        else -> false
+    }
 
     // KEY FIX: Only HIDE system bars when Reader is shown.
     // Use DisposableEffect to RESTORE them when navigating away.
@@ -127,7 +134,13 @@ fun ReaderScreen(
                         val zoomableState = rememberZoomableState(zoomSpec = ZoomSpec(maxZoomFactor = 5f))
                         ZoomableAsyncImage(
                             model = ImageRequest.Builder(context)
-                                .data(chapterImages.getOrNull(page)?.uri)
+                                .data(
+                                    when(val img = chapterImages.getOrNull(page)) {
+                                        is ImageEntity -> img.uri
+                                        is com.devson.pixchive.data.ImageFile -> img.uri
+                                        else -> null
+                                    }
+                                )
                                 .size(2048)
                                 .scale(Scale.FIT)
                                 .crossfade(false)
@@ -167,14 +180,23 @@ fun ReaderScreen(
         ) {
             ReaderTopBar(
                 chapterFolderName = chapterName,
-                currentImageName = currentImage?.name ?: "",
+                currentImageName = when(currentImage) {
+                    is ImageEntity -> currentImage.name
+                    is com.devson.pixchive.data.ImageFile -> currentImage.name
+                    else -> ""
+                },
                 showMoreMenu = false,
-                currentImage = currentImage,
+                currentImage = currentImage as? com.devson.pixchive.data.ImageFile, // Disable top bar legacy ImageFile passing for now, or rebuild ImageFile
                 onNavigateBack = onNavigateBack,
                 onMoreMenuToggle = {},
                 isFavorite = isFavorite,
                 onToggleFavorite = {
-                    currentImage?.let { scope.launch { prefs.toggleFavorite(it.uri.toString()) } }
+                    currentImage?.let { 
+                        scope.launch { 
+                            if(it is ImageEntity) prefs.toggleFavorite(it.uri)
+                            else if (it is com.devson.pixchive.data.ImageFile) prefs.toggleFavorite(it.uri.toString())
+                        } 
+                    }
                 }
             )
         }
@@ -266,7 +288,12 @@ fun ReaderScreen(
                                     onClick = {
                                         currentImage?.let { image ->
                                             try {
-                                                val file = File(image.path)
+                                                val path = when(image) {
+                                                    is ImageEntity -> image.path
+                                                    is com.devson.pixchive.data.ImageFile -> image.path
+                                                    else -> return@let
+                                                }
+                                                val file = File(path)
                                                 val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
                                                 val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                                                     type = "image/*"

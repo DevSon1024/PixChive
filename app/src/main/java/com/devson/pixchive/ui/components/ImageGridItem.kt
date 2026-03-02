@@ -21,13 +21,13 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.devson.pixchive.data.ImageFile
+import com.devson.pixchive.data.local.ImageEntity
 import java.io.File
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ImageGridItem(
-    image: ImageFile,
+    image: ImageEntity,
     columns: Int,
     onClick: () -> Unit,
     onRefresh: () -> Unit
@@ -139,7 +139,7 @@ private fun formatFileSize(bytes: Long): String {
     return String.format("%.1f %s", bytes / Math.pow(1024.0, group.toDouble()), units[group])
 }
 
-private fun shareItem(context: Context, image: ImageFile) {
+private fun shareItem(context: Context, image: ImageEntity) {
     try {
         val file = File(image.path)
         val uri = FileProvider.getUriForFile(

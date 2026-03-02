@@ -6,6 +6,10 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
+import androidx.paging.compose.LazyPagingItems
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
+import androidx.paging.compose.itemContentType
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Tune
@@ -15,7 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.devson.pixchive.data.ImageFile
+import com.devson.pixchive.data.local.ImageEntity
 import com.devson.pixchive.ui.components.DisplayOptionsSheet
 import com.devson.pixchive.ui.components.EmptyFavoritesView
 import com.devson.pixchive.ui.components.ImageGridItem
@@ -32,7 +36,7 @@ fun FavoritesScreen(
 ) {
     val folderId = "favorites"
 
-    val allImages by viewModel.allImages.collectAsState()
+    val lazyImages = viewModel.flatImages.collectAsLazyPagingItems()
     val isLoading by viewModel.isLoading.collectAsState()
 
     val layoutMode by viewModel.layoutMode.collectAsState()
@@ -65,23 +69,23 @@ fun FavoritesScreen(
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             when {
-                isLoading && allImages.isEmpty() -> {
+                isLoading && lazyImages.itemCount == 0 -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
-                allImages.isEmpty() -> {
+                lazyImages.itemCount == 0 -> {
                     EmptyFavoritesView()
                 }
                 else -> {
                     if (layoutMode == "grid") {
                         FavoritesGridView(
-                            images = allImages,
+                            images = lazyImages,
                             columns = gridColumns,
                             onImageClick = onImageClick,
                             onRefresh = {} // No manual refresh needed for favorites
                         )
                     } else {
                         FavoritesListView(
-                            images = allImages,
+                            images = lazyImages,
                             onImageClick = onImageClick,
                             onRefresh = {}
                         )
@@ -107,14 +111,13 @@ fun FavoritesScreen(
 
 @Composable
 fun FavoritesGridView(
-    images: List<ImageFile>,
+    images: LazyPagingItems<ImageEntity>,
     columns: Int,
     onImageClick: (Int) -> Unit,
     onRefresh: () -> Unit
 ) {
     val gridState = rememberLazyGridState()
 
-    // REMOVED VerticalFastScroller wrapper
     LazyVerticalGrid(
         state = gridState,
         columns = GridCells.Fixed(columns),
@@ -122,30 +125,44 @@ fun FavoritesGridView(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(images.size) { index ->
-            ImageGridItem(
-                image = images[index],
-                columns = columns,
-                onClick = { onImageClick(index) },
-                onRefresh = onRefresh
-            )
+        items(
+            count = images.itemCount,
+            key = images.itemKey { it.path },
+            contentType = images.itemContentType { "image" }
+        ) { index ->
+            val image = images[index]
+            if (image != null) {
+                ImageGridItem(
+                    image = image,
+                    columns = columns,
+                    onClick = { onImageClick(index) },
+                    onRefresh = onRefresh
+                )
+            }
         }
     }
 }
 
 @Composable
 fun FavoritesListView(
-    images: List<ImageFile>,
+    images: LazyPagingItems<ImageEntity>,
     onImageClick: (Int) -> Unit,
     onRefresh: () -> Unit
 ) {
     LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
-        items(images.size) { index ->
-            ImageListItem(
-                image = images[index],
-                onClick = { onImageClick(index) },
-                onRefresh = onRefresh
-            )
+        items(
+            count = images.itemCount,
+            key = images.itemKey { it.path },
+            contentType = images.itemContentType { "image" }
+        ) { index ->
+            val image = images[index]
+            if (image != null) {
+                ImageListItem(
+                    image = image,
+                    onClick = { onImageClick(index) },
+                    onRefresh = onRefresh
+                )
+            }
         }
     }
 }

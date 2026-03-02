@@ -1,7 +1,7 @@
 package com.devson.pixchive.data
-
 import android.net.Uri
 import com.devson.pixchive.utils.PathUtils
+import com.devson.pixchive.data.local.ImageEntity
 
 data class ComicFolder(
     val id: String,
@@ -20,7 +20,7 @@ data class Chapter(
     val name: String,
     val path: String,
     val imageCount: Int,
-    val images: List<ImageFile> = emptyList()
+    val images: List<ImageEntity> = emptyList()
 ) {
     val displayName: String
         get() = PathUtils.extractFolderName(name)

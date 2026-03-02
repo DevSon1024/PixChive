@@ -9,6 +9,10 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
+import androidx.paging.compose.LazyPagingItems
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
+import androidx.paging.compose.itemContentType
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -26,7 +30,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.devson.pixchive.data.Chapter
-import com.devson.pixchive.data.ImageFile
+import com.devson.pixchive.data.local.ImageEntity
 import com.devson.pixchive.ui.components.DisplayOptionsSheet
 import com.devson.pixchive.ui.components.ImageGridItem
 import com.devson.pixchive.ui.components.ImageListItem
@@ -48,7 +52,7 @@ fun FolderViewScreen(
 ) {
     val currentFolder by viewModel.currentFolder.collectAsState()
     val chapters by viewModel.chapters.collectAsState()
-    val allImages by viewModel.allImages.collectAsState()
+    val lazyImages = viewModel.flatImages.collectAsLazyPagingItems()
     val isLoading by viewModel.isLoading.collectAsState()
 
     val layoutMode by viewModel.layoutMode.collectAsState()
@@ -82,7 +86,7 @@ fun FolderViewScreen(
             } else {
                 when (currentViewMode) {
                     "explorer" -> ExplorerView(chapters, layoutMode, gridColumns, onChapterClick) { viewModel.removeFolder(it) }
-                    "flat" -> FlatView(allImages, layoutMode, gridColumns, onImageClick) { viewModel.refreshFolder(folderId) }
+                    "flat" -> FlatView(lazyImages, layoutMode, gridColumns, onImageClick) { viewModel.refreshFolder(folderId) }
                     else -> ExplorerView(chapters, layoutMode, gridColumns, onChapterClick) { viewModel.removeFolder(it) }
                 }
             }
@@ -136,17 +140,16 @@ fun ExplorerView(
 
 @Composable
 fun FlatView(
-    images: List<ImageFile>,
+    images: LazyPagingItems<ImageEntity>,
     layoutMode: String,
     gridColumns: Int,
     onImageClick: (Int) -> Unit,
     onRefresh: () -> Unit
 ) {
-    if (images.isEmpty()) { EmptyImagesView(); return }
+    if (images.itemCount == 0) { EmptyImagesView(); return }
 
     if (layoutMode == "grid") {
         val gridState = rememberLazyGridState()
-        // REMOVED VerticalFastScroller wrapper
         LazyVerticalGrid(
             state = gridState,
             columns = GridCells.Fixed(gridColumns),
@@ -154,14 +157,28 @@ fun FlatView(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(images.size, key = { index -> images[index].path }) { index ->
-                ImageGridItem(images[index], gridColumns, { onImageClick(index) }, onRefresh)
+            items(
+                count = images.itemCount,
+                key = images.itemKey { it.path },
+                contentType = images.itemContentType { "image" }
+            ) { index ->
+                val image = images[index]
+                if (image != null) {
+                    ImageGridItem(image, gridColumns, { onImageClick(index) }, onRefresh)
+                }
             }
         }
     } else {
         LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
-            items(images.size, key = { index -> images[index].path }) { index ->
-                ImageListItem(images[index], { onImageClick(index) }, onRefresh)
+            items(
+                count = images.itemCount,
+                key = images.itemKey { it.path },
+                contentType = images.itemContentType { "image" }
+            ) { index ->
+                val image = images[index]
+                if (image != null) {
+                    ImageListItem(image, { onImageClick(index) }, onRefresh)
+                }
             }
         }
     }

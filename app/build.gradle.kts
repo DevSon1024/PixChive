@@ -144,7 +144,15 @@ dependencies {
     // Room Database
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
+    implementation("androidx.room:room-paging:2.6.1")
     ksp(libs.androidx.room.compiler)
+
+    // Paging 3
+    implementation("androidx.paging:paging-runtime-ktx:3.3.6")
+    implementation("androidx.paging:paging-compose:3.3.6")
+
+    // WorkManager
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
 
     implementation("androidx.core:core:1.12.0")
     implementation("androidx.activity:activity-ktx:1.8.2")

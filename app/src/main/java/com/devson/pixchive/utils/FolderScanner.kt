@@ -57,7 +57,8 @@ object FolderScanner {
                     size = file.length(),
                     dateModified = file.lastModified(),
                     parentFolderPath = file.parentFile?.absolutePath ?: "",
-                    parentFolderName = file.parentFile?.name ?: ""
+                    parentFolderName = file.parentFile?.name ?: "",
+                    uri = Uri.fromFile(file).toString()
                 )
                 buffer.add(entity)
 

@@ -46,7 +46,6 @@ fun FolderViewScreen(
     onImageClick: (Int) -> Unit,
     viewModel: FolderViewModel = viewModel()
 ) {
-    val context = LocalContext.current
     val currentFolder by viewModel.currentFolder.collectAsState()
     val chapters by viewModel.chapters.collectAsState()
     val allImages by viewModel.allImages.collectAsState()
@@ -122,13 +121,13 @@ fun ExplorerView(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(chapters) { chapter ->
+            items(chapters, key = { it.path }) { chapter ->
                 ChapterGridItem(chapter, gridColumns, { onChapterClick(chapter.path) }, { onRemove(chapter.path) })
             }
         }
     } else {
         LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
-            items(chapters) { chapter ->
+            items(chapters, key = { it.path }) { chapter ->
                 ChapterListItem(chapter, { onChapterClick(chapter.path) }, { onRemove(chapter.path) })
             }
         }
@@ -155,13 +154,13 @@ fun FlatView(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(images.size) { index ->
+            items(images.size, key = { index -> images[index].path }) { index ->
                 ImageGridItem(images[index], gridColumns, { onImageClick(index) }, onRefresh)
             }
         }
     } else {
         LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
-            items(images.size) { index ->
+            items(images.size, key = { index -> images[index].path }) { index ->
                 ImageListItem(images[index], { onImageClick(index) }, onRefresh)
             }
         }

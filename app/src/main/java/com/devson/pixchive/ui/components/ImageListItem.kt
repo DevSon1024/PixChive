@@ -37,6 +37,10 @@ fun ImageListItem(
     val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
 
+    // Memoize to prevent UI thread math operations
+    val formattedSize = remember(image.size) { formatFileSize(image.size) }
+    val formattedDate = remember(image.dateModified) { formatDate(image.dateModified) }
+
     Column {
         Row(
             modifier = Modifier
@@ -55,6 +59,8 @@ fun ImageListItem(
                         .data(image.uri)
                         .size(200)
                         .crossfade(false)
+                        .bitmapConfig(android.graphics.Bitmap.Config.RGB_565)
+                        .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
                         .build(),
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
@@ -73,7 +79,7 @@ fun ImageListItem(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "${formatFileSize(image.size)} | ${formatDate(image.dateModified)}",
+                    text = "$formattedSize | $formattedDate",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

@@ -47,6 +47,9 @@ fun ImageGridItem(
         else -> 200
     }
 
+    // Memoize the file size formatting to avoid running math on scroll
+    val formattedSize = remember(image.size) { formatFileSize(image.size) }
+
     Box {
         Card(
             modifier = Modifier
@@ -66,6 +69,8 @@ fun ImageGridItem(
                         .data(image.uri)
                         .size(fetchSize)
                         .crossfade(false)
+                        .bitmapConfig(android.graphics.Bitmap.Config.RGB_565)
+                        .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
                         .build(),
                     contentDescription = image.name,
                     modifier = Modifier.fillMaxSize(),
@@ -89,7 +94,7 @@ fun ImageGridItem(
                             )
                             if (showDetails) {
                                 Text(
-                                    text = formatFileSize(image.size),
+                                    text = formattedSize,
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

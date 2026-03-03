@@ -85,9 +85,9 @@ fun FolderViewScreen(
                 }
             } else {
                 when (currentViewMode) {
-                    "explorer" -> ExplorerView(chapters, layoutMode, gridColumns, onChapterClick) { viewModel.removeFolder(it) }
+                    "explorer" -> ExplorerView(chapters, layoutMode, gridColumns, isLoading, onChapterClick) { viewModel.removeFolder(it) }
                     "flat" -> FlatView(lazyImages, layoutMode, gridColumns, onImageClick) { viewModel.refreshFolder(folderId) }
-                    else -> ExplorerView(chapters, layoutMode, gridColumns, onChapterClick) { viewModel.removeFolder(it) }
+                    else -> ExplorerView(chapters, layoutMode, gridColumns, isLoading, onChapterClick) { viewModel.removeFolder(it) }
                 }
             }
         }
@@ -110,10 +110,11 @@ fun ExplorerView(
     chapters: List<Chapter>,
     layoutMode: String,
     gridColumns: Int,
+    isLoading: Boolean,
     onChapterClick: (String) -> Unit,
     onRemove: (String) -> Unit
 ) {
-    if (chapters.isEmpty()) { EmptyChaptersView(); return }
+    if (!isLoading && chapters.isEmpty()) { EmptyChaptersView(); return }
 
     if (layoutMode == "grid") {
         val gridState = rememberLazyGridState()

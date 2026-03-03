@@ -13,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
 import java.io.File
 import androidx.work.OneTimeWorkRequestBuilder
@@ -142,9 +143,11 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
 
             val count = imageDao.getImageCount(folderId)
             if (count > 0 && !forceRescan) {
-                // To prevent the "No Chapters Available" flash, give the Flow 
-                // a small amount of time to emit its initial DB values into the UI state
-                kotlinx.coroutines.delay(300)
+                // Wait for the chapters flow to emit real data before hiding the loader.
+                // 3-second timeout is a safety net for genuinely empty folders.
+                withTimeoutOrNull(3_000) {
+                    chapters.first { it.isNotEmpty() }
+                }
                 _isLoading.value = false
                 return@launch
             }

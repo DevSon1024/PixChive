@@ -86,6 +86,18 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
             ).flow
         }.cachedIn(viewModelScope)
 
+    // Total count of images in the flat view — used by ReaderScreen for unbounded paging
+    val flatImageCount: StateFlow<Int> = _currentFolder
+        .filterNotNull()
+        .flatMapLatest { folder -> imageDao.getImageCountFlow(folder.id) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    /** Loads a single image by its sorted position in the flat view (for on-demand reader page). */
+    suspend fun getFlatImageAt(index: Int): ImageEntity? {
+        val folderId = _currentFolder.value?.id ?: return null
+        return imageDao.getImageByIndex(folderId, index)
+    }
+
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 

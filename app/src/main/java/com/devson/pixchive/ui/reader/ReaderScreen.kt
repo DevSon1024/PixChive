@@ -41,7 +41,6 @@ import com.devson.pixchive.ui.reader.components.ReaderTopBar
 import com.devson.pixchive.ui.reader.utils.urisMatch
 import com.devson.pixchive.viewmodel.FolderViewModel
 import com.devson.pixchive.data.local.ImageEntity
-import androidx.paging.compose.collectAsLazyPagingItems
 import kotlinx.coroutines.launch
 import me.saket.telephoto.zoomable.coil.ZoomableAsyncImage
 import me.saket.telephoto.zoomable.rememberZoomableImageState
@@ -65,18 +64,23 @@ fun ReaderScreen(
 
     val isLoading by viewModel.isLoading.collectAsState()
     val chapters by viewModel.chapters.collectAsState()
-    val lazyImages = viewModel.flatImages.collectAsLazyPagingItems()
-    val allImages = lazyImages.itemSnapshotList.items
     val currentFolder by viewModel.currentFolder.collectAsState()
     val favorites by prefs.favoritesFlow.collectAsState(initial = emptySet())
 
-    val chapterImages = remember(chapters, allImages, chapterPath) {
-        if (chapterPath == "flat_view") allImages.filterIsInstance<ImageEntity>()
+    // --- FLAT VIEW: use true DB total instead of paging snapshot ---
+    val flatImageCount by viewModel.flatImageCount.collectAsState()
+    val isFlatView = chapterPath == "flat_view"
+
+    // For chapter view, image list comes from chapters as before
+    val chapterImages = remember(chapters, chapterPath) {
+        if (isFlatView) emptyList()
         else chapters.find { urisMatch(it.path, chapterPath) }?.images ?: emptyList()
     }
 
+    val pageCount = if (isFlatView) flatImageCount else chapterImages.size
+
     val chapterName = remember(chapterPath, currentFolder) {
-        if (chapterPath == "flat_view") currentFolder?.name ?: "Flat View"
+        if (isFlatView) currentFolder?.name ?: "Flat View"
         else chapterPath.substringAfterLast("/").substringAfterLast(":")
     }
 
@@ -87,15 +91,23 @@ fun ReaderScreen(
     val rotationStates = remember { mutableStateMapOf<Int, Float>() }
 
     val pagerState = rememberPagerState(
-        initialPage = initialIndex.coerceIn(0, maxOf(0, chapterImages.size - 1)),
-        pageCount = { chapterImages.size }
+        initialPage = initialIndex.coerceIn(0, maxOf(0, pageCount - 1)),
+        pageCount = { pageCount }
     )
 
-    val currentImage = if (chapterImages.isNotEmpty() && pagerState.currentPage < chapterImages.size) {
-        chapterImages[pagerState.currentPage] as? ImageEntity ?: chapterImages[pagerState.currentPage] as? com.devson.pixchive.data.ImageFile
-    } else null
+    // Cache for on-demand loaded flat-view images (page index -> ImageEntity)
+    val flatImageCache = remember { mutableStateMapOf<Int, ImageEntity?>() }
 
-    val isFavorite = when(currentImage) {
+    // Current image resolved for either mode
+    val currentImage: Any? = if (isFlatView) {
+        flatImageCache[pagerState.currentPage]
+    } else {
+        if (chapterImages.isNotEmpty() && pagerState.currentPage < chapterImages.size)
+            chapterImages[pagerState.currentPage]
+        else null
+    }
+
+    val isFavorite = when (currentImage) {
         is ImageEntity -> currentImage.uri in favorites
         is com.devson.pixchive.data.ImageFile -> currentImage.uri.toString() in favorites
         else -> false
@@ -106,7 +118,7 @@ fun ReaderScreen(
     DisposableEffect(showUI) {
         val window = activity?.window
         val insets = window?.let { WindowCompat.getInsetsController(it, view) }
-        
+
         insets?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         insets?.hide(WindowInsetsCompat.Type.systemBars())
 
@@ -120,24 +132,37 @@ fun ReaderScreen(
     Box(
         modifier = Modifier.fillMaxSize().background(Color.Black)
     ) {
-        if (isLoading && chapterImages.isEmpty()) {
+        if (isLoading && pageCount == 0) {
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = Color.White)
-        } else if (chapterImages.isNotEmpty()) {
+        } else if (pageCount > 0) {
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
                 beyondViewportPageCount = 1
             ) { page ->
                 key(page) {
+                    // For flat view: load image on-demand if not cached yet
+                    if (isFlatView && !flatImageCache.containsKey(page)) {
+                        LaunchedEffect(page) {
+                            flatImageCache[page] = viewModel.getFlatImageAt(page)
+                        }
+                    }
+
+                    val pageImage: Any? = if (isFlatView) {
+                        flatImageCache[page]
+                    } else {
+                        chapterImages.getOrNull(page)
+                    }
+
                     val rotation = rotationStates[page] ?: 0f
                     Box(modifier = Modifier.fillMaxSize()) {
                         val zoomableState = rememberZoomableState(zoomSpec = ZoomSpec(maxZoomFactor = 5f))
                         ZoomableAsyncImage(
                             model = ImageRequest.Builder(context)
                                 .data(
-                                    when(val img = chapterImages.getOrNull(page)) {
-                                        is ImageEntity -> img.uri
-                                        is com.devson.pixchive.data.ImageFile -> img.uri
+                                    when (pageImage) {
+                                        is ImageEntity -> pageImage.uri
+                                        is com.devson.pixchive.data.ImageFile -> pageImage.uri
                                         else -> null
                                     }
                                 )
@@ -180,7 +205,7 @@ fun ReaderScreen(
         ) {
             ReaderTopBar(
                 chapterFolderName = chapterName,
-                currentImageName = when(currentImage) {
+                currentImageName = when (currentImage) {
                     is ImageEntity -> currentImage.name
                     is com.devson.pixchive.data.ImageFile -> currentImage.name
                     else -> ""
@@ -191,11 +216,11 @@ fun ReaderScreen(
                 onMoreMenuToggle = {},
                 isFavorite = isFavorite,
                 onToggleFavorite = {
-                    currentImage?.let { 
-                        scope.launch { 
-                            if(it is ImageEntity) prefs.toggleFavorite(it.uri)
+                    currentImage?.let {
+                        scope.launch {
+                            if (it is ImageEntity) prefs.toggleFavorite(it.uri)
                             else if (it is com.devson.pixchive.data.ImageFile) prefs.toggleFavorite(it.uri.toString())
-                        } 
+                        }
                     }
                 }
             )
@@ -288,7 +313,7 @@ fun ReaderScreen(
                                     onClick = {
                                         currentImage?.let { image ->
                                             try {
-                                                val path = when(image) {
+                                                val path = when (image) {
                                                     is ImageEntity -> image.path
                                                     is com.devson.pixchive.data.ImageFile -> image.path
                                                     else -> return@let
@@ -323,7 +348,7 @@ fun ReaderScreen(
                             Slider(
                                 value = pagerState.currentPage.toFloat(),
                                 onValueChange = { scope.launch { pagerState.scrollToPage(it.toInt()) } },
-                                valueRange = 0f..maxOf(0f, (chapterImages.size - 1).toFloat()),
+                                valueRange = 0f..maxOf(0f, (pageCount - 1).toFloat()),
                                 modifier = Modifier
                                     .weight(1f)
                                     .padding(horizontal = 8.dp),
@@ -334,7 +359,7 @@ fun ReaderScreen(
                                 )
                             )
                             Text(
-                                text = "${chapterImages.size}",
+                                text = "$pageCount",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )

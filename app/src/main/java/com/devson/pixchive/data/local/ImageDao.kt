@@ -29,6 +29,12 @@ interface ImageDao {
     @Query("SELECT COUNT(*) FROM images WHERE folderId = :folderId")
     suspend fun getImageCount(folderId: String): Int
 
+    @Query("SELECT COUNT(*) FROM images WHERE folderId = :folderId")
+    fun getImageCountFlow(folderId: String): Flow<Int>
+
+    @Query("SELECT * FROM images WHERE folderId = :folderId ORDER BY parentFolderPath ASC, name ASC LIMIT 1 OFFSET :index")
+    suspend fun getImageByIndex(folderId: String, index: Int): ImageEntity?
+
     @Query("SELECT COUNT(DISTINCT parentFolderPath) FROM images WHERE folderId = :folderId")
     suspend fun getChapterCount(folderId: String): Int
 }

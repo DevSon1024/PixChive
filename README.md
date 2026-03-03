@@ -44,8 +44,6 @@ It focuses on **fast performance, clean UI, and offline access**, making it idea
 
 > Screenshots will be added soon.
 
-*(Tip: Add screenshots in `/screenshots` folder and link them here)*
-
 Example:
 ```md
 ![Home Screen](screenshots/home.png)
@@ -124,5 +122,3 @@ If you like this project:
 
 * Give it a ⭐ on GitHub
 * Share feedback or suggestions
-
-```

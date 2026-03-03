@@ -12,7 +12,7 @@
         tools:ignore="ScopedStorage" />
 
     <application
-        android:name=".PixChiveApplication"
+        android:name="com.devson.pixchive.PixChiveApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"

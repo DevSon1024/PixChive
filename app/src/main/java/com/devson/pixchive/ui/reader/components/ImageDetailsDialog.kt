@@ -19,8 +19,11 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.devson.pixchive.data.ImageFile
+import com.devson.pixchive.data.local.ImageEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileInputStream
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
@@ -232,6 +235,162 @@ fun ImageDetailsDialog(
     }
 }
 
+/**
+ * Overload for the modern [ImageEntity] type used by FolderScanner.
+ * Reads the file via its absolute path (file:// URI), so no contentResolver is needed.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ImageDetailsDialog(
+    entity: ImageEntity,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+    var metadata by remember { mutableStateOf<ImageMetadata?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(entity.path) {
+        metadata = loadImageMetadataFromFile(entity)
+        isLoading = false
+    }
+
+    BasicAlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.fillMaxHeight(0.8f)
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.large,
+            color = MaterialTheme.colorScheme.surface
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // Header
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Image Details",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, contentDescription = "Close")
+                    }
+                }
+
+                HorizontalDivider()
+
+                if (isLoading) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) { CircularProgressIndicator() }
+                } else {
+                    metadata?.let { data ->
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            item { SectionHeader("Basic Information") }
+                            item {
+                                DetailRow("Name", data.name)
+                                DetailRow("Size", data.size)
+                                DetailRow("Dimensions", data.dimensions)
+                                DetailRow("Type", data.mimeType ?: "Unknown")
+                                DetailRow("Orientation", data.orientation ?: "Normal")
+                            }
+                            item {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                SectionHeader("Date Information")
+                            }
+                            item {
+                                data.dateTaken?.let { DetailRow("Date Taken", it) }
+                                data.dateModified?.let { DetailRow("Date Modified", it) }
+                            }
+                            if (data.gpsLocation != null) {
+                                item {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    SectionHeader("Location")
+                                }
+                                item { DetailRow("GPS Coordinates", data.gpsLocation) }
+                            }
+                            data.camera?.let { camera ->
+                                if (camera.make != null || camera.model != null) {
+                                    item {
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        SectionHeader("Camera Information")
+                                    }
+                                    item {
+                                        camera.make?.let { DetailRow("Camera Make", it) }
+                                        camera.model?.let { DetailRow("Camera Model", it) }
+                                        camera.iso?.let { DetailRow("ISO", it) }
+                                        camera.focalLength?.let { DetailRow("Focal Length", it) }
+                                        camera.aperture?.let { DetailRow("Aperture", "f/$it") }
+                                        camera.exposureTime?.let { DetailRow("Exposure Time", "${it}s") }
+                                        camera.flash?.let { DetailRow("Flash", it) }
+                                        camera.whiteBalance?.let { DetailRow("White Balance", it) }
+                                    }
+                                }
+                            }
+                            if (data.software != null) {
+                                item {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    SectionHeader("Software")
+                                }
+                                item { DetailRow("Edited With", data.software) }
+                            }
+                            item {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                SectionHeader("File Location")
+                            }
+                            item {
+                                Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.Top
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Path",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Text(
+                                                text = data.readablePath,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                        IconButton(onClick = {
+                                            clipboardManager.setText(AnnotatedString(data.readablePath))
+                                        }) {
+                                            Icon(
+                                                Icons.Default.ContentCopy,
+                                                contentDescription = "Copy path",
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun SectionHeader(title: String) {
     Text(
@@ -407,6 +566,104 @@ private suspend fun loadImageMetadata(
             gpsLocation = null,
             camera = null,
             software = null
+        )
+    }
+}
+
+/**
+ * Variant of [loadImageMetadata] that reads from an absolute file path.
+ * Used for [ImageEntity] images whose URIs are file:// URIs generated by FolderScanner.
+ */
+private suspend fun loadImageMetadataFromFile(
+    entity: ImageEntity
+): ImageMetadata = withContext(Dispatchers.IO) {
+    try {
+        val file = File(entity.path)
+        var width = 0
+        var height = 0
+        var mimeType: String? = null
+        var orientation: String? = null
+        var gpsLocation: String? = null
+        var camera: CameraMetadata? = null
+        var software: String? = null
+        var dateTaken: String? = null
+        val dateModified = if (entity.dateModified > 0) formatDate(entity.dateModified) else null
+
+        // Dimensions + MIME type
+        if (file.exists()) {
+            FileInputStream(file).use { inputStream ->
+                val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeStream(inputStream, null, options)
+                width = options.outWidth
+                height = options.outHeight
+                mimeType = options.outMimeType
+            }
+        }
+
+        // EXIF data via file path (works without contentResolver)
+        if (file.exists()) {
+            try {
+                val exif = ExifInterface(entity.path)
+
+                orientation = when (exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
+                    ExifInterface.ORIENTATION_ROTATE_90  -> "Rotated 90°"
+                    ExifInterface.ORIENTATION_ROTATE_180 -> "Rotated 180°"
+                    ExifInterface.ORIENTATION_ROTATE_270 -> "Rotated 270°"
+                    else -> "Normal"
+                }
+
+                exif.latLong?.let { gpsLocation = "${it[0]}, ${it[1]}" }
+
+                val make  = exif.getAttribute(ExifInterface.TAG_MAKE)
+                val model = exif.getAttribute(ExifInterface.TAG_MODEL)
+                if (make != null || model != null) {
+                    camera = CameraMetadata(
+                        make          = make,
+                        model         = model,
+                        iso           = exif.getAttribute(ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY),
+                        focalLength   = exif.getAttribute(ExifInterface.TAG_FOCAL_LENGTH)?.let { "${it}mm" },
+                        aperture      = exif.getAttribute(ExifInterface.TAG_APERTURE_VALUE),
+                        exposureTime  = exif.getAttribute(ExifInterface.TAG_EXPOSURE_TIME),
+                        flash         = exif.getAttribute(ExifInterface.TAG_FLASH)?.let { if (it == "1") "Fired" else "Not Fired" },
+                        whiteBalance  = exif.getAttribute(ExifInterface.TAG_WHITE_BALANCE)?.let { if (it == "0") "Auto" else "Manual" }
+                    )
+                }
+
+                software = exif.getAttribute(ExifInterface.TAG_SOFTWARE)
+
+                exif.getAttribute(ExifInterface.TAG_DATETIME)?.let { dateTaken = formatExifDate(it) }
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+
+        ImageMetadata(
+            name          = entity.name,
+            size          = entity.formattedSize.ifEmpty { formatFileSize(entity.size) },
+            dimensions    = "$width × $height",
+            path          = entity.path,
+            readablePath  = entity.path,
+            dateModified  = dateModified,
+            dateTaken     = dateTaken,
+            mimeType      = mimeType,
+            orientation   = orientation,
+            gpsLocation   = gpsLocation,
+            camera        = camera,
+            software      = software
+        )
+    } catch (e: Exception) {
+        e.printStackTrace()
+        ImageMetadata(
+            name          = entity.name,
+            size          = entity.formattedSize.ifEmpty { formatFileSize(entity.size) },
+            dimensions    = "Unknown",
+            path          = entity.path,
+            readablePath  = entity.path,
+            dateModified  = null,
+            dateTaken     = null,
+            mimeType      = null,
+            orientation   = null,
+            gpsLocation   = null,
+            camera        = null,
+            software      = null
         )
     }
 }

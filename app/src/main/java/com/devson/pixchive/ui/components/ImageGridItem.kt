@@ -20,6 +20,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.devson.pixchive.data.local.ImageEntity
 import java.io.File
@@ -47,8 +48,9 @@ fun ImageGridItem(
         else -> 200
     }
 
-    // Memoize the file size formatting to avoid running math on scroll
-    val formattedSize = remember(image.size) { formatFileSize(image.size) }
+    // formattedSize is pre-computed at scan time in FolderScanner and stored in the entity.
+    // No Math.log10 / Math.pow ever runs here — it's a simple field read.
+    val formattedSize = image.formattedSize
 
     Box {
         Card(
@@ -70,7 +72,13 @@ fun ImageGridItem(
                         .size(fetchSize)
                         .crossfade(false)
                         .bitmapConfig(android.graphics.Bitmap.Config.RGB_565)
-                        .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
+                        // Use GPU-backed HardwareBuffer bitmaps — saves a copy into software RAM.
+                        // Compose's Canvas can render hardware bitmaps directly.
+                        .allowHardware(true)
+                        // Keep decoded thumbnails on disk so re-scrolling / re-launch
+                        // skips full JPEG decode (major RAM + CPU saving).
+                        .memoryCachePolicy(CachePolicy.ENABLED)
+                        .diskCachePolicy(CachePolicy.ENABLED)
                         .build(),
                     contentDescription = image.name,
                     modifier = Modifier.fillMaxSize(),
@@ -129,14 +137,6 @@ fun ImageGridItem(
             )
         }
     }
-}
-
-private fun formatFileSize(bytes: Long): String {
-    if (bytes <= 0) return "0 B"
-    val units = arrayOf("B", "KB", "MB")
-    val digitGroups = (Math.log10(bytes.toDouble()) / Math.log10(1024.0)).toInt()
-    val group = digitGroups.coerceIn(0, units.size - 1)
-    return String.format("%.1f %s", bytes / Math.pow(1024.0, group.toDouble()), units[group])
 }
 
 private fun shareItem(context: Context, image: ImageEntity) {

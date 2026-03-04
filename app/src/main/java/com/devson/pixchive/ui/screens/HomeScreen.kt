@@ -236,7 +236,7 @@ fun HomeScreen(
 @Composable
 fun FolderListContent(folders: List<ComicFolder>, onDeleteFolder: (String) -> Unit, onFolderClick: (String) -> Unit) {
     LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        items(folders, key = { it.id }) { folder ->
+        items(folders, key = { it.id }, contentType = { "folder_item" }) { folder ->
             FolderCard(folder, { onDeleteFolder(folder.id) }, { onFolderClick(folder.id) })
         }
     }
@@ -251,7 +251,7 @@ fun FolderGridContent(folders: List<ComicFolder>, columns: Int, onDeleteFolder: 
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize()
     ) {
-        items(folders, key = { it.id }) { folder ->
+        items(folders, key = { it.id }, contentType = { "folder_item" }) { folder ->
             FolderGridItem(folder, { onDeleteFolder(folder.id) }, { onFolderClick(folder.id) })
         }
     }

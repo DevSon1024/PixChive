@@ -5,8 +5,11 @@ import android.util.Log
 import com.devson.pixchive.data.local.ImageDao
 import com.devson.pixchive.data.local.ImageEntity
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
 import java.io.File
+import kotlin.coroutines.coroutineContext
 
 object FolderScanner {
 
@@ -48,13 +51,14 @@ object FolderScanner {
             // 2. Buffer for batch insertion
             val buffer = mutableListOf<ImageEntity>()
 
-            // 3. Recursive Scan
+            // 3. Recursive Scan (with cooperative cancellation via yield)
             scanRecursive(rootFile, showHidden) { file ->
                 val entity = ImageEntity(
                     path = file.absolutePath,
                     folderId = folderId,
                     name = file.name,
                     size = file.length(),
+                    formattedSize = formatFileSize(file.length()), // Pre-compute so Compose never runs Math.*
                     dateModified = file.lastModified(),
                     parentFolderPath = file.parentFile?.absolutePath ?: "",
                     parentFolderName = file.parentFile?.name ?: "",
@@ -87,6 +91,13 @@ object FolderScanner {
         val files = directory.listFiles() ?: return
 
         for (file in files) {
+            // Cooperative cancellation: yield() lets the dispatcher serve pending UI/other tasks
+            // between each file during a deep scan, preventing thread starvation.
+            yield()
+
+            // Early-exit if the enclosing coroutine has been cancelled
+            if (!coroutineContext.isActive) return
+
             // 1. Check for specific ignored folders (Thumbnails, Trash)
             if (file.isDirectory && isIgnoredDirectory(file.name)) {
                 continue
@@ -113,6 +124,24 @@ object FolderScanner {
         if (name.startsWith(".trash", ignoreCase = true)) return true
 
         return false
+    }
+
+    /**
+     * Converts a raw byte count into a human-readable string (e.g. "1.4 MB").
+     * Called once per file at scan time and stored in [ImageEntity.formattedSize]
+     * so that Compose composables never need to perform this calculation.
+     */
+    internal fun formatFileSize(bytes: Long): String {
+        if (bytes <= 0) return "0 B"
+        val units = arrayOf("B", "KB", "MB", "GB")
+        var value = bytes.toDouble()
+        var unitIndex = 0
+        while (value >= 1024.0 && unitIndex < units.size - 1) {
+            value /= 1024.0
+            unitIndex++
+        }
+        return if (unitIndex == 0) "$bytes B"
+        else String.format("%.1f %s", value, units[unitIndex])
     }
 
     private fun getAbsolutePathFromSafUri(uri: Uri): String? {

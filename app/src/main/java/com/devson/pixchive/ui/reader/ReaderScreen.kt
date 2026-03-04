@@ -211,7 +211,8 @@ fun ReaderScreen(
                     else -> ""
                 },
                 showMoreMenu = false,
-                currentImage = currentImage as? com.devson.pixchive.data.ImageFile, // Disable top bar legacy ImageFile passing for now, or rebuild ImageFile
+                currentImage = currentImage as? com.devson.pixchive.data.ImageFile,
+                currentImageEntity = currentImage as? ImageEntity, // Pass ImageEntity so Info button works
                 onNavigateBack = onNavigateBack,
                 onMoreMenuToggle = {},
                 isFavorite = isFavorite,

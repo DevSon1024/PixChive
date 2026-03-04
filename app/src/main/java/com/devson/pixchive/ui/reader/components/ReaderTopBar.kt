@@ -25,6 +25,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.devson.pixchive.data.ImageFile
+import com.devson.pixchive.data.local.ImageEntity
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,6 +35,7 @@ fun ReaderTopBar(
     currentImageName: String,
     showMoreMenu: Boolean,
     currentImage: ImageFile?,
+    currentImageEntity: ImageEntity? = null,   // Modern ImageEntity from FolderScanner
     isFavorite: Boolean = false,
     onNavigateBack: () -> Unit,
     onMoreMenuToggle: (Boolean) -> Unit,
@@ -182,7 +184,7 @@ fun ReaderTopBar(
                                 Icons.Default.Info,
                                 contentDescription = "Details",
                                 tint = Color.White.copy(alpha = 0.9f),
-                                modifier = Modifier.size(22.dp)
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     }
@@ -191,7 +193,12 @@ fun ReaderTopBar(
         }
     }
 
-    if (showDetailsDialog && currentImage != null) {
-        ImageDetailsDialog(image = currentImage, onDismiss = { showDetailsDialog = false })
+    // Show the details dialog for whichever image type is available.
+    // ImageEntity is the primary modern type; ImageFile is the legacy fallback.
+    when {
+        showDetailsDialog && currentImageEntity != null ->
+            ImageDetailsDialog(entity = currentImageEntity, onDismiss = { showDetailsDialog = false })
+        showDetailsDialog && currentImage != null ->
+            ImageDetailsDialog(image = currentImage, onDismiss = { showDetailsDialog = false })
     }
 }

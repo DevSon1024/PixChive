@@ -19,5 +19,6 @@ data class ImageEntity(
     val size: Long,
     val dateModified: Long,
     val parentFolderPath: String,  // Used to group images into chapters
-    val parentFolderName: String   // The display name of the chapter
+    val parentFolderName: String,  // The display name of the chapter
+    val formattedSize: String = "" // Pre-computed human-readable file size (e.g. "1.4 MB")
 )

@@ -5,6 +5,8 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.RawQuery
+import androidx.sqlite.db.SupportSQLiteQuery
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -20,11 +22,17 @@ interface ImageDao {
     fun getImagesFlow(folderId: String): Flow<List<ImageEntity>>
 
     /**
-     * Returns a [PagingSource] for Paging 3. Room invalidates it automatically
-     * whenever rows for this folderId change, so the UI updates live during scanning.
+     * Fixed sort PagingSource (kept for compatibility).
      */
     @Query("SELECT * FROM images WHERE folderId = :folderId ORDER BY parentFolderPath ASC, name ASC")
     fun getImagesByFolderPaged(folderId: String): PagingSource<Int, ImageEntity>
+
+    /**
+     * Sort-aware PagingSource — ORDER BY is injected dynamically by the ViewModel
+     * so the grid and the reader always use an identical sort order.
+     */
+    @RawQuery(observedEntities = [ImageEntity::class])
+    fun getImagesByFolderPagedRaw(query: SupportSQLiteQuery): PagingSource<Int, ImageEntity>
 
     @Query("SELECT COUNT(*) FROM images WHERE folderId = :folderId")
     suspend fun getImageCount(folderId: String): Int
@@ -34,6 +42,12 @@ interface ImageDao {
 
     @Query("SELECT * FROM images WHERE folderId = :folderId ORDER BY parentFolderPath ASC, name ASC LIMIT 1 OFFSET :index")
     suspend fun getImageByIndex(folderId: String, index: Int): ImageEntity?
+
+    /**
+     * Sort-aware single-image fetch by row offset — must use SAME ORDER BY as getImagesByFolderPagedRaw.
+     */
+    @RawQuery
+    suspend fun getImageByIndexRaw(query: SupportSQLiteQuery): ImageEntity?
 
     @Query("SELECT COUNT(DISTINCT parentFolderPath) FROM images WHERE folderId = :folderId")
     suspend fun getChapterCount(folderId: String): Int

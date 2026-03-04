@@ -24,6 +24,7 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
+import androidx.sqlite.db.SimpleSQLiteQuery
 import com.devson.pixchive.data.local.ImageEntity
 import com.devson.pixchive.workers.FolderSyncWorker
 
@@ -72,17 +73,28 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     }.flatMapLatest { it }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // --- PAGING 3 FOR FLAT VIEW ---
-    val flatImages: Flow<PagingData<ImageEntity>> = _currentFolder.filterNotNull()
-        .flatMapLatest { folder ->
+    // --- PAGING 3 FOR FLAT VIEW (sort-aware) ---
+    // Uses combine so any change to folder OR sortOption rebuilds the Pager with the correct ORDER BY.
+    // This guarantees the grid index and the reader's DB OFFSET always match.
+    val flatImages: Flow<PagingData<ImageEntity>> = combine(
+        _currentFolder.filterNotNull(),
+        _sortOption
+    ) { folder, sort -> folder to sort }
+        .flatMapLatest { (folder, sort) ->
+            val orderBy = flatOrderBy(sort)
+            val sql = "SELECT * FROM images WHERE folderId = ? ORDER BY $orderBy"
             Pager(
                 config = PagingConfig(
                     pageSize = 60,
                     enablePlaceholders = true,
-                    maxSize = 200, // keep memory footprint low
+                    maxSize = 200,
                     prefetchDistance = 10
                 ),
-                pagingSourceFactory = { imageDao.getImagesByFolderPaged(folder.id) }
+                pagingSourceFactory = {
+                    imageDao.getImagesByFolderPagedRaw(
+                        SimpleSQLiteQuery(sql, arrayOf(folder.id))
+                    )
+                }
             ).flow
         }.cachedIn(viewModelScope)
 
@@ -92,10 +104,41 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
         .flatMapLatest { folder -> imageDao.getImageCountFlow(folder.id) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
-    /** Loads a single image by its sorted position in the flat view (for on-demand reader page). */
+    /**
+     * Loads a single image by its sorted position — uses the SAME ORDER BY as the flat view
+     * Pager so clicking image at grid index N always opens image N in the reader.
+     */
     suspend fun getFlatImageAt(index: Int): ImageEntity? {
         val folderId = _currentFolder.value?.id ?: return null
-        return imageDao.getImageByIndex(folderId, index)
+        val orderBy = flatOrderBy(_sortOption.value)
+        val sql = "SELECT * FROM images WHERE folderId = ? ORDER BY $orderBy LIMIT 1 OFFSET ?"
+        return imageDao.getImageByIndexRaw(SimpleSQLiteQuery(sql, arrayOf(folderId, index)))
+    }
+
+    // --- SCROLL POSITION (survives back-navigation via shared ViewModel) ---
+    private val _flatScrollIndex  = MutableStateFlow(0)
+    private val _flatScrollOffset = MutableStateFlow(0)
+    val flatScrollIndex:  StateFlow<Int> = _flatScrollIndex.asStateFlow()
+    val flatScrollOffset: StateFlow<Int> = _flatScrollOffset.asStateFlow()
+
+    private val _explorerScrollIndex  = MutableStateFlow(0)
+    private val _explorerScrollOffset = MutableStateFlow(0)
+    val explorerScrollIndex:  StateFlow<Int> = _explorerScrollIndex.asStateFlow()
+    val explorerScrollOffset: StateFlow<Int> = _explorerScrollOffset.asStateFlow()
+
+    fun saveFlatScrollPosition(index: Int, offset: Int) {
+        _flatScrollIndex.value  = index
+        _flatScrollOffset.value = offset
+    }
+
+    fun saveExplorerScrollPosition(index: Int, offset: Int) {
+        _explorerScrollIndex.value  = index
+        _explorerScrollOffset.value = offset
+    }
+
+    private fun flatOrderBy(sort: String) = when (sort) {
+        "name_desc" -> "parentFolderPath DESC, name DESC"
+        else        -> "parentFolderPath ASC, name ASC"
     }
 
     private val _isLoading = MutableStateFlow(true)
@@ -227,6 +270,11 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
 
     fun setSortOption(option: String) {
         viewModelScope.launch {
+            // Reset scroll position BEFORE sort changes so the Pager doesn't try to
+            // initialise at a stale high index in the newly reordered list — that burst
+            // causes a major batch of concurrent DB page loads which leads to ANR.
+            _flatScrollIndex.value  = 0
+            _flatScrollOffset.value = 0
             _sortOption.value = option
             preferencesManager.saveFolderSortOption(option)
         }

@@ -85,10 +85,11 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
             val sql = "SELECT * FROM images WHERE folderId = ? ORDER BY $orderBy"
             Pager(
                 config = PagingConfig(
-                    pageSize = 60,
+                    pageSize = 40,
                     enablePlaceholders = true,
-                    maxSize = 200,
-                    prefetchDistance = 10
+                    maxSize = 160,
+                    prefetchDistance = 5,
+                    initialLoadSize = 40
                 ),
                 pagingSourceFactory = {
                     imageDao.getImagesByFolderPagedRaw(
@@ -153,6 +154,20 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     private val _gridColumns = MutableStateFlow(3)
     val gridColumns: StateFlow<Int> = _gridColumns.asStateFlow()
 
+    private val _readerScrollMode = MutableStateFlow("pager")
+    val readerScrollMode: StateFlow<String> = _readerScrollMode.asStateFlow()
+
+    private val _mangaMode = MutableStateFlow(false)
+    val mangaMode: StateFlow<Boolean> = _mangaMode.asStateFlow()
+
+    // Progress map for the current folder: chapterPath -> last read page
+    val readProgressMap: StateFlow<Map<String, Int>> = _currentFolder
+        .flatMapLatest { folder ->
+            if (folder == null) flowOf(emptyMap())
+            else preferencesManager.readProgressFlow(folder.id)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
     private var scanJob: Job? = null
 
     init {
@@ -165,6 +180,8 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
             _layoutMode.value = preferencesManager.layoutModeFlow.first()
             _gridColumns.value = preferencesManager.folderGridColumnsFlow.first()
             _sortOption.value = preferencesManager.folderSortOptionFlow.first()
+            _readerScrollMode.value = preferencesManager.readerScrollModeFlow.first()
+            _mangaMode.value = preferencesManager.mangaModeFlow.first()
         }
     }
 
@@ -278,5 +295,31 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
             _sortOption.value = option
             preferencesManager.saveFolderSortOption(option)
         }
+    }
+
+    fun setReaderScrollMode(mode: String) {
+        viewModelScope.launch {
+            _readerScrollMode.value = mode
+            preferencesManager.saveReaderScrollMode(mode)
+        }
+    }
+
+    fun setMangaMode(enabled: Boolean) {
+        viewModelScope.launch {
+            _mangaMode.value = enabled
+            preferencesManager.saveMangaMode(enabled)
+        }
+    }
+
+    fun saveReadProgress(chapterPath: String, page: Int) {
+        val folderId = _currentFolder.value?.id ?: return
+        viewModelScope.launch {
+            preferencesManager.saveReadProgress(folderId, chapterPath, page)
+        }
+    }
+
+    suspend fun getReadProgress(chapterPath: String): Int {
+        val folderId = _currentFolder.value?.id ?: return 0
+        return preferencesManager.getReadProgress(folderId, chapterPath)
     }
 }

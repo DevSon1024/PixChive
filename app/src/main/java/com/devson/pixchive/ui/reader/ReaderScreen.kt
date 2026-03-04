@@ -1,6 +1,8 @@
 package com.devson.pixchive.ui.reader
 
 import android.app.Activity
+import android.media.AudioManager
+import android.view.KeyEvent
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -9,8 +11,10 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -22,8 +26,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -41,6 +48,7 @@ import com.devson.pixchive.ui.reader.components.ReaderTopBar
 import com.devson.pixchive.ui.reader.utils.urisMatch
 import com.devson.pixchive.viewmodel.FolderViewModel
 import com.devson.pixchive.data.local.ImageEntity
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.saket.telephoto.zoomable.coil.ZoomableAsyncImage
 import me.saket.telephoto.zoomable.rememberZoomableImageState
@@ -66,6 +74,8 @@ fun ReaderScreen(
     val chapters by viewModel.chapters.collectAsState()
     val currentFolder by viewModel.currentFolder.collectAsState()
     val favorites by prefs.favoritesFlow.collectAsState(initial = emptySet())
+    val readerScrollMode by viewModel.readerScrollMode.collectAsState()
+    val mangaMode by viewModel.mangaMode.collectAsState()
 
     // --- FLAT VIEW: use true DB total instead of paging snapshot ---
     val flatImageCount by viewModel.flatImageCount.collectAsState()
@@ -90,20 +100,45 @@ fun ReaderScreen(
 
     val rotationStates = remember { mutableStateMapOf<Int, Float>() }
 
+    // ── AUTO-RESUME: resolved initial page ─────────────────────────────────────
+    var resolvedInitialPage by remember { mutableStateOf(initialIndex) }
+    LaunchedEffect(folderId, chapterPath) {
+        val saved = viewModel.getReadProgress(chapterPath)
+        // Only use saved progress if user didn't deep-link to a specific page (initialIndex == 0)
+        if (initialIndex == 0 && saved > 0) {
+            resolvedInitialPage = saved
+        }
+    }
+
     val pagerState = rememberPagerState(
-        initialPage = initialIndex.coerceIn(0, maxOf(0, pageCount - 1)),
+        initialPage = resolvedInitialPage.coerceIn(0, maxOf(0, pageCount - 1)),
         pageCount = { pageCount }
     )
+
+    // Webtoon scroll state (shared list state so we can read current position)
+    val webtoonListState = rememberLazyListState(
+        initialFirstVisibleItemIndex = resolvedInitialPage.coerceIn(0, maxOf(0, pageCount - 1))
+    )
+
+    // Track current page for both modes
+    var webtoonCurrentPage by remember { mutableStateOf(resolvedInitialPage) }
+
+    val currentPage = if (readerScrollMode == "webtoon") webtoonCurrentPage else pagerState.currentPage
+
+    // Local state for slider drag — decoupled from currentPage to avoid feedback loop.
+    // While the user is dragging, we show the dragged value; on release we commit the scroll.
+    var sliderDragging by remember { mutableStateOf(false) }
+    var sliderDragValue by remember { mutableStateOf(0f) }
 
     // Cache for on-demand loaded flat-view images (page index -> ImageEntity)
     val flatImageCache = remember { mutableStateMapOf<Int, ImageEntity?>() }
 
     // Current image resolved for either mode
     val currentImage: Any? = if (isFlatView) {
-        flatImageCache[pagerState.currentPage]
+        flatImageCache[currentPage]
     } else {
-        if (chapterImages.isNotEmpty() && pagerState.currentPage < chapterImages.size)
-            chapterImages[pagerState.currentPage]
+        if (chapterImages.isNotEmpty() && currentPage < chapterImages.size)
+            chapterImages[currentPage]
         else null
     }
 
@@ -113,81 +148,173 @@ fun ReaderScreen(
         else -> false
     }
 
-    // KEY FIX: Only HIDE system bars when Reader is shown.
-    // Use DisposableEffect to RESTORE them when navigating away.
-    DisposableEffect(showUI) {
+    // ── TRUE IMMERSIVE MODE ─────────────────────────────────────────────────────
+    // System bars are ALWAYS hidden for the full reader session.
+    // The center-tap only toggles the Compose UI overlay, NOT the system bars.
+    DisposableEffect(Unit) {
         val window = activity?.window
         val insets = window?.let { WindowCompat.getInsetsController(it, view) }
 
+        // Bars auto-show transiently on edge-swipe, then re-hide themselves
         insets?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         insets?.hide(WindowInsetsCompat.Type.systemBars())
 
         onDispose {
+            // Restore bars when leaving the reader
             insets?.show(WindowInsetsCompat.Type.systemBars())
+        }
+    }
+
+    // ── VOLUME BUTTON NAVIGATION ────────────────────────────────────────────────
+    val audioManager = remember { context.getSystemService(android.content.Context.AUDIO_SERVICE) as AudioManager }
+    val focusRequester = remember { FocusRequester() }
+
+    // Suppress system volume overlay while in reader
+    DisposableEffect(Unit) {
+        @Suppress("DEPRECATION")
+        audioManager.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
+        onDispose {
+            @Suppress("DEPRECATION")
+            audioManager.abandonAudioFocus(null)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
+    // AUTO-SAVE READ PROGRESS
+    // Pager mode: save on page settle
+    LaunchedEffect(pagerState.currentPage, readerScrollMode) {
+        if (readerScrollMode != "webtoon" && pageCount > 0) {
+            delay(500)
+            viewModel.saveReadProgress(chapterPath, pagerState.currentPage)
+        }
+    }
+    // Webtoon mode: save on scroll stop
+    LaunchedEffect(webtoonCurrentPage, readerScrollMode) {
+        if (readerScrollMode == "webtoon" && pageCount > 0) {
+            delay(500)
+            viewModel.saveReadProgress(chapterPath, webtoonCurrentPage)
         }
     }
 
     LaunchedEffect(folderId) { viewModel.loadFolder(folderId) }
 
     Box(
-        modifier = Modifier.fillMaxSize().background(Color.Black)
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .focusRequester(focusRequester)
+            .focusable()
+            .onKeyEvent { event ->
+                if (event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
+                    when (event.nativeKeyEvent.keyCode) {
+                        KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                            scope.launch {
+                                if (readerScrollMode == "webtoon") {
+                                    val next = (webtoonCurrentPage + 1).coerceAtMost(pageCount - 1)
+                                    webtoonListState.animateScrollToItem(next)
+                                } else {
+                                    val next = (pagerState.currentPage + 1).coerceAtMost(pageCount - 1)
+                                    pagerState.animateScrollToPage(next)
+                                }
+                            }
+                            true
+                        }
+                        KeyEvent.KEYCODE_VOLUME_UP -> {
+                            scope.launch {
+                                if (readerScrollMode == "webtoon") {
+                                    val prev = (webtoonCurrentPage - 1).coerceAtLeast(0)
+                                    webtoonListState.animateScrollToItem(prev)
+                                } else {
+                                    val prev = (pagerState.currentPage - 1).coerceAtLeast(0)
+                                    pagerState.animateScrollToPage(prev)
+                                }
+                            }
+                            true
+                        }
+                        else -> false
+                    }
+                } else false
+            }
     ) {
         if (isLoading && pageCount == 0) {
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = Color.White)
         } else if (pageCount > 0) {
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxSize(),
-                beyondViewportPageCount = 1
-            ) { page ->
-                key(page) {
-                    // For flat view: load image on-demand if not cached yet
-                    if (isFlatView && !flatImageCache.containsKey(page)) {
-                        LaunchedEffect(page) {
-                            flatImageCache[page] = viewModel.getFlatImageAt(page)
-                        }
-                    }
 
-                    val pageImage: Any? = if (isFlatView) {
-                        flatImageCache[page]
-                    } else {
-                        chapterImages.getOrNull(page)
-                    }
-
-                    val rotation = rotationStates[page] ?: 0f
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        val zoomableState = rememberZoomableState(zoomSpec = ZoomSpec(maxZoomFactor = 5f))
-                        ZoomableAsyncImage(
-                            model = ImageRequest.Builder(context)
-                                .data(
-                                    when (pageImage) {
-                                        is ImageEntity -> pageImage.uri
-                                        is com.devson.pixchive.data.ImageFile -> pageImage.uri
-                                        else -> null
-                                    }
-                                )
-                                .size(2048)
-                                .scale(Scale.FIT)
-                                .crossfade(false)
-                                .build(),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .graphicsLayer {
-                                    rotationZ = rotation
-                                    clip = false
-                                },
-                            state = rememberZoomableImageState(zoomableState),
-                            onClick = {
-                                showUI = !showUI
-                                if (!showUI) showBottomOptions = false
-                            },
-                            contentScale = when (readingMode) {
-                                "fill" -> ContentScale.Crop
-                                "original" -> ContentScale.None
-                                else -> ContentScale.Fit
+            // ── WEBTOON MODE ───────────────────────────────────────────────────
+            if (readerScrollMode == "webtoon") {
+                WebtoonReader(
+                    chapterImages = chapterImages,
+                    isFlatView = isFlatView,
+                    pageCount = pageCount,
+                    flatImageCache = flatImageCache,
+                    listState = webtoonListState,
+                    onPageChanged = { webtoonCurrentPage = it },
+                    onToggleUI = {
+                        showUI = !showUI
+                        if (!showUI) showBottomOptions = false
+                    },
+                    viewModel = viewModel
+                )
+            } else {
+                // ── HORIZONTAL PAGER MODE (with optional Manga RTL) ────────────
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize(),
+                    beyondViewportPageCount = 1,
+                    reverseLayout = mangaMode
+                ) { page ->
+                    key(page) {
+                        // For flat view: load image on-demand if not cached yet
+                        if (isFlatView && !flatImageCache.containsKey(page)) {
+                            LaunchedEffect(page) {
+                                flatImageCache[page] = viewModel.getFlatImageAt(page)
                             }
-                        )
+                        }
+
+                        val pageImage: Any? = if (isFlatView) {
+                            flatImageCache[page]
+                        } else {
+                            chapterImages.getOrNull(page)
+                        }
+
+                        val rotation = rotationStates[page] ?: 0f
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            val zoomableState = rememberZoomableState(zoomSpec = ZoomSpec(maxZoomFactor = 5f))
+                            ZoomableAsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(
+                                        when (pageImage) {
+                                            is ImageEntity -> pageImage.uri
+                                            is com.devson.pixchive.data.ImageFile -> pageImage.uri
+                                            else -> null
+                                        }
+                                    )
+                                    .size(2048)
+                                    .scale(Scale.FIT)
+                                    .crossfade(false)
+                                    .build(),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer {
+                                        rotationZ = rotation
+                                        clip = false
+                                    },
+                                state = rememberZoomableImageState(zoomableState),
+                                onClick = {
+                                    showUI = !showUI
+                                    if (!showUI) showBottomOptions = false
+                                },
+                                contentScale = when (readingMode) {
+                                    "fill" -> ContentScale.Crop
+                                    "original" -> ContentScale.None
+                                    else -> ContentScale.Fit
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -212,7 +339,7 @@ fun ReaderScreen(
                 },
                 showMoreMenu = false,
                 currentImage = currentImage as? com.devson.pixchive.data.ImageFile,
-                currentImageEntity = currentImage as? ImageEntity, // Pass ImageEntity so Info button works
+                currentImageEntity = currentImage as? ImageEntity,
                 onNavigateBack = onNavigateBack,
                 onMoreMenuToggle = {},
                 isFavorite = isFavorite,
@@ -234,7 +361,6 @@ fun ReaderScreen(
             exit = slideOutVertically { it } + fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter)
         ) {
-            // Container for all bottom elements
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
@@ -279,60 +405,92 @@ fun ReaderScreen(
                             enter = androidx.compose.animation.expandVertically(),
                             exit = androidx.compose.animation.shrinkVertically()
                         ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 16.dp),
-                                horizontalArrangement = Arrangement.SpaceEvenly
-                            ) {
-                                ReaderActionButton(
-                                    icon = Icons.AutoMirrored.Filled.RotateRight,
-                                    label = "ROTATE",
-                                    onClick = {
-                                        val currentRot = rotationStates[pagerState.currentPage] ?: 0f
-                                        rotationStates[pagerState.currentPage] = currentRot + 90f
-                                    }
-                                )
-                                ReaderActionButton(
-                                    icon = when (readingMode) {
-                                        "fill" -> Icons.Default.CropSquare
-                                        "original" -> Icons.Default.PhotoSizeSelectActual
-                                        else -> Icons.Default.FitScreen
-                                    },
-                                    label = readingMode.uppercase(),
-                                    onClick = {
-                                        readingMode = when (readingMode) {
-                                            "fit" -> "fill"
-                                            "fill" -> "original"
-                                            else -> "fit"
+                            Column {
+                                // Row 1: Core actions
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 12.dp),
+                                    horizontalArrangement = Arrangement.SpaceEvenly
+                                ) {
+                                    ReaderActionButton(
+                                        icon = Icons.AutoMirrored.Filled.RotateRight,
+                                        label = "ROTATE",
+                                        onClick = {
+                                            val currentRot = rotationStates[currentPage] ?: 0f
+                                            rotationStates[currentPage] = currentRot + 90f
                                         }
-                                    }
-                                )
-                                ReaderActionButton(
-                                    icon = Icons.Default.Share,
-                                    label = "SHARE",
-                                    onClick = {
-                                        currentImage?.let { image ->
-                                            try {
-                                                val path = when (image) {
-                                                    is ImageEntity -> image.path
-                                                    is com.devson.pixchive.data.ImageFile -> image.path
-                                                    else -> return@let
-                                                }
-                                                val file = File(path)
-                                                val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
-                                                val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                                                    type = "image/*"
-                                                    putExtra(android.content.Intent.EXTRA_STREAM, uri)
-                                                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                                }
-                                                context.startActivity(android.content.Intent.createChooser(shareIntent, "Share"))
-                                            } catch (e: Exception) {
-                                                Toast.makeText(context, "Error sharing", Toast.LENGTH_SHORT).show()
+                                    )
+                                    ReaderActionButton(
+                                        icon = when (readingMode) {
+                                            "fill" -> Icons.Default.CropSquare
+                                            "original" -> Icons.Default.PhotoSizeSelectActual
+                                            else -> Icons.Default.FitScreen
+                                        },
+                                        label = readingMode.uppercase(),
+                                        onClick = {
+                                            readingMode = when (readingMode) {
+                                                "fit" -> "fill"
+                                                "fill" -> "original"
+                                                else -> "fit"
                                             }
                                         }
-                                    }
-                                )
+                                    )
+                                    ReaderActionButton(
+                                        icon = Icons.Default.Share,
+                                        label = "SHARE",
+                                        onClick = {
+                                            currentImage?.let { image ->
+                                                try {
+                                                    val path = when (image) {
+                                                        is ImageEntity -> image.path
+                                                        is com.devson.pixchive.data.ImageFile -> image.path
+                                                        else -> return@let
+                                                    }
+                                                    val file = File(path)
+                                                    val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+                                                    val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                                        type = "image/*"
+                                                        putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                                                        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                                    }
+                                                    context.startActivity(android.content.Intent.createChooser(shareIntent, "Share"))
+                                                } catch (e: Exception) {
+                                                    Toast.makeText(context, "Error sharing", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        }
+                                    )
+                                }
+
+                                // Row 2: Reading mode toggles (Webtoon + Manga)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 16.dp),
+                                    horizontalArrangement = Arrangement.SpaceEvenly
+                                ) {
+                                    // Webtoon / Pager toggle
+                                    ReaderActionButton(
+                                        icon = if (readerScrollMode == "webtoon")
+                                            Icons.Default.ViewDay
+                                        else
+                                            Icons.Default.SwapVert,
+                                        label = if (readerScrollMode == "webtoon") "PAGER" else "WEBTOON",
+                                        isActive = readerScrollMode == "webtoon",
+                                        onClick = {
+                                            val newMode = if (readerScrollMode == "webtoon") "pager" else "webtoon"
+                                            viewModel.setReaderScrollMode(newMode)
+                                        }
+                                    )
+                                    // Manga RTL toggle
+                                    ReaderActionButton(
+                                        icon = Icons.AutoMirrored.Filled.CompareArrows,
+                                        label = if (mangaMode) "LTR" else "MANGA",
+                                        isActive = mangaMode,
+                                        onClick = { viewModel.setMangaMode(!mangaMode) }
+                                    )
+                                }
                             }
                         }
 
@@ -342,13 +500,27 @@ fun ReaderScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "${pagerState.currentPage + 1}",
+                                text = "${currentPage + 1}",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Slider(
-                                value = pagerState.currentPage.toFloat(),
-                                onValueChange = { scope.launch { pagerState.scrollToPage(it.toInt()) } },
+                                value = if (sliderDragging) sliderDragValue else currentPage.toFloat(),
+                                onValueChange = { target ->
+                                    sliderDragging = true
+                                    sliderDragValue = target
+                                },
+                                onValueChangeFinished = {
+                                    sliderDragging = false
+                                    val target = sliderDragValue.toInt()
+                                    scope.launch {
+                                        if (readerScrollMode == "webtoon") {
+                                            webtoonListState.scrollToItem(target)
+                                        } else {
+                                            pagerState.scrollToPage(target)
+                                        }
+                                    }
+                                },
                                 valueRange = 0f..maxOf(0f, (pageCount - 1).toFloat()),
                                 modifier = Modifier
                                     .weight(1f)

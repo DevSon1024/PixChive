@@ -41,6 +41,7 @@ fun FolderViewScreen(
     val currentViewMode by viewModel.viewMode.collectAsState()
     val gridColumns     by viewModel.gridColumns.collectAsState()
     val sortOption      by viewModel.sortOption.collectAsState()
+    val readProgressMap by viewModel.readProgressMap.collectAsState()
 
     // Scroll position restoration (plain Int state — no heavy flow work)
     val flatScrollIndex       by viewModel.flatScrollIndex.collectAsState()
@@ -104,6 +105,7 @@ fun FolderViewScreen(
                         layoutMode = layoutMode,
                         gridColumns = gridColumns,
                         isLoading = isLoading,
+                        readProgressMap = readProgressMap,
                         initialScrollIndex = explorerScrollIndex,
                         initialScrollOffset = explorerScrollOffset,
                         onSaveScroll = { idx, off -> viewModel.saveExplorerScrollPosition(idx, off) },

@@ -13,6 +13,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "pixchive_prefs")
@@ -42,6 +43,11 @@ class PreferencesManager(private val context: Context) {
 
         // Theme Settings [ADDED]
         private val APP_THEME_KEY = stringPreferencesKey("app_theme")
+
+        // Reader Settings
+        private val READER_SCROLL_MODE_KEY = stringPreferencesKey("reader_scroll_mode")  // "pager" | "webtoon"
+        private val MANGA_MODE_KEY = booleanPreferencesKey("manga_mode")                 // RTL paging
+        private val READ_PROGRESS_KEY = stringPreferencesKey("read_progress")            // JSON: "folderId|chapterPath" → pageIndex
     }
 
     // --- Favorites ---
@@ -175,4 +181,63 @@ class PreferencesManager(private val context: Context) {
     val appThemeFlow: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[APP_THEME_KEY] ?: "system"
     }.distinctUntilChanged()
+
+    // --- Reader Settings ---
+
+    suspend fun saveReaderScrollMode(mode: String) {
+        context.dataStore.edit { preferences -> preferences[READER_SCROLL_MODE_KEY] = mode }
+    }
+
+    // Values: "pager", "webtoon"
+    val readerScrollModeFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[READER_SCROLL_MODE_KEY] ?: "pager"
+    }.distinctUntilChanged()
+
+    suspend fun saveMangaMode(enabled: Boolean) {
+        context.dataStore.edit { preferences -> preferences[MANGA_MODE_KEY] = enabled }
+    }
+
+    val mangaModeFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[MANGA_MODE_KEY] ?: false
+    }.distinctUntilChanged()
+
+    // --- Read Progress ---
+
+    private fun progressKey(folderId: String, chapterPath: String) = "$folderId|$chapterPath"
+
+    suspend fun saveReadProgress(folderId: String, chapterPath: String, page: Int) {
+        context.dataStore.edit { preferences ->
+            val json = preferences[READ_PROGRESS_KEY] ?: "{}"
+            val type = object : TypeToken<MutableMap<String, Int>>() {}.type
+            val map: MutableMap<String, Int> = try {
+                gson.fromJson(json, type) ?: mutableMapOf()
+            } catch (e: Exception) { mutableMapOf() }
+            map[progressKey(folderId, chapterPath)] = page
+            preferences[READ_PROGRESS_KEY] = gson.toJson(map)
+        }
+    }
+
+    suspend fun getReadProgress(folderId: String, chapterPath: String): Int {
+        val json = context.dataStore.data.first()[READ_PROGRESS_KEY] ?: return 0
+        val type = object : TypeToken<Map<String, Int>>() {}.type
+        return try {
+            val map: Map<String, Int> = gson.fromJson(json, type) ?: emptyMap()
+            map[progressKey(folderId, chapterPath)] ?: 0
+        } catch (e: Exception) { 0 }
+    }
+
+    /** Flow of the full progress map for a specific folder (chapterPath → lastPage). */
+    fun readProgressFlow(folderId: String): Flow<Map<String, Int>> =
+        context.dataStore.data.map { preferences ->
+            val json = preferences[READ_PROGRESS_KEY] ?: return@map emptyMap()
+            val type = object : TypeToken<Map<String, Int>>() {}.type
+            try {
+                val raw: Map<String, Int> = gson.fromJson(json, type) ?: emptyMap()
+                // Strip folderId prefix so callers get chapterPath → page
+                val prefix = "$folderId|"
+                raw.entries
+                    .filter { it.key.startsWith(prefix) }
+                    .associate { it.key.removePrefix(prefix) to it.value }
+            } catch (e: Exception) { emptyMap() }
+        }.distinctUntilChanged()
 }

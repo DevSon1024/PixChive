@@ -30,6 +30,7 @@ import com.devson.pixchive.ui.components.ChapterListItem
 import com.devson.pixchive.ui.components.EmptyChaptersView
 import com.devson.pixchive.viewmodel.FolderViewModel
 import kotlinx.coroutines.flow.filter
+import androidx.compose.ui.graphics.Color
 
 /**
  * Self-contained Explorer (chapter) view composable.
@@ -44,6 +45,7 @@ fun ExplorerFolderView(
     layoutMode: String,
     gridColumns: Int,
     isLoading: Boolean,
+    readProgressMap: Map<String, Int> = emptyMap(),
     initialScrollIndex: Int = 0,
     initialScrollOffset: Int = 0,
     onSaveScroll: (Int, Int) -> Unit = { _, _ -> },
@@ -77,6 +79,7 @@ fun ExplorerFolderView(
                 ChapterGridItem(
                     chapter = chapter,
                     columns = gridColumns,
+                    savedPage = readProgressMap[chapter.path] ?: 0,
                     onClick = { onChapterClick(chapter.path) },
                     onRemove = { viewModel.removeFolder(chapter.path) }
                 )
@@ -110,6 +113,7 @@ fun ExplorerFolderView(
 fun ChapterGridItem(
     chapter: Chapter,
     columns: Int,
+    savedPage: Int = 0,
     onClick: () -> Unit,
     onRemove: () -> Unit
 ) {
@@ -175,6 +179,19 @@ fun ChapterGridItem(
                             }
                         }
                     }
+                }
+
+                // Progress bar overlay — shown when user has started reading this chapter
+                if (savedPage > 0 && chapter.imageCount > 0) {
+                    LinearProgressIndicator(
+                        progress = { savedPage.toFloat() / chapter.imageCount },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(3.dp)
+                            .align(Alignment.BottomCenter),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = Color.Transparent
+                    )
                 }
             }
         }

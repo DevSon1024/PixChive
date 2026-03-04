@@ -70,13 +70,8 @@ fun ImageGridItem(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(image.uri)
                         .size(fetchSize)
-                        .crossfade(false)
+                        .crossfade(200)
                         .bitmapConfig(android.graphics.Bitmap.Config.RGB_565)
-                        // Use GPU-backed HardwareBuffer bitmaps — saves a copy into software RAM.
-                        // Compose's Canvas can render hardware bitmaps directly.
-                        .allowHardware(true)
-                        // Keep decoded thumbnails on disk so re-scrolling / re-launch
-                        // skips full JPEG decode (major RAM + CPU saving).
                         .memoryCachePolicy(CachePolicy.ENABLED)
                         .diskCachePolicy(CachePolicy.ENABLED)
                         .build(),
@@ -130,7 +125,7 @@ fun ImageGridItem(
                 leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
                 onClick = {
                     showMenu = false
-                    if (deleteItem(context, File(image.path))) {
+                    if (deleteItem(File(image.path))) {
                         onRefresh()
                     }
                 }
@@ -159,7 +154,7 @@ private fun shareItem(context: Context, image: ImageEntity) {
     }
 }
 
-private fun deleteItem(context: Context, file: File): Boolean {
+private fun deleteItem(file: File): Boolean {
     return try {
         val deleted = if (file.isDirectory) file.deleteRecursively() else file.delete()
         if (deleted) true else false

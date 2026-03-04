@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 fun ReaderActionButton(
     icon: ImageVector,
     label: String,
+    isActive: Boolean = false,
     onClick: () -> Unit
 ) {
     var isPressed by remember { mutableStateOf(false) }
@@ -36,14 +37,24 @@ fun ReaderActionButton(
         label = "buttonScale"
     )
 
-    // Smooth color transition
+    // Smooth color transition — active buttons glow with primary color
     val backgroundColor = animateColorAsState(
-        targetValue = if (isPressed)
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f)
-        else
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+        targetValue = when {
+            isActive -> MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+            isPressed -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f)
+            else -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+        },
         animationSpec = tween(200),
         label = "backgroundColor"
+    ).value
+
+    val contentColor = animateColorAsState(
+        targetValue = if (isActive)
+            MaterialTheme.colorScheme.onPrimary
+        else
+            MaterialTheme.colorScheme.onPrimaryContainer,
+        animationSpec = tween(200),
+        label = "contentColor"
     ).value
 
     Surface(
@@ -53,7 +64,7 @@ fun ReaderActionButton(
         },
         shape = RoundedCornerShape(14.dp),
         color = backgroundColor,
-        tonalElevation = if (isPressed) 4.dp else 2.dp,
+        tonalElevation = if (isPressed || isActive) 4.dp else 2.dp,
         modifier = Modifier
             .scale(scale)
             .defaultMinSize(minWidth = 75.dp)
@@ -66,13 +77,13 @@ fun ReaderActionButton(
             // Icon container with subtle background
             Surface(
                 shape = RoundedCornerShape(8.dp),
-                color = Color.White.copy(alpha = 0.1f),
+                color = Color.White.copy(alpha = if (isActive) 0.2f else 0.1f),
                 modifier = Modifier.padding(4.dp)
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = label,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    tint = contentColor,
                     modifier = Modifier
                         .size(24.dp)
                         .padding(4.dp)
@@ -83,7 +94,7 @@ fun ReaderActionButton(
 
             Text(
                 text = label,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                color = contentColor,
                 style = MaterialTheme.typography.labelMedium.copy(
                     fontWeight = FontWeight.Medium
                 )

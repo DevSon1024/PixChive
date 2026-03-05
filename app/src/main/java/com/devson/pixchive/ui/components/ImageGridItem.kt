@@ -52,6 +52,21 @@ fun ImageGridItem(
     // No Math.log10 / Math.pow ever runs here — it's a simple field read.
     val formattedSize = image.formattedSize
 
+    // remember ensures the same ImageRequest object is reused across recompositions
+    // as long as the URI and fetchSize haven't changed.  Without this, AsyncImage
+    // receives a brand-new (non-equal) model every scroll frame and re-issues the
+    // Coil load, causing the "images reloading" flicker.
+    val imageRequest = remember(image.uri, fetchSize) {
+        ImageRequest.Builder(context)
+            .data(image.uri)
+            .size(fetchSize)
+            .crossfade(false)
+            .bitmapConfig(android.graphics.Bitmap.Config.RGB_565)
+            .memoryCachePolicy(CachePolicy.ENABLED)
+            .diskCachePolicy(CachePolicy.ENABLED)
+            .build()
+    }
+
     Box {
         Card(
             modifier = Modifier
@@ -67,14 +82,7 @@ fun ImageGridItem(
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(image.uri)
-                        .size(fetchSize)
-                        .crossfade(200)
-                        .bitmapConfig(android.graphics.Bitmap.Config.RGB_565)
-                        .memoryCachePolicy(CachePolicy.ENABLED)
-                        .diskCachePolicy(CachePolicy.ENABLED)
-                        .build(),
+                    model = imageRequest,
                     contentDescription = image.name,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop

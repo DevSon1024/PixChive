@@ -87,8 +87,13 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
                 config = PagingConfig(
                     pageSize = 40,
                     enablePlaceholders = true,
-                    maxSize = 160,
-                    prefetchDistance = 5,
+                    // Keep 500 items in memory — large enough that pages near the
+                    // scrolled-past region are not evicted during fast flings,
+                    // preventing the DB re-fetch stutter / crash on scroll-back.
+                    maxSize = 500,
+                    // Pre-load 20 items ahead of the visible window so data is
+                    // ready well before the user reaches it.
+                    prefetchDistance = 20,
                     initialLoadSize = 40
                 ),
                 pagingSourceFactory = {

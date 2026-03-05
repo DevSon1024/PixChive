@@ -28,6 +28,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+private val listItemDateFormat = SimpleDateFormat("d MMM yyyy", Locale.getDefault())
+
 @Composable
 fun ImageListItem(
     image: ImageEntity,
@@ -37,9 +39,23 @@ fun ImageListItem(
     val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
 
-    // Memoize to prevent UI thread math operations
-    val formattedSize = remember(image.size) { formatFileSize(image.size) }
+    // formattedSize is pre-computed at scan time in FolderScanner and stored in the entity.
+    // No Math.log10 / Math.pow ever runs here — it's a simple field read.
+    val formattedSize = image.formattedSize
     val formattedDate = remember(image.dateModified) { formatDate(image.dateModified) }
+
+    // Stable ImageRequest — only rebuilt when URI changes, not on every recomposition.
+    // Without remember, AsyncImage receives a new (non-equal) object every scroll frame
+    // and re-triggers a Coil load even though the image hasn’t changed.
+    val imageRequest = remember(image.uri) {
+        ImageRequest.Builder(context)
+            .data(image.uri)
+            .size(200)
+            .crossfade(false)
+            .bitmapConfig(android.graphics.Bitmap.Config.RGB_565)
+            .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
+            .build()
+    }
 
     Column {
         Row(
@@ -55,13 +71,7 @@ fun ImageListItem(
                 colors = CardDefaults.cardColors(containerColor = Color.LightGray)
             ) {
                 AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(image.uri)
-                        .size(200)
-                        .crossfade(false)
-                        .bitmapConfig(android.graphics.Bitmap.Config.RGB_565)
-                        .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
-                        .build(),
+                    model = imageRequest,
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
@@ -165,16 +175,7 @@ private fun deleteItem(context: Context, file: File): Boolean {
     }
 }
 
-private fun formatFileSize(bytes: Long): String {
-    if (bytes <= 0) return "0 B"
-    val units = arrayOf("B", "KB", "MB", "GB", "TB")
-    val digitGroups = (Math.log10(bytes.toDouble()) / Math.log10(1024.0)).toInt()
-    val group = digitGroups.coerceIn(0, units.size - 1)
-    return String.format("%.1f %s", bytes / Math.pow(1024.0, group.toDouble()), units[group])
-}
-
 private fun formatDate(timestamp: Long): String {
     if (timestamp == 0L) return "Unknown Date"
-    val sdf = SimpleDateFormat("d MMM yyyy", Locale.getDefault())
-    return sdf.format(Date(timestamp))
+    return listItemDateFormat.format(Date(timestamp))
 }

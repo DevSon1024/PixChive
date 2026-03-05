@@ -5,8 +5,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.paging.LoadState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -44,7 +44,12 @@ fun FlatFolderView(
     // Collected here — cancelled automatically when FlatFolderView leaves composition.
     val images = viewModel.flatImages.collectAsLazyPagingItems()
 
-    if (images.itemCount == 0) { EmptyImagesView(); return }
+    // Only show the empty state once the initial load has completed.
+    // If we return early while loadState.refresh is still Loading, the
+    // LazyGrid is never added to the composition, the Pager never receives
+    // a collector, and no pages are ever fetched — causing a blank screen.
+    val isRefreshing = images.loadState.refresh is LoadState.Loading
+    if (!isRefreshing && images.itemCount == 0) { EmptyImagesView(); return }
 
     if (layoutMode == "grid") {
         val gridState = rememberLazyGridState(

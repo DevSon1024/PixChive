@@ -165,7 +165,7 @@ fun ReaderScreen(
         }
     }
 
-    // ── VOLUME BUTTON NAVIGATION ────────────────────────────────────────────────
+    //  VOLUME BUTTON NAVIGATION 
     val audioManager = remember { context.getSystemService(android.content.Context.AUDIO_SERVICE) as AudioManager }
     val focusRequester = remember { FocusRequester() }
 

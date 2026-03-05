@@ -27,11 +27,18 @@ object FolderScanner {
         "lost+found"
     )
 
+    /**
+     * @param lastScanTime  Epoch-millis of the previous successful scan for this folder.
+     *                      Pass **0L** (default) to force a full scan.
+     *                      Any subdirectory whose [File.lastModified] is older than this
+     *                      value will be skipped entirely — its images are assumed unchanged.
+     */
     suspend fun scanAndInsert(
         folderUri: Uri,
         folderId: String,
         imageDao: ImageDao,
-        showHidden: Boolean
+        showHidden: Boolean,
+        lastScanTime: Long = 0L
     ) = withContext(Dispatchers.IO) {
         try {
             val rootPath = getAbsolutePathFromSafUri(folderUri)
@@ -52,7 +59,8 @@ object FolderScanner {
             val buffer = mutableListOf<ImageEntity>()
 
             // 3. Recursive Scan (with cooperative cancellation via yield)
-            scanRecursive(rootFile, showHidden) { file ->
+            //    lastScanTime is forwarded so unchanged subdirectories can be skipped.
+            scanRecursive(rootFile, showHidden, lastScanTime) { file ->
                 val entity = ImageEntity(
                     path = file.absolutePath,
                     folderId = folderId,
@@ -86,6 +94,7 @@ object FolderScanner {
     private suspend fun scanRecursive(
         directory: File,
         showHidden: Boolean,
+        lastScanTime: Long,
         onImageFound: suspend (File) -> Unit
     ) {
         val files = directory.listFiles() ?: return
@@ -109,7 +118,19 @@ object FolderScanner {
             }
 
             if (file.isDirectory) {
-                scanRecursive(file, showHidden, onImageFound)
+                // --- Delta-scan optimisation -----------------------------------
+                // If this subdirectory (and everything beneath it) hasn't been
+                // touched since the last scan we can skip the whole subtree.
+                // lastModified on a directory is updated by the OS whenever a
+                // direct child is added, removed, or renamed.
+                // We use a small 1-second (1000 ms) grace-period to handle any
+                // clock-skew between the filesystem and System.currentTimeMillis.
+                if (lastScanTime > 0L && file.lastModified() < lastScanTime - 1_000L) {
+                    Log.d(TAG, "Skipping unchanged dir: ${file.absolutePath}")
+                    continue
+                }
+                // ---------------------------------------------------------------
+                scanRecursive(file, showHidden, lastScanTime, onImageFound)
             } else if (file.isFile && isImageFile(file.name)) {
                 onImageFound(file)
             }

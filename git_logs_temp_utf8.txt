@@ -1,5 +1,0 @@
-﻿560ee11 Separate FlatView and ExplorerView into their own files
-85f0a31 Fix performance issues, Info button, and thread starvation
-9e0d09f bug fizes for loading the images in folders
-246c755 Fixed Slider limit in flat view as it is showing 180 as default even we have 3000 images in flat view of that perticular folder
-4aa29ed Solved 'No Chapters' text bug even the folders yet to be loaded fully

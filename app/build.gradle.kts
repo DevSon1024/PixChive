@@ -154,9 +154,6 @@ dependencies {
     // WorkManager
     implementation("androidx.work:work-runtime-ktx:2.9.1")
 
-    implementation("androidx.core:core:1.12.0")
-    implementation("androidx.activity:activity-ktx:1.8.2")
-
     // Coil for Image Loading
     implementation("io.coil-kt:coil-compose:2.5.0")
 
@@ -171,9 +168,6 @@ dependencies {
 
     // Gson for JSON parsing (optional, for saving folder data)
     implementation("com.google.code.gson:gson:2.10.1")
-
-    // Zoomable Image (for image viewer)
-    implementation("net.engawapg.lib:zoomable:1.6.1")
 
     // DocumentFile - CRITICAL FOR FILE OPERATIONS
     implementation("androidx.documentfile:documentfile:1.0.1")

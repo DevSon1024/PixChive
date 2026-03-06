@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets
 sealed class Screen(val route: String) {
     object Home : Screen("home")
     object Settings : Screen("settings")
+    object About : Screen("about")
 
     object FolderView : Screen("folder/{folderId}") {
         fun createRoute(folderId: String): String {

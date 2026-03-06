@@ -7,6 +7,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.devson.pixchive.ui.screens.AboutScreen
 import com.devson.pixchive.ui.screens.ChapterViewScreen
 import com.devson.pixchive.ui.screens.FolderViewScreen
 import com.devson.pixchive.ui.screens.HomeScreen
@@ -57,6 +58,13 @@ fun NavGraph(
 
         composable(Screen.Settings.route) {
             SettingsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToAbout = { navController.navigate(Screen.About.route) }
+            )
+        }
+
+        composable(Screen.About.route) {
+            AboutScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }

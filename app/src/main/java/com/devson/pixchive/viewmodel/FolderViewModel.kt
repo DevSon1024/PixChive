@@ -74,15 +74,15 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // --- PAGING 3 FOR FLAT VIEW (sort-aware) ---
-    // Uses combine so any change to folder OR sortOption rebuilds the Pager with the correct ORDER BY.
-    // This guarantees the grid index and the reader's DB OFFSET always match.
+    // Uses combine so any change to folder OR sortOption triggers flatMapLatest,
+    // which creates a brand-new Pager with the correct typed DAO query.
+    // Typed queries are preferred over RawQuery here — Room can validate the SQL
+    // at compile time and avoids building a SupportSQLiteQuery on every page load.
     val flatImages: Flow<PagingData<ImageEntity>> = combine(
         _currentFolder.filterNotNull(),
         _sortOption
     ) { folder, sort -> folder to sort }
         .flatMapLatest { (folder, sort) ->
-            val orderBy = flatOrderBy(sort)
-            val sql = "SELECT * FROM images WHERE folderId = ? ORDER BY $orderBy"
             Pager(
                 config = PagingConfig(
                     pageSize = 40,
@@ -97,9 +97,12 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
                     initialLoadSize = 40
                 ),
                 pagingSourceFactory = {
-                    imageDao.getImagesByFolderPagedRaw(
-                        SimpleSQLiteQuery(sql, arrayOf(folder.id))
-                    )
+                    when (sort) {
+                        "name_desc"    -> imageDao.getImagesPagedNameDesc(folder.id)
+                        "date_newest"  -> imageDao.getImagesPagedDateNewest(folder.id)
+                        "date_oldest"  -> imageDao.getImagesPagedDateOldest(folder.id)
+                        else           -> imageDao.getImagesPagedNameAsc(folder.id) // "name_asc" + default
+                    }
                 }
             ).flow
         }.cachedIn(viewModelScope)
@@ -142,9 +145,12 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
         _explorerScrollOffset.value = offset
     }
 
+    // Used by getFlatImageAt() to match the Pager's ORDER BY for by-offset lookup.
     private fun flatOrderBy(sort: String) = when (sort) {
-        "name_desc" -> "parentFolderPath DESC, name DESC"
-        else        -> "parentFolderPath ASC, name ASC"
+        "name_desc"   -> "parentFolderPath DESC, name DESC"
+        "date_newest" -> "dateModified DESC"
+        "date_oldest" -> "dateModified ASC"
+        else          -> "parentFolderPath ASC, name ASC" // "name_asc" + default
     }
 
     private val _isLoading = MutableStateFlow(true)
@@ -191,13 +197,14 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private fun sortChapters(chapters: List<Chapter>, option: String): List<Chapter> {
-        val comparator = Comparator<Chapter> { a, b ->
+        val nameComparator = Comparator<Chapter> { a, b ->
             FolderScanner.compareNatural(a.name, b.name)
         }
         return when (option) {
-            "name_asc" -> chapters.sortedWith(comparator)
-            "name_desc" -> chapters.sortedWith(comparator).reversed()
-            else -> chapters.sortedWith(comparator)
+            "name_desc"   -> chapters.sortedWith(nameComparator).reversed()
+            "date_newest" -> chapters.sortedByDescending { it.images.maxOfOrNull { img -> img.dateModified } ?: 0L }
+            "date_oldest" -> chapters.sortedBy { it.images.minOfOrNull { img -> img.dateModified } ?: 0L }
+            else          -> chapters.sortedWith(nameComparator) // "name_asc" + default
         }
     }
 

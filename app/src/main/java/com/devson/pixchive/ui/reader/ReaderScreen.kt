@@ -101,23 +101,38 @@ fun ReaderScreen(
     val rotationStates = remember { mutableStateMapOf<Int, Float>() }
 
     // ── AUTO-RESUME: resolved initial page ─────────────────────────────────────
+    // IMPORTANT: do NOT coerce against pageCount here — for flat view, flatImageCount
+    // is 0 at first composition (the StateFlow hasn't emitted yet), so coerceIn(0,0)
+    // would silently clamp ANY clicked index to 0. Pass initialIndex raw instead;
+    // the pageCount lambda in rememberPagerState keeps the pager bounded live.
     var resolvedInitialPage by remember { mutableStateOf(initialIndex) }
-    LaunchedEffect(folderId, chapterPath) {
-        val saved = viewModel.getReadProgress(chapterPath)
-        // Only use saved progress if user didn't deep-link to a specific page (initialIndex == 0)
-        if (initialIndex == 0 && saved > 0) {
-            resolvedInitialPage = saved
-        }
-    }
 
     val pagerState = rememberPagerState(
-        initialPage = resolvedInitialPage.coerceIn(0, maxOf(0, pageCount - 1)),
+        initialPage = initialIndex,          // raw — never clamp against stale pageCount
         pageCount = { pageCount }
     )
 
+    // Once the real page count loads AND we know the saved/target page,
+    // scroll the pager to it imperatively (only on first arrival).
+    var didScrollToInitial by remember { mutableStateOf(false) }
+    LaunchedEffect(folderId, chapterPath) {
+        val saved = viewModel.getReadProgress(chapterPath)
+        // Only use saved progress if the user didn't deep-link to a specific page
+        resolvedInitialPage = if (initialIndex == 0 && saved > 0) saved else initialIndex
+    }
+    LaunchedEffect(pageCount, resolvedInitialPage) {
+        if (!didScrollToInitial && pageCount > 0 && resolvedInitialPage > 0) {
+            val target = resolvedInitialPage.coerceIn(0, pageCount - 1)
+            pagerState.scrollToPage(target)
+            didScrollToInitial = true
+        } else if (pageCount > 0 && resolvedInitialPage == 0) {
+            didScrollToInitial = true   // page 0 needs no scrolling
+        }
+    }
+
     // Webtoon scroll state (shared list state so we can read current position)
     val webtoonListState = rememberLazyListState(
-        initialFirstVisibleItemIndex = resolvedInitialPage.coerceIn(0, maxOf(0, pageCount - 1))
+        initialFirstVisibleItemIndex = initialIndex  // raw — same reason as pagerState above
     )
 
     // Track current page for both modes

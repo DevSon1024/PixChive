@@ -27,6 +27,22 @@ interface ImageDao {
     @Query("SELECT * FROM images WHERE folderId = :folderId ORDER BY parentFolderPath ASC, name ASC")
     fun getImagesByFolderPaged(folderId: String): PagingSource<Int, ImageEntity>
 
+    // --- Sort-specific typed PagingSource queries ---
+    // Room requires separate @Query methods (or a RawQuery) for dynamic ORDER BY.
+    // Using typed queries avoids the overhead of SupportSQLiteQuery construction per page load.
+
+    @Query("SELECT * FROM images WHERE folderId = :folderId ORDER BY parentFolderPath ASC, name ASC")
+    fun getImagesPagedNameAsc(folderId: String): PagingSource<Int, ImageEntity>
+
+    @Query("SELECT * FROM images WHERE folderId = :folderId ORDER BY parentFolderPath DESC, name DESC")
+    fun getImagesPagedNameDesc(folderId: String): PagingSource<Int, ImageEntity>
+
+    @Query("SELECT * FROM images WHERE folderId = :folderId ORDER BY dateModified DESC")
+    fun getImagesPagedDateNewest(folderId: String): PagingSource<Int, ImageEntity>
+
+    @Query("SELECT * FROM images WHERE folderId = :folderId ORDER BY dateModified ASC")
+    fun getImagesPagedDateOldest(folderId: String): PagingSource<Int, ImageEntity>
+
     /**
      * Sort-aware PagingSource — ORDER BY is injected dynamically by the ViewModel
      * so the grid and the reader always use an identical sort order.

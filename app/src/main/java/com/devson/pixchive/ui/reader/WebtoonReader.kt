@@ -1,6 +1,11 @@
 package com.devson.pixchive.ui.reader
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,40 +16,38 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import coil.size.Size
 import com.devson.pixchive.data.ImageFile
 import com.devson.pixchive.data.local.ImageEntity
 import com.devson.pixchive.viewmodel.FolderViewModel
-import me.saket.telephoto.zoomable.ZoomSpec
-import me.saket.telephoto.zoomable.rememberZoomableState
-import me.saket.telephoto.zoomable.zoomable
+import kotlin.math.abs
 
 /**
  * Webtoon-style vertical strip reader.
  *
  * Images are stacked seamlessly in a [LazyColumn], each scaled to fill the full
- * width so the comic flows as a continuous vertical strip - perfect for webtoon
- * and manhwa formats.
+ * width so the comic flows as a continuous vertical strip.
  *
- * Regular [AsyncImage] (not ZoomableAsyncImage) is used deliberately: Telephoto's
- * zoomable widget intercepts vertical drag gestures and prevents the [LazyColumn]
- * from scrolling past the first couple of items.
- *
- * @param chapterImages  Non-empty list of [ImageEntity] for chapter mode; empty for flat-view.
- * @param isFlatView     Whether the reader is in flat (all-images) mode.
- * @param pageCount      Total number of pages.
- * @param flatImageCache Shared cache map for on-demand DB image loading in flat mode.
- * @param listState      Shared [LazyListState] so the caller can track scrolled position.
- * @param onPageChanged  Called whenever the visible item index changes.
- * @param viewModel      ViewModel for on-demand flat-image loading.
+ * Zoom uses a custom [pointerInput] that only activates on 2+ finger touches,
+ * ensuring single-finger scroll is always passed cleanly to [LazyColumn] without
+ * any mistouch or interception issues.
  */
 @Composable
 fun WebtoonReader(
@@ -59,28 +62,90 @@ fun WebtoonReader(
 ) {
     val context = LocalContext.current
 
-    // Keep caller's page counter in sync with scroll position
     LaunchedEffect(listState) {
         snapshotFlow { listState.firstVisibleItemIndex }
             .collect { onPageChanged(it) }
     }
 
-    val zoomableState = rememberZoomableState(
-        zoomSpec = ZoomSpec(maxZoomFactor = 4f)
-    )
+    var scale by remember { mutableFloatStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
 
-    // The LazyColumn is wrapped in a Box with Modifier.zoomable(). This allows the 
-    // entire webtoon strip to be pinch-zoomed. Telephoto handles nested scrolling, 
-    // so standard 1-finger vertical swipes still scroll the LazyColumn when scale is 1x.
-    // It also natively gives us simple tap detection (onClick) for the UI overlay.
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
-            .zoomable(
-                state = zoomableState,
-                onClick = { onToggleUI() }
-            )
+            // Apply zoom transform — never modified by single-finger events
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                translationX = offset.x
+                translationY = offset.y
+            }
+            // Custom 2-finger pinch detector using PointerEventPass.Initial so we
+            // see events BEFORE LazyColumn, but we only act if pointer count >= 2.
+            // Single-finger events are never consumed here, so LazyColumn scrolls freely.
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    // Wait for the first finger down without consuming it
+                    awaitFirstDown(requireUnconsumed = false)
+
+                    do {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        val activePointers = event.changes.filter { it.pressed }
+
+                        if (activePointers.size >= 2) {
+                            // --- Two-finger gesture: handle zoom + pan ---
+                            val zoomChange = event.calculateZoom()
+                            val newScale = (scale * zoomChange).coerceIn(1f, 4f)
+
+                            val centroid = event.calculateCentroid()
+                            val panChange = activePointers
+                                .map { it.position - it.previousPosition }
+                                .fold(Offset.Zero) { acc, o -> acc + o } / activePointers.size.toFloat()
+
+                            val newOffset = if (newScale > 1f) {
+                                val maxTranslation = size.width * (newScale - 1f) / 2f
+                                val maxTranslationY = size.height * (newScale - 1f) / 2f
+                                Offset(
+                                    x = (offset.x + panChange.x).coerceIn(-maxTranslation, maxTranslation),
+                                    y = (offset.y + panChange.y).coerceIn(-maxTranslationY, maxTranslationY)
+                                )
+                            } else {
+                                Offset.Zero
+                            }
+
+                            scale = newScale
+                            offset = newOffset
+
+                            // Consume all pointer changes so LazyColumn doesn't scroll during pinch
+                            event.changes.forEach { it.consume() }
+                        } else if (scale > 1f && activePointers.size == 1) {
+                            // --- Single finger while zoomed: allow panning ---
+                            val change = activePointers.first()
+                            if (change.positionChanged()) {
+                                val delta = change.position - change.previousPosition
+                                val maxTranslation = size.width * (scale - 1f) / 2f
+                                val maxTranslationY = size.height * (scale - 1f) / 2f
+                                offset = Offset(
+                                    x = (offset.x + delta.x).coerceIn(-maxTranslation, maxTranslation),
+                                    y = (offset.y + delta.y).coerceIn(-maxTranslationY, maxTranslationY)
+                                )
+                                change.consume()
+                            }
+                        }
+                        // Single finger at scale==1f: do nothing — LazyColumn scrolls freely
+                    } while (event.changes.any { it.pressed })
+
+                    // On lift, if returned to 1x zoom snap offset to zero
+                    if (scale <= 1f) offset = Offset.Zero
+                }
+            }
+            // Tap to toggle UI overlay — low priority so zoom gestures take precedence
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = { onToggleUI() }
+                )
+            }
     ) {
         LazyColumn(
             state = listState,
@@ -102,6 +167,7 @@ fun WebtoonReader(
         }
     }
 }
+
 @Composable
 private fun WebtoonPageItem(
     page: Int,
@@ -111,7 +177,6 @@ private fun WebtoonPageItem(
     viewModel: FolderViewModel,
     context: android.content.Context
 ) {
-    // For flat view: load image on-demand if not yet cached
     if (isFlatView && !flatImageCache.containsKey(page)) {
         LaunchedEffect(page) {
             flatImageCache[page] = viewModel.getFlatImageAt(page)
@@ -130,9 +195,6 @@ private fun WebtoonPageItem(
         else -> null
     }
 
-    // Each image fills the screen width; height is derived from the image's natural
-    // aspect ratio (ContentScale.FillWidth). heightIn(min = 200.dp) prevents the
-    // item collapsing to 0 height while loading, which would break scroll measurement.
     Box(
         modifier = Modifier
             .fillMaxWidth()

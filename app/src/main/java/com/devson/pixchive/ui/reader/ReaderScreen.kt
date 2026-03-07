@@ -34,6 +34,11 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.core.view.WindowCompat
@@ -137,6 +142,20 @@ fun ReaderScreen(
 
     // Track current page for both modes
     var webtoonCurrentPage by remember { mutableStateOf(resolvedInitialPage) }
+
+    // Sync scroll position when switching between reading modes
+    LaunchedEffect(readerScrollMode) {
+        when (readerScrollMode) {
+            "webtoon" -> {
+                val page = pagerState.currentPage
+                webtoonCurrentPage = page
+                if (page > 0) webtoonListState.scrollToItem(page)
+            }
+            else -> { // "pager"
+                pagerState.scrollToPage(webtoonCurrentPage)
+            }
+        }
+    }
 
     val currentPage = if (readerScrollMode == "webtoon") webtoonCurrentPage else pagerState.currentPage
 
@@ -252,6 +271,31 @@ fun ReaderScreen(
                         else -> false
                     }
                 } else false
+            }
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val startY = down.position.y
+                    var currentY = startY
+                    var isConsumedByChild = false
+                    
+                    do {
+                        val event = awaitPointerEvent(PointerEventPass.Final)
+                        val change = event.changes.firstOrNull()
+                        if (change != null) {
+                            currentY = change.position.y
+                            if (change.isConsumed) {
+                                isConsumedByChild = true
+                            }
+                        }
+                    } while (event.changes.any { it.pressed })
+
+                    val deltaY = startY - currentY
+                    if (!isConsumedByChild && deltaY > 100f) {
+                        showUI = true
+                        showBottomOptions = true
+                    }
+                }
             }
     ) {
         if (isLoading && pageCount == 0) {
@@ -381,6 +425,15 @@ fun ReaderScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 32.dp, start = 16.dp, end = 16.dp)
+                    .pointerInput(Unit) {
+                        detectVerticalDragGestures { _, dragAmount ->
+                            if (dragAmount < -10f) {
+                                showBottomOptions = true
+                            } else if (dragAmount > 10f) {
+                                showBottomOptions = false
+                            }
+                        }
+                    }
             ) {
                 // Floating Arrow (Separate Pill)
                 Surface(

@@ -54,6 +54,7 @@ fun HomeScreen(
     val folders by viewModel.folders.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val isSyncing by viewModel.isSyncing.collectAsState()
 
     val layoutMode by viewModel.layoutMode.collectAsState()
     val sortOption by viewModel.sortOption.collectAsState()
@@ -180,6 +181,40 @@ fun HomeScreen(
                         FolderGridContent(folders, gridColumns, { viewModel.removeFolder(it) }, onFolderClick)
                     } else {
                         FolderListContent(folders, { viewModel.removeFolder(it) }, onFolderClick)
+                    }
+                }
+            }
+            
+            // Syncing Indicator Chip
+            androidx.compose.animation.AnimatedVisibility(
+                visible = isSyncing,
+                enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInVertically { -it },
+                exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.slideOutVertically { -it },
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 16.dp)
+            ) {
+                Surface(
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                    tonalElevation = 4.dp,
+                    shadowElevation = 2.dp
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Syncing folders...",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
                     }
                 }
             }

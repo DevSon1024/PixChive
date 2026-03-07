@@ -12,6 +12,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.UUID
+import androidx.lifecycle.asFlow
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
+import com.devson.pixchive.workers.FolderSyncWorker
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -41,6 +45,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
+    val isSyncing: StateFlow<Boolean> = WorkManager.getInstance(application)
+        .getWorkInfosByTagLiveData(FolderSyncWorker::class.java.name)
+        .asFlow()
+        .map { workInfos ->
+            workInfos.any { it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     init {
         loadPreferences()

@@ -43,7 +43,7 @@ fun FolderViewScreen(
     val sortOption      by viewModel.sortOption.collectAsState()
     val readProgressMap by viewModel.readProgressMap.collectAsState()
 
-    // Scroll position restoration (plain Int state — no heavy flow work)
+    // Scroll position restoration (plain Int state - no heavy flow work)
     val flatScrollIndex       by viewModel.flatScrollIndex.collectAsState()
     val flatScrollOffset      by viewModel.flatScrollOffset.collectAsState()
     val explorerScrollIndex   by viewModel.explorerScrollIndex.collectAsState()
@@ -88,7 +88,7 @@ fun FolderViewScreen(
                 // Each branch renders ONE composable. When the user switches modes,
                 // Compose removes the old branch and adds the new one. The leaving
                 // composable's internal collectAsState / collectAsLazyPagingItems call
-                // is automatically cancelled — no manual cleanup needed.
+                // is automatically cancelled - no manual cleanup needed.
                 // ─────────────────────────────────────────────────────────────────────
                 when (currentViewMode) {
                     "flat" -> FlatFolderView(

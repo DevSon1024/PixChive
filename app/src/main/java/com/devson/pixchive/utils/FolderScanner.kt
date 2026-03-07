@@ -31,7 +31,7 @@ object FolderScanner {
      * @param lastScanTime  Epoch-millis of the previous successful scan for this folder.
      *                      Pass **0L** (default) to force a full scan.
      *                      Any subdirectory whose [File.lastModified] is older than this
-     *                      value will be skipped entirely — its images are assumed unchanged.
+     *                      value will be skipped entirely - its images are assumed unchanged.
      */
     suspend fun scanAndInsert(
         folderUri: Uri,

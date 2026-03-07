@@ -40,11 +40,11 @@ fun ImageListItem(
     var showMenu by remember { mutableStateOf(false) }
 
     // formattedSize is pre-computed at scan time in FolderScanner and stored in the entity.
-    // No Math.log10 / Math.pow ever runs here — it's a simple field read.
+    // No Math.log10 / Math.pow ever runs here - it's a simple field read.
     val formattedSize = image.formattedSize
     val formattedDate = remember(image.dateModified) { formatDate(image.dateModified) }
 
-    // Stable ImageRequest — only rebuilt when URI changes, not on every recomposition.
+    // Stable ImageRequest - only rebuilt when URI changes, not on every recomposition.
     // Without remember, AsyncImage receives a new (non-equal) object every scroll frame
     // and re-triggers a Coil load even though the image hasn’t changed.
     val imageRequest = remember(image.uri) {

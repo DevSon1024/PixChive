@@ -52,7 +52,6 @@ fun ExplorerFolderView(
     onChapterClick: (String) -> Unit,
     viewModel: FolderViewModel = viewModel()
 ) {
-    // Collected here — cancelled automatically when ExplorerFolderView leaves composition.
     val chapters by viewModel.chapters.collectAsState()
 
     if (!isLoading && chapters.isEmpty()) { EmptyChaptersView(); return }
@@ -62,7 +61,7 @@ fun ExplorerFolderView(
             initialFirstVisibleItemIndex = initialScrollIndex,
             initialFirstVisibleItemScrollOffset = initialScrollOffset
         )
-        // Save only when scrolling fully stops — avoids per-pixel coroutine spam that causes ANR
+        // Save only when scrolling fully stops - avoids per-pixel coroutine spam that causes ANR
         LaunchedEffect(gridState) {
             snapshotFlow { gridState.isScrollInProgress }
                 .filter { !it }
@@ -90,7 +89,7 @@ fun ExplorerFolderView(
             initialFirstVisibleItemIndex = initialScrollIndex,
             initialFirstVisibleItemScrollOffset = initialScrollOffset
         )
-        // Save only when scrolling fully stops — avoids per-pixel coroutine spam that causes ANR
+        // Save only when scrolling fully stops - avoids per-pixel coroutine spam that causes ANR
         LaunchedEffect(listState) {
             snapshotFlow { listState.isScrollInProgress }
                 .filter { !it }
@@ -181,7 +180,7 @@ fun ChapterGridItem(
                     }
                 }
 
-                // Progress bar overlay — shown when user has started reading this chapter
+                // Progress bar overlay - shown when user has started reading this chapter
                 if (savedPage > 0 && chapter.imageCount > 0) {
                     LinearProgressIndicator(
                         progress = { savedPage.toFloat() / chapter.imageCount },

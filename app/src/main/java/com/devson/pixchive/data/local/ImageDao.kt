@@ -44,7 +44,7 @@ interface ImageDao {
     fun getImagesPagedDateOldest(folderId: String): PagingSource<Int, ImageEntity>
 
     /**
-     * Sort-aware PagingSource — ORDER BY is injected dynamically by the ViewModel
+     * Sort-aware PagingSource - ORDER BY is injected dynamically by the ViewModel
      * so the grid and the reader always use an identical sort order.
      */
     @RawQuery(observedEntities = [ImageEntity::class])
@@ -60,7 +60,7 @@ interface ImageDao {
     suspend fun getImageByIndex(folderId: String, index: Int): ImageEntity?
 
     /**
-     * Sort-aware single-image fetch by row offset — must use SAME ORDER BY as getImagesByFolderPagedRaw.
+     * Sort-aware single-image fetch by row offset - must use SAME ORDER BY as getImagesByFolderPagedRaw.
      */
     @RawQuery
     suspend fun getImageByIndexRaw(query: SupportSQLiteQuery): ImageEntity?

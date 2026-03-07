@@ -63,7 +63,7 @@ private val openSourceLibraries = listOf(
     OpenSourceLibrary(
         name = "Jetpack Compose",
         author = "Google / Android Open Source Project",
-        description = "Android's modern declarative UI toolkit. The entire PixChive UI is built with Compose — from the folder grid to the reader and settings screens.",
+        description = "Android's modern declarative UI toolkit. The entire PixChive UI is built with Compose - from the folder grid to the reader and settings screens.",
         url = "https://developer.android.com/jetpack/compose",
         license = "Apache-2.0",
         category = "UI Framework"
@@ -119,7 +119,7 @@ private val openSourceLibraries = listOf(
     OpenSourceLibrary(
         name = "simple-storage",
         author = "Anggrayudi Hardiannico",
-        description = "A wrapper around Android's Storage Access Framework that simplifies SAF URIs, DocumentFile operations, and cross-partition file I/O — critical for broad file support in PixChive.",
+        description = "A wrapper around Android's Storage Access Framework that simplifies SAF URIs, DocumentFile operations, and cross-partition file I/O - critical for broad file support in PixChive.",
         url = "https://github.com/anggrayudi/SimpleStorage",
         license = "Apache-2.0",
         category = "File I/O"
@@ -143,7 +143,7 @@ private val openSourceLibraries = listOf(
     OpenSourceLibrary(
         name = "Kotlin Coroutines",
         author = "JetBrains",
-        description = "Asynchronous programming made simple. Every background operation in PixChive — scanning, loading, sorting — is powered by Kotlin coroutines and Flow.",
+        description = "Asynchronous programming made simple. Every background operation in PixChive - scanning, loading, sorting - is powered by Kotlin coroutines and Flow.",
         url = "https://github.com/Kotlin/kotlinx.coroutines",
         license = "Apache-2.0",
         category = "Async"

@@ -37,7 +37,7 @@ fun ReaderActionButton(
         label = "buttonScale"
     )
 
-    // Smooth color transition — active buttons glow with primary color
+    // Smooth color transition - active buttons glow with primary color
     val backgroundColor = animateColorAsState(
         targetValue = when {
             isActive -> MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)

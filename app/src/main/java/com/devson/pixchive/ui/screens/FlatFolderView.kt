@@ -41,13 +41,13 @@ fun FlatFolderView(
     onImageClick: (Int) -> Unit,
     viewModel: FolderViewModel = viewModel()
 ) {
-    // Collected here — cancelled automatically when FlatFolderView leaves composition.
+    // Collected here - cancelled automatically when FlatFolderView leaves composition.
     val images = viewModel.flatImages.collectAsLazyPagingItems()
 
     // Only show the empty state once the initial load has completed.
     // If we return early while loadState.refresh is still Loading, the
     // LazyGrid is never added to the composition, the Pager never receives
-    // a collector, and no pages are ever fetched — causing a blank screen.
+    // a collector, and no pages are ever fetched - causing a blank screen.
     val isRefreshing = images.loadState.refresh is LoadState.Loading
     if (!isRefreshing && images.itemCount == 0) { EmptyImagesView(); return }
 
@@ -56,7 +56,7 @@ fun FlatFolderView(
             initialFirstVisibleItemIndex = initialScrollIndex,
             initialFirstVisibleItemScrollOffset = initialScrollOffset
         )
-        // Save only when scrolling fully stops — avoids per-pixel coroutine spam that causes ANR
+        // Save only when scrolling fully stops - avoids per-pixel coroutine spam that causes ANR
         LaunchedEffect(gridState) {
             snapshotFlow { gridState.isScrollInProgress }
                 .filter { !it }
@@ -87,7 +87,7 @@ fun FlatFolderView(
             initialFirstVisibleItemIndex = initialScrollIndex,
             initialFirstVisibleItemScrollOffset = initialScrollOffset
         )
-        // Save only when scrolling fully stops — avoids per-pixel coroutine spam that causes ANR
+        // Save only when scrolling fully stops - avoids per-pixel coroutine spam that causes ANR
         LaunchedEffect(listState) {
             snapshotFlow { listState.isScrollInProgress }
                 .filter { !it }

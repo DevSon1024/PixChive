@@ -49,7 +49,7 @@ fun ImageGridItem(
     }
 
     // formattedSize is pre-computed at scan time in FolderScanner and stored in the entity.
-    // No Math.log10 / Math.pow ever runs here — it's a simple field read.
+    // No Math.log10 / Math.pow ever runs here - it's a simple field read.
     val formattedSize = image.formattedSize
 
     // remember ensures the same ImageRequest object is reused across recompositions

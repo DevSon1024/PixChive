@@ -31,7 +31,7 @@ import me.saket.telephoto.zoomable.zoomable
  * Webtoon-style vertical strip reader.
  *
  * Images are stacked seamlessly in a [LazyColumn], each scaled to fill the full
- * width so the comic flows as a continuous vertical strip — perfect for webtoon
+ * width so the comic flows as a continuous vertical strip - perfect for webtoon
  * and manhwa formats.
  *
  * Regular [AsyncImage] (not ZoomableAsyncImage) is used deliberately: Telephoto's

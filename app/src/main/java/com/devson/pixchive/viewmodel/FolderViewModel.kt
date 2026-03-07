@@ -76,7 +76,7 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     // --- PAGING 3 FOR FLAT VIEW (sort-aware) ---
     // Uses combine so any change to folder OR sortOption triggers flatMapLatest,
     // which creates a brand-new Pager with the correct typed DAO query.
-    // Typed queries are preferred over RawQuery here — Room can validate the SQL
+    // Typed queries are preferred over RawQuery here - Room can validate the SQL
     // at compile time and avoids building a SupportSQLiteQuery on every page load.
     val flatImages: Flow<PagingData<ImageEntity>> = combine(
         _currentFolder.filterNotNull(),
@@ -87,7 +87,7 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
                 config = PagingConfig(
                     pageSize = 40,
                     enablePlaceholders = true,
-                    // Keep 500 items in memory — large enough that pages near the
+                    // Keep 500 items in memory - large enough that pages near the
                     // scrolled-past region are not evicted during fast flings,
                     // preventing the DB re-fetch stutter / crash on scroll-back.
                     maxSize = 500,
@@ -107,14 +107,14 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
             ).flow
         }.cachedIn(viewModelScope)
 
-    // Total count of images in the flat view — used by ReaderScreen for unbounded paging
+    // Total count of images in the flat view - used by ReaderScreen for unbounded paging
     val flatImageCount: StateFlow<Int> = _currentFolder
         .filterNotNull()
         .flatMapLatest { folder -> imageDao.getImageCountFlow(folder.id) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     /**
-     * Loads a single image by its sorted position — uses the SAME ORDER BY as the flat view
+     * Loads a single image by its sorted position - uses the SAME ORDER BY as the flat view
      * Pager so clicking image at grid index N always opens image N in the reader.
      */
     suspend fun getFlatImageAt(index: Int): ImageEntity? {
@@ -300,7 +300,7 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     fun setSortOption(option: String) {
         viewModelScope.launch {
             // Reset scroll position BEFORE sort changes so the Pager doesn't try to
-            // initialise at a stale high index in the newly reordered list — that burst
+            // initialise at a stale high index in the newly reordered list - that burst
             // causes a major batch of concurrent DB page loads which leads to ANR.
             _flatScrollIndex.value  = 0
             _flatScrollOffset.value = 0

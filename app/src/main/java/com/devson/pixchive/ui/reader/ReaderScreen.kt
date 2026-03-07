@@ -101,14 +101,14 @@ fun ReaderScreen(
     val rotationStates = remember { mutableStateMapOf<Int, Float>() }
 
     // ── AUTO-RESUME: resolved initial page ─────────────────────────────────────
-    // IMPORTANT: do NOT coerce against pageCount here — for flat view, flatImageCount
+    // IMPORTANT: do NOT coerce against pageCount here - for flat view, flatImageCount
     // is 0 at first composition (the StateFlow hasn't emitted yet), so coerceIn(0,0)
     // would silently clamp ANY clicked index to 0. Pass initialIndex raw instead;
     // the pageCount lambda in rememberPagerState keeps the pager bounded live.
     var resolvedInitialPage by remember { mutableStateOf(initialIndex) }
 
     val pagerState = rememberPagerState(
-        initialPage = initialIndex,          // raw — never clamp against stale pageCount
+        initialPage = initialIndex,          // raw - never clamp against stale pageCount
         pageCount = { pageCount }
     )
 
@@ -132,7 +132,7 @@ fun ReaderScreen(
 
     // Webtoon scroll state (shared list state so we can read current position)
     val webtoonListState = rememberLazyListState(
-        initialFirstVisibleItemIndex = initialIndex  // raw — same reason as pagerState above
+        initialFirstVisibleItemIndex = initialIndex  // raw - same reason as pagerState above
     )
 
     // Track current page for both modes
@@ -140,7 +140,7 @@ fun ReaderScreen(
 
     val currentPage = if (readerScrollMode == "webtoon") webtoonCurrentPage else pagerState.currentPage
 
-    // Local state for slider drag — decoupled from currentPage to avoid feedback loop.
+    // Local state for slider drag - decoupled from currentPage to avoid feedback loop.
     // While the user is dragging, we show the dragged value; on release we commit the scroll.
     var sliderDragging by remember { mutableStateOf(false) }
     var sliderDragValue by remember { mutableStateOf(0f) }

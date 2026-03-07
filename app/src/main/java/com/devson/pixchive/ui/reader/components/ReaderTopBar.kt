@@ -33,15 +33,15 @@ import java.io.File
 fun ReaderTopBar(
     chapterFolderName: String,
     currentImageName: String,
-    showMoreMenu: Boolean,
+    @Suppress("UNUSED_PARAMETER") showMoreMenu: Boolean,
     currentImage: ImageFile?,
-    currentImageEntity: ImageEntity? = null,   // Modern ImageEntity from FolderScanner
+    currentImageEntity: ImageEntity? = null,
     isFavorite: Boolean = false,
     onNavigateBack: () -> Unit,
     onMoreMenuToggle: (Boolean) -> Unit,
-    onToggleFavorite: () -> Unit = {}
+    onToggleFavorite: () -> Unit = {},
+    contentColor: Color = Color.White  // Dynamic UI color from image brightness
 ) {
-    val context = LocalContext.current
     var showDetailsDialog by remember { mutableStateOf(false) }
 
     // Favorite animation
@@ -56,7 +56,7 @@ fun ReaderTopBar(
     )
 
     val favoriteColor by animateColorAsState(
-        targetValue = if (isFavorite) Color(0xFFFF4081) else Color.White.copy(alpha = 0.9f),
+        targetValue = if (isFavorite) Color(0xFFFF4081) else contentColor.copy(alpha = 0.9f),
         animationSpec = tween(300),
         label = "favoriteColor"
     )
@@ -79,14 +79,13 @@ fun ReaderTopBar(
             modifier = Modifier
                 .fillMaxWidth()
         ) {
-            // Main top bar content
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Back button with enhanced style
+                // Back button
                 Surface(
                     onClick = onNavigateBack,
                     shape = CircleShape,
@@ -97,7 +96,7 @@ fun ReaderTopBar(
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color.White,
+                            tint = contentColor,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -105,7 +104,7 @@ fun ReaderTopBar(
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                // Title section with enhanced styling
+                // Title section
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -116,7 +115,7 @@ fun ReaderTopBar(
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.SemiBold
                         ),
-                        color = Color.White,
+                        color = contentColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -125,13 +124,13 @@ fun ReaderTopBar(
                         Spacer(modifier = Modifier.height(2.dp))
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = Color.White.copy(alpha = 0.15f),
+                            color = contentColor.copy(alpha = 0.15f),
                             modifier = Modifier.padding(top = 2.dp)
                         ) {
                             Text(
                                 text = currentImageName,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color.White.copy(alpha = 0.85f),
+                                color = contentColor.copy(alpha = 0.85f),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
@@ -145,11 +144,9 @@ fun ReaderTopBar(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Favorite Button with enhanced animation
+                    // Favorite Button
                     Surface(
-                        onClick = {
-                            onToggleFavorite()
-                        },
+                        onClick = { onToggleFavorite() },
                         shape = CircleShape,
                         color = if (isFavorite)
                             Color(0xFFFF4081).copy(alpha = 0.2f)
@@ -183,7 +180,7 @@ fun ReaderTopBar(
                             Icon(
                                 Icons.Default.Info,
                                 contentDescription = "Details",
-                                tint = Color.White.copy(alpha = 0.9f),
+                                tint = contentColor.copy(alpha = 0.9f),
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -193,8 +190,6 @@ fun ReaderTopBar(
         }
     }
 
-    // Show the details dialog for whichever image type is available.
-    // ImageEntity is the primary modern type; ImageFile is the legacy fallback.
     when {
         showDetailsDialog && currentImageEntity != null ->
             ImageDetailsDialog(entity = currentImageEntity, onDismiss = { showDetailsDialog = false })

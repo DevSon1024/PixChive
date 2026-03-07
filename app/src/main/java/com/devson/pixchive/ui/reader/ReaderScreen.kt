@@ -22,6 +22,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,6 +32,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -45,16 +48,22 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.palette.graphics.Palette
+import coil.imageLoader
 import coil.request.ImageRequest
+import coil.request.SuccessResult
 import coil.size.Scale
+import coil.size.Size
 import com.devson.pixchive.data.PreferencesManager
 import com.devson.pixchive.ui.reader.components.ReaderActionButton
 import com.devson.pixchive.ui.reader.components.ReaderTopBar
 import com.devson.pixchive.ui.reader.utils.urisMatch
 import com.devson.pixchive.viewmodel.FolderViewModel
 import com.devson.pixchive.data.local.ImageEntity
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.saket.telephoto.zoomable.coil.ZoomableAsyncImage
 import me.saket.telephoto.zoomable.rememberZoomableImageState
 import me.saket.telephoto.zoomable.rememberZoomableState
@@ -160,7 +169,6 @@ fun ReaderScreen(
     val currentPage = if (readerScrollMode == "webtoon") webtoonCurrentPage else pagerState.currentPage
 
     // Local state for slider drag - decoupled from currentPage to avoid feedback loop.
-    // While the user is dragging, we show the dragged value; on release we commit the scroll.
     var sliderDragging by remember { mutableStateOf(false) }
     var sliderDragValue by remember { mutableStateOf(0f) }
 
@@ -180,6 +188,50 @@ fun ReaderScreen(
         is ImageEntity -> currentImage.uri in favorites
         is com.devson.pixchive.data.ImageFile -> currentImage.uri.toString() in favorites
         else -> false
+    }
+
+    // ── DYNAMIC UI COLOR based on image brightness ──────────────────────────
+    // Extract dominant color from a tiny 100px thumbnail for near-zero cost.
+    // If the image is bright (luminance > 0.5), use black text/icons so they
+    // remain readable. Otherwise, default to white.
+    var targetUiColor by remember { mutableStateOf(Color.White) }
+    val animatedUiColor by animateColorAsState(
+        targetValue = targetUiColor,
+        animationSpec = tween(400),
+        label = "uiColor"
+    )
+
+    LaunchedEffect(currentImage) {
+        val uri: String? = when (currentImage) {
+            is ImageEntity -> currentImage.uri
+            is com.devson.pixchive.data.ImageFile -> currentImage.uri.toString()
+            else -> null
+        }
+        if (uri == null) { targetUiColor = Color.White; return@LaunchedEffect }
+
+        withContext(Dispatchers.IO) {
+            try {
+                val request = ImageRequest.Builder(context)
+                    .data(uri)
+                    .size(100)           // tiny thumbnail — fast decode
+                    .allowHardware(false) // Palette needs software bitmap
+                    .build()
+                val result = context.imageLoader.execute(request)
+                if (result is SuccessResult) {
+                    val bitmap = (result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
+                    if (bitmap != null) {
+                        val palette = Palette.from(bitmap).generate()
+                        val rgb = palette.dominantSwatch?.rgb
+                        if (rgb != null) {
+                            val dominantColor = Color(rgb)
+                            targetUiColor = if (dominantColor.luminance() > 0.5f) Color.Black else Color.White
+                        }
+                    }
+                }
+            } catch (_: Exception) {
+                targetUiColor = Color.White
+            }
+        }
     }
 
     // ── TRUE IMMERSIVE MODE ─────────────────────────────────────────────────────
@@ -402,6 +454,7 @@ fun ReaderScreen(
                 onNavigateBack = onNavigateBack,
                 onMoreMenuToggle = {},
                 isFavorite = isFavorite,
+                contentColor = animatedUiColor,
                 onToggleFavorite = {
                     currentImage?.let {
                         scope.launch {

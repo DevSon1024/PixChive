@@ -30,9 +30,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -48,12 +48,8 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.palette.graphics.Palette
-import coil.imageLoader
 import coil.request.ImageRequest
-import coil.request.SuccessResult
 import coil.size.Scale
-import coil.size.Size
 import com.devson.pixchive.data.PreferencesManager
 import com.devson.pixchive.ui.reader.components.ReaderActionButton
 import com.devson.pixchive.ui.reader.components.ReaderTopBar
@@ -188,50 +184,6 @@ fun ReaderScreen(
         is ImageEntity -> currentImage.uri in favorites
         is com.devson.pixchive.data.ImageFile -> currentImage.uri.toString() in favorites
         else -> false
-    }
-
-    // ── DYNAMIC UI COLOR based on image brightness ──────────────────────────
-    // Extract dominant color from a tiny 100px thumbnail for near-zero cost.
-    // If the image is bright (luminance > 0.5), use black text/icons so they
-    // remain readable. Otherwise, default to white.
-    var targetUiColor by remember { mutableStateOf(Color.White) }
-    val animatedUiColor by animateColorAsState(
-        targetValue = targetUiColor,
-        animationSpec = tween(400),
-        label = "uiColor"
-    )
-
-    LaunchedEffect(currentImage) {
-        val uri: String? = when (currentImage) {
-            is ImageEntity -> currentImage.uri
-            is com.devson.pixchive.data.ImageFile -> currentImage.uri.toString()
-            else -> null
-        }
-        if (uri == null) { targetUiColor = Color.White; return@LaunchedEffect }
-
-        withContext(Dispatchers.IO) {
-            try {
-                val request = ImageRequest.Builder(context)
-                    .data(uri)
-                    .size(100)           // tiny thumbnail — fast decode
-                    .allowHardware(false) // Palette needs software bitmap
-                    .build()
-                val result = context.imageLoader.execute(request)
-                if (result is SuccessResult) {
-                    val bitmap = (result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
-                    if (bitmap != null) {
-                        val palette = Palette.from(bitmap).generate()
-                        val rgb = palette.dominantSwatch?.rgb
-                        if (rgb != null) {
-                            val dominantColor = Color(rgb)
-                            targetUiColor = if (dominantColor.luminance() > 0.5f) Color.Black else Color.White
-                        }
-                    }
-                }
-            } catch (_: Exception) {
-                targetUiColor = Color.White
-            }
-        }
     }
 
     // ── TRUE IMMERSIVE MODE ─────────────────────────────────────────────────────
@@ -433,37 +385,51 @@ fun ReaderScreen(
             Text("No images", Modifier.align(Alignment.Center), color = Color.White)
         }
 
-        // --- UI Overlay ---
-
+        // --- UI Overlay: gradient scrim + top bar ---
+        // A dark-to-transparent scrim sits behind the top bar at all times,
+        // guaranteeing white icons are always readable on any image color.
         AnimatedVisibility(
             visible = showUI,
             enter = fadeIn() + slideInVertically(),
             exit = fadeOut() + slideOutVertically(),
             modifier = Modifier.align(Alignment.TopCenter)
         ) {
-            ReaderTopBar(
-                chapterFolderName = chapterName,
-                currentImageName = when (currentImage) {
-                    is ImageEntity -> currentImage.name
-                    is com.devson.pixchive.data.ImageFile -> currentImage.name
-                    else -> ""
-                },
-                showMoreMenu = false,
-                currentImage = currentImage as? com.devson.pixchive.data.ImageFile,
-                currentImageEntity = currentImage as? ImageEntity,
-                onNavigateBack = onNavigateBack,
-                onMoreMenuToggle = {},
-                isFavorite = isFavorite,
-                contentColor = animatedUiColor,
-                onToggleFavorite = {
-                    currentImage?.let {
-                        scope.launch {
-                            if (it is ImageEntity) prefs.toggleFavorite(it.uri)
-                            else if (it is com.devson.pixchive.data.ImageFile) prefs.toggleFavorite(it.uri.toString())
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Black.copy(alpha = 0.55f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+            ) {
+                ReaderTopBar(
+                    chapterFolderName = chapterName,
+                    currentImageName = when (currentImage) {
+                        is ImageEntity -> currentImage.name
+                        is com.devson.pixchive.data.ImageFile -> currentImage.name
+                        else -> ""
+                    },
+                    showMoreMenu = false,
+                    currentImage = currentImage as? com.devson.pixchive.data.ImageFile,
+                    currentImageEntity = currentImage as? ImageEntity,
+                    onNavigateBack = onNavigateBack,
+                    onMoreMenuToggle = {},
+                    isFavorite = isFavorite,
+                    // No contentColor — always white; scrim provides contrast
+                    onToggleFavorite = {
+                        currentImage?.let {
+                            scope.launch {
+                                if (it is ImageEntity) prefs.toggleFavorite(it.uri)
+                                else if (it is com.devson.pixchive.data.ImageFile) prefs.toggleFavorite(it.uri.toString())
+                            }
                         }
                     }
-                }
-            )
+                )
+            }
         }
 
         // --- Bottom Floating Controls ---

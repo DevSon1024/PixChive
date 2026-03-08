@@ -40,6 +40,9 @@ fun NavGraph(
                 },
                 onFavoritesClick = {
                     navController.navigate("favorites")
+                },
+                onResumeChapter = { folderId, chapterPath, initialPage ->
+                    navController.navigate(Screen.ImageViewer.createRoute(folderId, chapterPath, initialPage))
                 }
             )
         }

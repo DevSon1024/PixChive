@@ -25,6 +25,7 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import androidx.sqlite.db.SimpleSQLiteQuery
+import com.devson.pixchive.data.local.HistoryEntity
 import com.devson.pixchive.data.local.ImageEntity
 import com.devson.pixchive.workers.FolderSyncWorker
 
@@ -33,6 +34,7 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
 
     private val preferencesManager = PreferencesManager(application)
     private val imageDao = getApplication<PixChiveApplication>().database.imageDao()
+    private val historyDao = getApplication<PixChiveApplication>().database.historyDao()
 
     private val _currentFolder = MutableStateFlow<ComicFolder?>(null)
     val currentFolder: StateFlow<ComicFolder?> = _currentFolder.asStateFlow()
@@ -325,8 +327,35 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
 
     fun saveReadProgress(chapterPath: String, page: Int) {
         val folderId = _currentFolder.value?.id ?: return
+        val folder = _currentFolder.value ?: return
         viewModelScope.launch {
             preferencesManager.saveReadProgress(folderId, chapterPath, page)
+
+            // Resolve total pages and cover image from current chapter
+            val chapterImages = chapters.value
+                .firstOrNull { it.path == chapterPath }
+                ?.images ?: emptyList()
+            val totalPages = chapterImages.size
+            val coverUri = chapterImages.firstOrNull()?.let { img ->
+                when (img) {
+                    is ImageEntity -> img.uri
+                    is com.devson.pixchive.data.ImageFile -> img.uri.toString()
+                    else -> ""
+                }
+            } ?: ""
+            val chapterName = File(chapterPath).name
+
+            historyDao.upsert(
+                HistoryEntity(
+                    chapterPath = chapterPath,
+                    folderId = folderId,
+                    title = "${folder.displayName} · $chapterName",
+                    coverImageUri = coverUri,
+                    currentPage = page,
+                    totalPages = totalPages.coerceAtLeast(1),
+                    lastAccessed = System.currentTimeMillis()
+                )
+            )
         }
     }
 

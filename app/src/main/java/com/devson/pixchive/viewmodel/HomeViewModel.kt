@@ -21,6 +21,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val preferencesManager = PreferencesManager(application)
     private val imageDao = getApplication<PixChiveApplication>().database.imageDao()
+    private val historyDao = getApplication<PixChiveApplication>().database.historyDao()
+
+    /** Last 10 chapters the user has read, most recent first. */
+    val recentHistory = historyDao.getRecentHistory()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // ... (Keep layout/sort state flows) ...
     private val _layoutMode = MutableStateFlow("list")

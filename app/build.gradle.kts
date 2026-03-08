@@ -175,8 +175,6 @@ dependencies {
     implementation("com.anggrayudi:storage:2.0.0")
     // EXIF metadata extraction
     implementation("androidx.exifinterface:exifinterface:1.3.7")
-    // Palette for dominant color extraction
-    implementation("androidx.palette:palette-ktx:1.0.0")
     implementation(libs.telephoto.zoomable.image.coil)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

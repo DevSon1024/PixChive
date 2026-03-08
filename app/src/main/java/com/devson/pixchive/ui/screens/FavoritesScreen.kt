@@ -36,19 +36,14 @@ fun FavoritesScreen(
 ) {
     val folderId = "favorites"
 
-    val lazyImages = viewModel.flatImages.collectAsLazyPagingItems()
+    val lazyImages = viewModel.favoriteImages.collectAsLazyPagingItems()
     val isLoading by viewModel.isLoading.collectAsState()
 
     val layoutMode by viewModel.layoutMode.collectAsState()
     val gridColumns by viewModel.gridColumns.collectAsState()
-    val sortOption by viewModel.sortOption.collectAsState()
+    val sortOption by viewModel.favoritesSortOption.collectAsState()
 
     var showDisplayOptions by remember { mutableStateOf(false) }
-
-    // Initial load only. Updates are handled by Flow in VM.
-    LaunchedEffect(Unit) {
-        viewModel.loadFolder(folderId)
-    }
 
     Scaffold(
         topBar = {
@@ -103,7 +98,7 @@ fun FavoritesScreen(
                 sortOption = sortOption,
                 onLayoutModeChange = { viewModel.setLayoutMode(it) },
                 onGridColumnsChange = { viewModel.setGridColumns(it) },
-                onSortOptionChange = { viewModel.setSortOption(it) }
+                onSortOptionChange = { viewModel.setFavoritesSortOption(it) }
             )
         }
     }

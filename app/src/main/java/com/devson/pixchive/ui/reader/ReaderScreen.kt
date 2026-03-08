@@ -83,7 +83,7 @@ fun ReaderScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val chapters by viewModel.chapters.collectAsState()
     val currentFolder by viewModel.currentFolder.collectAsState()
-    val favorites by prefs.favoritesFlow.collectAsState(initial = emptySet())
+    val favorites by viewModel.favoriteUrisFlow.collectAsState()
     val readerScrollMode by viewModel.readerScrollMode.collectAsState()
     val mangaMode by viewModel.mangaMode.collectAsState()
 
@@ -422,10 +422,8 @@ fun ReaderScreen(
                     // No contentColor — always white; scrim provides contrast
                     onToggleFavorite = {
                         currentImage?.let {
-                            scope.launch {
-                                if (it is ImageEntity) prefs.toggleFavorite(it.uri)
-                                else if (it is com.devson.pixchive.data.ImageFile) prefs.toggleFavorite(it.uri.toString())
-                            }
+                            if (it is ImageEntity) viewModel.toggleFavorite(it.uri)
+                            else if (it is com.devson.pixchive.data.ImageFile) viewModel.toggleFavorite(it.uri.toString())
                         }
                     }
                 )

@@ -35,12 +35,16 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     private val preferencesManager = PreferencesManager(application)
     private val imageDao = getApplication<PixChiveApplication>().database.imageDao()
     private val historyDao = getApplication<PixChiveApplication>().database.historyDao()
+    private val favoriteDao = getApplication<PixChiveApplication>().database.favoriteDao()
 
     private val _currentFolder = MutableStateFlow<ComicFolder?>(null)
     val currentFolder: StateFlow<ComicFolder?> = _currentFolder.asStateFlow()
 
     private val _sortOption = MutableStateFlow("name_asc")
     val sortOption: StateFlow<String> = _sortOption.asStateFlow()
+
+    private val _favoritesSortOption = MutableStateFlow("date_newest")
+    val favoritesSortOption: StateFlow<String> = _favoritesSortOption.asStateFlow()
 
     // --- MAIN DATA FLOW ---
     val chapters: StateFlow<List<Chapter>> = combine(
@@ -108,6 +112,31 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
                 }
             ).flow
         }.cachedIn(viewModelScope)
+
+    // --- PAGING 3 FOR FAVORITES ---
+    val favoriteImages: Flow<PagingData<ImageEntity>> = _favoritesSortOption
+        .flatMapLatest { sort ->
+            Pager(
+                config = PagingConfig(
+                    pageSize = 60,
+                    enablePlaceholders = true,
+                    maxSize = 200
+                ),
+                pagingSourceFactory = {
+                    when (sort) {
+                        "name_asc"    -> imageDao.getFavoritesPagedNameAsc()
+                        "name_desc"   -> imageDao.getFavoritesPagedNameDesc()
+                        "date_oldest" -> imageDao.getFavoritesPagedDateOldest()
+                        else          -> imageDao.getFavoritesPagedDateNewest() // "date_newest" + default
+                    }
+                }
+            ).flow
+        }.cachedIn(viewModelScope)
+
+    // URI set flow for ReaderScreen
+    val favoriteUrisFlow: StateFlow<Set<String>> = favoriteDao.getAllFavoriteUrisFlow()
+        .map { it.toSet() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
     // Total count of images in the flat view - used by ReaderScreen for unbounded paging
     val flatImageCount: StateFlow<Int> = _currentFolder
@@ -185,6 +214,20 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
 
     init {
         loadPreferences()
+        migrateLegacyFavorites()
+    }
+
+    private fun migrateLegacyFavorites() {
+        viewModelScope.launch {
+            val legacyFavorites = preferencesManager.favoritesFlow.first()
+            if (legacyFavorites.isNotEmpty()) {
+                val newEntities = legacyFavorites.map { uri ->
+                    com.devson.pixchive.data.local.FavoriteEntity(uri = uri)
+                }
+                favoriteDao.insertAllIgnoringConflicts(newEntities)
+                preferencesManager.clearLegacyFavorites()
+            }
+        }
     }
 
     private fun loadPreferences() {
@@ -193,6 +236,7 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
             _layoutMode.value = preferencesManager.layoutModeFlow.first()
             _gridColumns.value = preferencesManager.folderGridColumnsFlow.first()
             _sortOption.value = preferencesManager.folderSortOptionFlow.first()
+            _favoritesSortOption.value = preferencesManager.favoritesSortOptionFlow.first()
             _readerScrollMode.value = preferencesManager.readerScrollModeFlow.first()
             _mangaMode.value = preferencesManager.mangaModeFlow.first()
         }
@@ -311,6 +355,24 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun toggleFavorite(uri: String) {
+        viewModelScope.launch {
+            val isFav = favoriteDao.getFavorite(uri) != null
+            if (isFav) {
+                favoriteDao.delete(uri)
+            } else {
+                favoriteDao.insert(com.devson.pixchive.data.local.FavoriteEntity(uri))
+            }
+        }
+    }
+
+    fun setFavoritesSortOption(option: String) {
+        viewModelScope.launch {
+            _favoritesSortOption.value = option
+            preferencesManager.saveFavoritesSortOption(option)
+        }
+    }
+
     fun setReaderScrollMode(mode: String) {
         viewModelScope.launch {
             _readerScrollMode.value = mode
@@ -336,13 +398,7 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
                 .firstOrNull { it.path == chapterPath }
                 ?.images ?: emptyList()
             val totalPages = chapterImages.size
-            val coverUri = chapterImages.firstOrNull()?.let { img ->
-                when (img) {
-                    is ImageEntity -> img.uri
-                    is com.devson.pixchive.data.ImageFile -> img.uri.toString()
-                    else -> ""
-                }
-            } ?: ""
+            val coverUri = chapterImages.firstOrNull()?.uri ?: ""
             val chapterName = File(chapterPath).name
 
             historyDao.upsert(

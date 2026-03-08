@@ -21,6 +21,18 @@ interface ImageDao {
     @Query("SELECT * FROM images WHERE folderId = :folderId")
     fun getImagesFlow(folderId: String): Flow<List<ImageEntity>>
 
+    @Query("SELECT images.* FROM images INNER JOIN favorite_images ON images.uri = favorite_images.uri ORDER BY images.parentFolderPath ASC, images.name ASC")
+    fun getFavoritesPagedNameAsc(): PagingSource<Int, ImageEntity>
+
+    @Query("SELECT images.* FROM images INNER JOIN favorite_images ON images.uri = favorite_images.uri ORDER BY images.parentFolderPath DESC, images.name DESC")
+    fun getFavoritesPagedNameDesc(): PagingSource<Int, ImageEntity>
+
+    @Query("SELECT images.* FROM images INNER JOIN favorite_images ON images.uri = favorite_images.uri ORDER BY favorite_images.addedAt DESC")
+    fun getFavoritesPagedDateNewest(): PagingSource<Int, ImageEntity>
+
+    @Query("SELECT images.* FROM images INNER JOIN favorite_images ON images.uri = favorite_images.uri ORDER BY favorite_images.addedAt ASC")
+    fun getFavoritesPagedDateOldest(): PagingSource<Int, ImageEntity>
+
     /**
      * Fixed sort PagingSource (kept for compatibility).
      */

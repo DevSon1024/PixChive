@@ -25,6 +25,7 @@ class PreferencesManager(private val context: Context) {
     companion object {
         private val FOLDERS_KEY = stringPreferencesKey("comic_folders")
         private val FAVORITES_KEY = stringSetPreferencesKey("favorite_images")
+        private val FAVORITES_SORT_OPTION_KEY = stringPreferencesKey("favorites_sort_option")
 
         // Folder Screen Prefs
         private val VIEW_MODE_KEY = stringPreferencesKey("view_mode")
@@ -65,6 +66,20 @@ class PreferencesManager(private val context: Context) {
             }
         }
     }
+
+    suspend fun clearLegacyFavorites() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(FAVORITES_KEY)
+        }
+    }
+
+    suspend fun saveFavoritesSortOption(option: String) {
+        context.dataStore.edit { preferences -> preferences[FAVORITES_SORT_OPTION_KEY] = option }
+    }
+
+    val favoritesSortOptionFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[FAVORITES_SORT_OPTION_KEY] ?: "date_newest"
+    }.distinctUntilChanged()
 
     // --- Common / Folders Data ---
 

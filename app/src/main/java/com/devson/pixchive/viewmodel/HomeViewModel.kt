@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.UUID
+import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.asFlow
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
@@ -68,6 +69,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             _layoutMode.value = preferencesManager.homeLayoutModeFlow.first()
             _sortOption.value = preferencesManager.homeSortOptionFlow.first()
             _gridColumns.value = preferencesManager.homeGridColumnsFlow.first()
+            
+            validateFolders()
         }
     }
 
@@ -79,6 +82,36 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             "date_newest" -> folders.sortedByDescending { it.dateAdded }
             "date_oldest" -> folders.sortedBy { it.dateAdded }
             else -> folders.sortedByDescending { it.dateAdded }
+        }
+    }
+
+    private suspend fun validateFolders() {
+        val currentFolders = preferencesManager.foldersFlow.first()
+        if (currentFolders.isEmpty()) return
+
+        val validFolders = mutableListOf<ComicFolder>()
+        var changed = false
+        val contentResolver = getApplication<Application>().contentResolver
+
+        for (folder in currentFolders) {
+            val uri = Uri.parse(folder.uri)
+            val hasPermission = contentResolver.persistedUriPermissions.any { it.uri == uri }
+            
+            val exists = try {
+                 DocumentFile.fromTreeUri(getApplication(), uri)?.exists() == true
+            } catch (e: Exception) { false }
+            
+            if (hasPermission && exists) {
+                validFolders.add(folder)
+            } else {
+                changed = true
+                imageDao.deleteFolderContent(folder.id)
+                historyDao.deleteHistoryForFolder(folder.id)
+            }
+        }
+        
+        if (changed) {
+             preferencesManager.saveFolders(validFolders)
         }
     }
 

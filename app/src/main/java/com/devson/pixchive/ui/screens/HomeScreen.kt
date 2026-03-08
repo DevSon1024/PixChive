@@ -49,6 +49,7 @@ import com.devson.pixchive.data.local.HistoryEntity
 import com.devson.pixchive.ui.components.DisplayOptionsSheet
 import com.devson.pixchive.ui.components.PermissionDeniedDialog
 import com.devson.pixchive.ui.components.PermissionRationaleDialog
+import com.devson.pixchive.ui.components.SkeletonHome
 import com.devson.pixchive.ui.components.SkeletonGrid
 import com.devson.pixchive.ui.components.SkeletonList
 import com.devson.pixchive.utils.PermissionHelper
@@ -162,11 +163,7 @@ fun HomeScreen(
                     IconButton(onClick = onSettingsClick) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                }
             )
         },
         floatingActionButton = {
@@ -186,7 +183,7 @@ fun HomeScreen(
         ) {
             when {
                 isLoading -> {
-                    if (layoutMode == "grid") SkeletonGrid(columns = gridColumns) else SkeletonList()
+                    SkeletonHome(layoutMode = layoutMode, columns = gridColumns, showHistory = recentHistory.isNotEmpty())
                 }
                 folders.isEmpty() -> EmptyStateContent()
                 else -> {

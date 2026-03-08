@@ -15,6 +15,9 @@ interface HistoryDao {
     @Query("DELETE FROM history WHERE chapterPath = :chapterPath")
     suspend fun delete(chapterPath: String)
 
+    @Query("DELETE FROM history WHERE folderId = :folderId")
+    suspend fun deleteHistoryForFolder(folderId: String)
+
     @Query("DELETE FROM history")
     suspend fun clearAll()
 }

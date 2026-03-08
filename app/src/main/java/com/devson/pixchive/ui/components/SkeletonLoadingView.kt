@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -18,6 +19,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 
 @Composable
 fun shimmerBrush(showShimmer: Boolean = true, targetValue: Float = 1000f): Brush {
@@ -50,6 +57,89 @@ fun shimmerBrush(showShimmer: Boolean = true, targetValue: Float = 1000f): Brush
             start = Offset.Zero,
             end = Offset.Zero
         )
+    }
+}
+
+@Composable
+fun SkeletonHome(layoutMode: String, columns: Int, showHistory: Boolean = true) {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(if (layoutMode == "grid") columns else 1),
+        contentPadding = PaddingValues(bottom = 88.dp),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        if (showHistory) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                SkeletonSectionHeader(title = "Jump Back In", icon = Icons.Default.History)
+            }
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                androidx.compose.foundation.lazy.LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(3) {
+                        SkeletonHistoryCard()
+                    }
+                }
+            }
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            SkeletonSectionHeader(title = "My Folders", icon = Icons.Default.FolderOpen)
+        }
+
+        if (layoutMode == "grid") {
+            items(10) {
+                Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
+                    SkeletonGridItem()
+                }
+            }
+        } else {
+            items(6) {
+                Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                    SkeletonListItem()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SkeletonSectionHeader(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 8.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+@Composable
+fun SkeletonHistoryCard() {
+    Surface(
+        modifier = Modifier
+            .width(140.dp)
+            .aspectRatio(0.7f),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+    ) {
+        Box(modifier = Modifier.fillMaxSize().background(shimmerBrush()))
     }
 }
 

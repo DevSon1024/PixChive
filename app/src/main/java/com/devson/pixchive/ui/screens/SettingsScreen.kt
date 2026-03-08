@@ -16,7 +16,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.widget.Toast
 import com.devson.pixchive.data.PreferencesManager
+import com.devson.pixchive.utils.BackupRestoreManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -33,6 +38,34 @@ fun SettingsScreen(
     val appTheme by preferencesManager.appThemeFlow.collectAsState(initial = "system")
 
     var showThemeDialog by remember { mutableStateOf(false) }
+
+    val backupLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/zip")
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val success = BackupRestoreManager.performBackup(context, uri)
+                launch(Dispatchers.Main) {
+                    Toast.makeText(context, if (success) "Backup created successfully" else "Failed to create backup", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    val restoreLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val success = BackupRestoreManager.performRestore(context, uri)
+                launch(Dispatchers.Main) {
+                    if (!success) {
+                        Toast.makeText(context, "Failed to restore backup", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+    }
 
     if (showThemeDialog) {
         AlertDialog(
@@ -167,6 +200,60 @@ fun SettingsScreen(
                         }
                     }
                 )
+            }
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            // --- Data & Backup Section ---
+            Text(
+                text = "Data & Backup",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        backupLauncher.launch("PixChive_Backup_${System.currentTimeMillis()}.zip")
+                    }
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Create Backup",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        text = "Export database and settings to a zip file",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        restoreLauncher.launch(arrayOf("application/zip"))
+                    }
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Restore Backup",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        text = "Import data and settings from a previous backup",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 

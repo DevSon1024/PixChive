@@ -85,10 +85,11 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     // Typed queries are preferred over RawQuery here - Room can validate the SQL
     // at compile time and avoids building a SupportSQLiteQuery on every page load.
     val flatImages: Flow<PagingData<ImageEntity>> = combine(
-        _currentFolder.filterNotNull(),
+        _currentFolder,
         _sortOption
     ) { folder, sort -> folder to sort }
         .flatMapLatest { (folder, sort) ->
+            if (folder == null) return@flatMapLatest kotlinx.coroutines.flow.flowOf(androidx.paging.PagingData.empty())
             Pager(
                 config = PagingConfig(
                     pageSize = 40,
@@ -138,21 +139,32 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
         .map { it.toSet() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
+    val favoriteImageCount: StateFlow<Int> = favoriteDao.getAllFavoriteUrisFlow()
+        .map { it.size }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
     // Total count of images in the flat view - used by ReaderScreen for unbounded paging
     val flatImageCount: StateFlow<Int> = _currentFolder
-        .filterNotNull()
-        .flatMapLatest { folder -> imageDao.getImageCountFlow(folder.id) }
+        .flatMapLatest { folder ->
+            if (folder == null) kotlinx.coroutines.flow.flowOf(0) else imageDao.getImageCountFlow(folder.id)
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     /**
      * Loads a single image by its sorted position - uses the SAME ORDER BY as the flat view
      * Pager so clicking image at grid index N always opens image N in the reader.
      */
-    suspend fun getFlatImageAt(index: Int): ImageEntity? {
-        val folderId = _currentFolder.value?.id ?: return null
+    suspend fun getFlatImageAt(index: Int, folderId: String? = null): ImageEntity? {
+        if (folderId == "favorites") {
+            val orderBy = favoriteOrderBy(_favoritesSortOption.value)
+            val sql = "SELECT images.* FROM images INNER JOIN favorite_images ON images.uri = favorite_images.uri ORDER BY $orderBy LIMIT 1 OFFSET ?"
+            return imageDao.getImageByIndexRaw(SimpleSQLiteQuery(sql, arrayOf(index)))
+        }
+
+        val targetFolderId = folderId.takeIf { it != null && it != "favorites" } ?: _currentFolder.value?.id ?: return null
         val orderBy = flatOrderBy(_sortOption.value)
         val sql = "SELECT * FROM images WHERE folderId = ? ORDER BY $orderBy LIMIT 1 OFFSET ?"
-        return imageDao.getImageByIndexRaw(SimpleSQLiteQuery(sql, arrayOf(folderId, index)))
+        return imageDao.getImageByIndexRaw(SimpleSQLiteQuery(sql, arrayOf(targetFolderId, index)))
     }
 
     // --- SCROLL POSITION (survives back-navigation via shared ViewModel) ---
@@ -174,6 +186,13 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     fun saveExplorerScrollPosition(index: Int, offset: Int) {
         _explorerScrollIndex.value  = index
         _explorerScrollOffset.value = offset
+    }
+
+    private fun favoriteOrderBy(sort: String) = when (sort) {
+        "name_desc"   -> "images.parentFolderPath DESC, images.name DESC"
+        "date_newest" -> "favorite_images.addedAt DESC"
+        "date_oldest" -> "favorite_images.addedAt ASC"
+        else          -> "images.parentFolderPath ASC, images.name ASC"
     }
 
     // Used by getFlatImageAt() to match the Pager's ORDER BY for by-offset lookup.
@@ -256,6 +275,11 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
 
     fun loadFolder(folderId: String, forceRescan: Boolean = false) {
         if (folderId == "favorites") return
+        
+        // INSTANTLY clear the cached flows if we are opening a different folder
+        if (_currentFolder.value?.id != folderId) {
+            _currentFolder.value = null
+        }
 
         scanJob?.cancel()
         _isLoading.value = true
@@ -387,25 +411,39 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun saveReadProgress(chapterPath: String, page: Int) {
-        val folderId = _currentFolder.value?.id ?: return
-        val folder = _currentFolder.value ?: return
+    fun saveReadProgress(folderId: String, chapterPath: String, page: Int) {
         viewModelScope.launch {
-            preferencesManager.saveReadProgress(folderId, chapterPath, page)
+            val finalChapterPath = if (folderId == "favorites") "favorites_view" else chapterPath
+            preferencesManager.saveReadProgress(folderId, finalChapterPath, page)
 
-            // Resolve total pages and cover image from current chapter
             val chapterImages = chapters.value
                 .firstOrNull { it.path == chapterPath }
                 ?.images ?: emptyList()
-            val totalPages = chapterImages.size
-            val coverUri = chapterImages.firstOrNull()?.uri ?: ""
-            val chapterName = File(chapterPath).name
+
+            val totalPages = when {
+                folderId == "favorites" -> favoriteImageCount.value
+                chapterPath == "flat_view" -> flatImageCount.value
+                else -> chapterImages.size
+            }
+
+            val coverUri = when {
+                chapterImages.isNotEmpty() -> chapterImages.getOrNull(page)?.uri ?: chapterImages.firstOrNull()?.uri ?: ""
+                folderId == "favorites" -> getFlatImageAt(page, "favorites")?.uri ?: ""
+                chapterPath == "flat_view" -> getFlatImageAt(page, folderId)?.uri ?: ""
+                else -> ""
+            }
+
+            val historyTitle = when {
+                folderId == "favorites" -> "Favorites"
+                chapterPath == "flat_view" -> "${_currentFolder.value?.name ?: "Unknown Folder"} (All)"
+                else -> chapterPath.substringAfterLast("/").substringAfterLast(":")
+            }
 
             historyDao.upsert(
                 HistoryEntity(
-                    chapterPath = chapterPath,
+                    chapterPath = finalChapterPath,
                     folderId = folderId,
-                    title = "${folder.displayName} · $chapterName",
+                    title = historyTitle,
                     coverImageUri = coverUri,
                     currentPage = page,
                     totalPages = totalPages.coerceAtLeast(1),

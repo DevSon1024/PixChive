@@ -53,7 +53,7 @@ fun NavGraph(
                 onNavigateBack = { navController.popBackStack() },
                 onImageClick = { index ->
                     // Pass "favorites" as ID so Reader knows what to load
-                    navController.navigate(Screen.ImageViewer.createRoute("favorites", "flat_view", index))
+                    navController.navigate(Screen.ImageViewer.createRoute("favorites", "favorites_view", index))
                 },
                 viewModel = folderViewModel // PASS SHARED VIEWMODEL HERE
             )

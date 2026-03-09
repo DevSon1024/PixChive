@@ -28,7 +28,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -187,9 +190,6 @@ fun HomeScreen(
                 }
                 folders.isEmpty() -> EmptyStateContent()
                 else -> {
-                    // ── Single LazyVerticalGrid that holds EVERYTHING: history row + folders ──
-                    // Using item(span) for full-width header/row items avoids nesting a
-                    // LazyColumn + LazyVerticalGrid (which crashes Compose).
                     val gridCols = if (layoutMode == "grid") gridColumns else 1
 
                     LazyVerticalGrid(
@@ -197,7 +197,7 @@ fun HomeScreen(
                         contentPadding = PaddingValues(bottom = 88.dp), // FAB clearance
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        // ── HISTORY SECTION ──────────────────────────────────────────────
+                        // HISTORY SECTION 
                         if (recentHistory.isNotEmpty()) {
                             item(span = { GridItemSpan(maxLineSpan) }) {
                                 SectionHeader(
@@ -217,6 +217,9 @@ fun HomeScreen(
                                             entry = entry,
                                             onClick = {
                                                 onResumeChapter(entry.folderId, entry.chapterPath, entry.currentPage)
+                                            },
+                                            onDeleteClick = {
+                                                viewModel.removeHistoryItem(entry.folderId, entry.chapterPath)
                                             }
                                         )
                                     }
@@ -228,7 +231,7 @@ fun HomeScreen(
                             }
                         }
 
-                        // ── FOLDERS SECTION ──────────────────────────────────────────────
+                        // FOLDERS SECTION
                         item(span = { GridItemSpan(maxLineSpan) }) {
                             SectionHeader(
                                 title = "My Folders",
@@ -261,7 +264,7 @@ fun HomeScreen(
                 }
             }
 
-            // ── Syncing Chip ──────────────────────────────────────────────────────────
+            // Syncing Chip 
             AnimatedVisibility(
                 visible = isSyncing,
                 enter = fadeIn() + slideInVertically { -it },
@@ -344,7 +347,7 @@ fun HomeScreen(
     }
 }
 
-// ── Section Header ────────────────────────────────────────────────────────────
+// Section Header
 
 @Composable
 private fun SectionHeader(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
@@ -369,74 +372,142 @@ private fun SectionHeader(title: String, icon: androidx.compose.ui.graphics.vect
     }
 }
 
-// ── History Card ──────────────────────────────────────────────────────────────
+// History Card
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun HistoryCard(entry: HistoryEntity, onClick: () -> Unit) {
-    ElevatedCard(
-        onClick = onClick,
-        modifier = Modifier
-            .width(140.dp)
-            .aspectRatio(0.7f),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
-    ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            // Cover image
-            AsyncImage(
-                model = entry.coverImageUri,
-                contentDescription = entry.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
+fun HistoryCard(entry: HistoryEntity, onClick: () -> Unit, onDeleteClick: () -> Unit) {
+    val haptics = LocalHapticFeedback.current
+    var showDeleteOverlay by remember { mutableStateOf(false) }
 
-            // Gradient overlay + text at bottom
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
-                        )
+    Box {
+        ElevatedCard(
+            modifier = Modifier
+                .width(140.dp)
+                .aspectRatio(0.7f)
+                .clip(RoundedCornerShape(12.dp))
+                .combinedClickable(
+                    onClick = {
+                        if (showDeleteOverlay) {
+                            showDeleteOverlay = false
+                        } else {
+                            onClick()
+                        }
+                    },
+                    onLongClick = {
+                        if (!showDeleteOverlay) {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            showDeleteOverlay = true
+                        }
+                    }
+                ),
+            shape = RoundedCornerShape(12.dp),
+            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                val blurRadius by androidx.compose.animation.core.animateDpAsState(
+                    targetValue = if (showDeleteOverlay) 12.dp else 0.dp,
+                    label = "blur"
+                )
+
+                Box(modifier = Modifier.fillMaxSize().blur(blurRadius)) {
+                    // Cover image
+                    AsyncImage(
+                        model = entry.coverImageUri,
+                        contentDescription = entry.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
                     )
-                    .padding(horizontal = 8.dp, vertical = 6.dp)
-            ) {
-                Column {
-                    Text(
-                        text = entry.title,
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                        color = Color.White,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    // Progress bar at absolute bottom
-                    LinearProgressIndicator(
-                        progress = { (entry.currentPage.toFloat() / entry.totalPages.toFloat()).coerceIn(0f, 1f) },
+
+                    // Gradient overlay + text at bottom
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(3.dp)
-                            .clip(RoundedCornerShape(2.dp)),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = Color.White.copy(alpha = 0.3f)
-                    )
-                }
-            }
+                            .align(Alignment.BottomCenter)
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
+                                )
+                            )
+                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                    ) {
+                        Column {
+                            Text(
+                                text = entry.title,
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = Color.White,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            // Progress bar at absolute bottom
+                            LinearProgressIndicator(
+                                progress = { (entry.currentPage.toFloat() / entry.totalPages.toFloat()).coerceIn(0f, 1f) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(3.dp)
+                                    .clip(RoundedCornerShape(2.dp)),
+                                color = MaterialTheme.colorScheme.primary,
+                                trackColor = Color.White.copy(alpha = 0.3f)
+                            )
+                        }
+                    }
 
-            // Page badge top-right
-            Surface(
-                shape = RoundedCornerShape(6.dp),
-                color = Color.Black.copy(alpha = 0.6f),
+                    // Page badge top-start
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = Color.Black.copy(alpha = 0.6f),
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(6.dp)
+                    ) {
+                        Text(
+                            text = "At ${entry.currentPage + 1}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White,
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+
+                // Delete Overlay
+                DeleteOverlay(
+                    visible = showDeleteOverlay,
+                    onDeleteClick = {
+                        showDeleteOverlay = false
+                        onDeleteClick()
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun DeleteOverlay(visible: Boolean, onDeleteClick: () -> Unit) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn() + scaleIn(),
+        exit = fadeOut() + scaleOut(),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.4f)),
+            contentAlignment = Alignment.Center
+        ) {
+            IconButton(
+                onClick = onDeleteClick,
                 modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(6.dp)
+                    .size(48.dp)
+                    .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.9f), RoundedCornerShape(50))
             ) {
-                Text(
-                    text = "At ${entry.currentPage + 1}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White,
-                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Remove from history",
+                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }

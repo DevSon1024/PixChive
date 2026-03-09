@@ -51,6 +51,7 @@ import kotlin.math.abs
  */
 @Composable
 fun WebtoonReader(
+    folderId: String,
     chapterImages: List<Any>,
     isFlatView: Boolean,
     pageCount: Int,
@@ -156,6 +157,7 @@ fun WebtoonReader(
                 key = { page -> page }
             ) { page ->
                 WebtoonPageItem(
+                    folderId = folderId,
                     page = page,
                     chapterImages = chapterImages,
                     isFlatView = isFlatView,
@@ -170,6 +172,7 @@ fun WebtoonReader(
 
 @Composable
 private fun WebtoonPageItem(
+    folderId: String,
     page: Int,
     chapterImages: List<Any>,
     isFlatView: Boolean,
@@ -179,7 +182,7 @@ private fun WebtoonPageItem(
 ) {
     if (isFlatView && !flatImageCache.containsKey(page)) {
         LaunchedEffect(page) {
-            flatImageCache[page] = viewModel.getFlatImageAt(page)
+            flatImageCache[page] = viewModel.getFlatImageAt(page, folderId)
         }
     }
 

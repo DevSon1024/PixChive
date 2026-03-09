@@ -41,6 +41,11 @@ fun FlatFolderView(
     onImageClick: (Int) -> Unit,
     viewModel: FolderViewModel = viewModel()
 ) {
+    val currentFolder by viewModel.currentFolder.collectAsState()
+    val isStaleState = currentFolder?.id != folderId
+
+    if (isStaleState) return
+
     // Collected here - cancelled automatically when FlatFolderView leaves composition.
     val images = viewModel.flatImages.collectAsLazyPagingItems()
 
@@ -51,59 +56,61 @@ fun FlatFolderView(
     val isRefreshing = images.loadState.refresh is LoadState.Loading
     if (!isRefreshing && images.itemCount == 0) { EmptyImagesView(); return }
 
-    if (layoutMode == "grid") {
-        val gridState = rememberLazyGridState(
-            initialFirstVisibleItemIndex = initialScrollIndex,
-            initialFirstVisibleItemScrollOffset = initialScrollOffset
-        )
-        // Save only when scrolling fully stops - avoids per-pixel coroutine spam that causes ANR
-        LaunchedEffect(gridState) {
-            snapshotFlow { gridState.isScrollInProgress }
-                .filter { !it }
-                .collect { onSaveScroll(gridState.firstVisibleItemIndex, 0) }
-        }
-        LazyVerticalGrid(
-            state = gridState,
-            columns = GridCells.Fixed(gridColumns),
-            contentPadding = PaddingValues(8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(
-                count = images.itemCount,
-                key = images.itemKey { it.path },
-                contentType = images.itemContentType { "image" }
-            ) { index ->
-                val image = images[index]
-                if (image != null) {
-                    ImageGridItem(image, gridColumns, { onImageClick(index) }, {
-                        viewModel.refreshFolder(folderId)
-                    })
+    key(folderId) {
+        if (layoutMode == "grid") {
+            val gridState = rememberLazyGridState(
+                initialFirstVisibleItemIndex = initialScrollIndex,
+                initialFirstVisibleItemScrollOffset = initialScrollOffset
+            )
+            // Save only when scrolling fully stops - avoids per-pixel coroutine spam that causes ANR
+            LaunchedEffect(gridState) {
+                snapshotFlow { gridState.isScrollInProgress }
+                    .filter { !it }
+                    .collect { onSaveScroll(gridState.firstVisibleItemIndex, 0) }
+            }
+            LazyVerticalGrid(
+                state = gridState,
+                columns = GridCells.Fixed(gridColumns),
+                contentPadding = PaddingValues(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(
+                    count = images.itemCount,
+                    key = images.itemKey { it.path },
+                    contentType = images.itemContentType { "image" }
+                ) { index ->
+                    val image = images[index]
+                    if (image != null) {
+                        ImageGridItem(image, gridColumns, { onImageClick(index) }, {
+                            viewModel.refreshFolder(folderId)
+                        })
+                    }
                 }
             }
-        }
-    } else {
-        val listState = rememberLazyListState(
-            initialFirstVisibleItemIndex = initialScrollIndex,
-            initialFirstVisibleItemScrollOffset = initialScrollOffset
-        )
-        // Save only when scrolling fully stops - avoids per-pixel coroutine spam that causes ANR
-        LaunchedEffect(listState) {
-            snapshotFlow { listState.isScrollInProgress }
-                .filter { !it }
-                .collect { onSaveScroll(listState.firstVisibleItemIndex, 0) }
-        }
-        LazyColumn(state = listState, contentPadding = PaddingValues(bottom = 16.dp)) {
-            items(
-                count = images.itemCount,
-                key = images.itemKey { it.path },
-                contentType = images.itemContentType { "image" }
-            ) { index ->
-                val image = images[index]
-                if (image != null) {
-                    ImageListItem(image, { onImageClick(index) }, {
-                        viewModel.refreshFolder(folderId)
-                    })
+        } else {
+            val listState = rememberLazyListState(
+                initialFirstVisibleItemIndex = initialScrollIndex,
+                initialFirstVisibleItemScrollOffset = initialScrollOffset
+            )
+            // Save only when scrolling fully stops - avoids per-pixel coroutine spam that causes ANR
+            LaunchedEffect(listState) {
+                snapshotFlow { listState.isScrollInProgress }
+                    .filter { !it }
+                    .collect { onSaveScroll(listState.firstVisibleItemIndex, 0) }
+            }
+            LazyColumn(state = listState, contentPadding = PaddingValues(bottom = 16.dp)) {
+                items(
+                    count = images.itemCount,
+                    key = images.itemKey { it.path },
+                    contentType = images.itemContentType { "image" }
+                ) { index ->
+                    val image = images[index]
+                    if (image != null) {
+                        ImageListItem(image, { onImageClick(index) }, {
+                            viewModel.refreshFolder(folderId)
+                        })
+                    }
                 }
             }
         }

@@ -89,7 +89,8 @@ fun ReaderScreen(
 
     // --- FLAT VIEW: use true DB total instead of paging snapshot ---
     val flatImageCount by viewModel.flatImageCount.collectAsState()
-    val isFlatView = chapterPath == "flat_view"
+    val favoriteImageCount by viewModel.favoriteImageCount.collectAsState()
+    val isFlatView = chapterPath == "flat_view" || chapterPath == "favorites_view"
 
     // For chapter view, image list comes from chapters as before
     val chapterImages = remember(chapters, chapterPath) {
@@ -97,7 +98,7 @@ fun ReaderScreen(
         else chapters.find { urisMatch(it.path, chapterPath) }?.images ?: emptyList()
     }
 
-    val pageCount = if (isFlatView) flatImageCount else chapterImages.size
+    val pageCount = if (folderId == "favorites") favoriteImageCount else if (isFlatView) flatImageCount else chapterImages.size
 
     val chapterName = remember(chapterPath, currentFolder) {
         if (isFlatView) currentFolder?.name ?: "Flat View"
@@ -110,7 +111,7 @@ fun ReaderScreen(
 
     val rotationStates = remember { mutableStateMapOf<Int, Float>() }
 
-    // ── AUTO-RESUME: resolved initial page ─────────────────────────────────────
+    //  AUTO-RESUME: resolved initial page 
     // IMPORTANT: do NOT coerce against pageCount here - for flat view, flatImageCount
     // is 0 at first composition (the StateFlow hasn't emitted yet), so coerceIn(0,0)
     // would silently clamp ANY clicked index to 0. Pass initialIndex raw instead;
@@ -186,7 +187,7 @@ fun ReaderScreen(
         else -> false
     }
 
-    // ── TRUE IMMERSIVE MODE ─────────────────────────────────────────────────────
+    //  TRUE IMMERSIVE MODE 
     // System bars are ALWAYS hidden for the full reader session.
     // The center-tap only toggles the Compose UI overlay, NOT the system bars.
     DisposableEffect(Unit) {
@@ -226,14 +227,14 @@ fun ReaderScreen(
     LaunchedEffect(pagerState.currentPage, readerScrollMode) {
         if (readerScrollMode != "webtoon" && pageCount > 0) {
             delay(500)
-            viewModel.saveReadProgress(chapterPath, pagerState.currentPage)
+            viewModel.saveReadProgress(folderId, chapterPath, pagerState.currentPage)
         }
     }
     // Webtoon mode: save on scroll stop
     LaunchedEffect(webtoonCurrentPage, readerScrollMode) {
         if (readerScrollMode == "webtoon" && pageCount > 0) {
             delay(500)
-            viewModel.saveReadProgress(chapterPath, webtoonCurrentPage)
+            viewModel.saveReadProgress(folderId, chapterPath, webtoonCurrentPage)
         }
     }
 
@@ -306,9 +307,10 @@ fun ReaderScreen(
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = Color.White)
         } else if (pageCount > 0) {
 
-            // ── WEBTOON MODE ───────────────────────────────────────────────────
+            //  WEBTOON MODE 
             if (readerScrollMode == "webtoon") {
                 WebtoonReader(
+                    folderId = folderId,
                     chapterImages = chapterImages,
                     isFlatView = isFlatView,
                     pageCount = pageCount,
@@ -322,7 +324,7 @@ fun ReaderScreen(
                     viewModel = viewModel
                 )
             } else {
-                // ── HORIZONTAL PAGER MODE (with optional Manga RTL) ────────────
+                //  HORIZONTAL PAGER MODE (with optional Manga RTL) 
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize(),
@@ -333,7 +335,7 @@ fun ReaderScreen(
                         // For flat view: load image on-demand if not cached yet
                         if (isFlatView && !flatImageCache.containsKey(page)) {
                             LaunchedEffect(page) {
-                                flatImageCache[page] = viewModel.getFlatImageAt(page)
+                                flatImageCache[page] = viewModel.getFlatImageAt(page, folderId)
                             }
                         }
 

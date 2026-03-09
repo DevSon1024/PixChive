@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.Color
  */
 @Composable
 fun ExplorerFolderView(
+    folderId: String,
     layoutMode: String,
     gridColumns: Int,
     isLoading: Boolean,
@@ -53,6 +54,10 @@ fun ExplorerFolderView(
     viewModel: FolderViewModel = viewModel()
 ) {
     val chapters by viewModel.chapters.collectAsState()
+    val currentFolder by viewModel.currentFolder.collectAsState()
+    val isStaleState = currentFolder?.id != folderId
+
+    if (isStaleState) return
 
     if (!isLoading && chapters.isEmpty()) { EmptyChaptersView(); return }
 

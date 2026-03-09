@@ -170,6 +170,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun removeHistoryItem(folderId: String, chapterPath: String) {
+        viewModelScope.launch {
+            historyDao.deleteHistory(folderId, chapterPath)
+        }
+    }
+
     // ... (Keep setters for layout/sort options) ...
     fun setLayoutMode(mode: String) {
         viewModelScope.launch {

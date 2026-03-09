@@ -39,6 +39,8 @@ fun FolderViewScreen(
     val isLoading       by viewModel.isLoading.collectAsState()
     val layoutMode      by viewModel.layoutMode.collectAsState()
     val currentViewMode by viewModel.viewMode.collectAsState()
+    val hasSubfolders   by viewModel.hasSubfolders.collectAsState()
+    val effectiveViewMode = if (hasSubfolders) currentViewMode else "flat"
     val gridColumns     by viewModel.gridColumns.collectAsState()
     val sortOption      by viewModel.sortOption.collectAsState()
     val readProgressMap by viewModel.readProgressMap.collectAsState()
@@ -92,7 +94,7 @@ fun FolderViewScreen(
                 // composable's internal collectAsState / collectAsLazyPagingItems call
                 // is automatically cancelled - no manual cleanup needed.
                 // ──────
-                when (currentViewMode) {
+                when (effectiveViewMode) {
                     "flat" -> FlatFolderView(
                         folderId = folderId,
                         layoutMode = layoutMode,
@@ -122,7 +124,7 @@ fun FolderViewScreen(
         if (showDisplayOptions) {
             DisplayOptionsSheet(
                 onDismiss = { showDisplayOptions = false },
-                viewMode = currentViewMode,
+                viewMode = if (hasSubfolders) currentViewMode else null,
                 layoutMode = layoutMode,
                 gridColumns = gridColumns,
                 sortOption = sortOption,

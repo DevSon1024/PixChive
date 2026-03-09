@@ -79,6 +79,10 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     }.flatMapLatest { it }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val hasSubfolders: StateFlow<Boolean> = chapters
+        .map { it.size > 1 }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
     // --- PAGING 3 FOR FLAT VIEW (sort-aware) ---
     // Uses combine so any change to folder OR sortOption triggers flatMapLatest,
     // which creates a brand-new Pager with the correct typed DAO query.

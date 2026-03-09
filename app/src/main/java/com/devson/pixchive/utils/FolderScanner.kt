@@ -21,6 +21,8 @@ object FolderScanner {
     private val ignoredDirNames = setOf(
         ".thumbnails",
         ".trash",
+        ".Trashed",
+        ".trashed",
         ".Trash",
         "Trash",
         "\$RECYCLE.BIN",

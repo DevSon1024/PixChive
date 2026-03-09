@@ -36,7 +36,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -582,47 +584,51 @@ fun ReaderScreen(
                         }
 
                         // Slider Row
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
+                        CompositionLocalProvider(
+                            LocalLayoutDirection provides if (mangaMode) LayoutDirection.Rtl else LayoutDirection.Ltr
                         ) {
-                            Text(
-                                text = "${currentPage + 1}",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Slider(
-                                value = if (sliderDragging) sliderDragValue else currentPage.toFloat(),
-                                onValueChange = { target ->
-                                    sliderDragging = true
-                                    sliderDragValue = target
-                                },
-                                onValueChangeFinished = {
-                                    sliderDragging = false
-                                    val target = sliderDragValue.toInt()
-                                    scope.launch {
-                                        if (readerScrollMode == "webtoon") {
-                                            webtoonListState.scrollToItem(target)
-                                        } else {
-                                            pagerState.scrollToPage(target)
-                                        }
-                                    }
-                                },
-                                valueRange = 0f..maxOf(0f, (pageCount - 1).toFloat()),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .padding(horizontal = 8.dp),
-                                colors = SliderDefaults.colors(
-                                    thumbColor = MaterialTheme.colorScheme.primary,
-                                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                                    inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = "${currentPage + 1}",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
-                            )
-                            Text(
-                                text = "$pageCount",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+                                Slider(
+                                    value = if (sliderDragging) sliderDragValue else currentPage.toFloat(),
+                                    onValueChange = { target ->
+                                        sliderDragging = true
+                                        sliderDragValue = target
+                                    },
+                                    onValueChangeFinished = {
+                                        sliderDragging = false
+                                        val target = sliderDragValue.toInt()
+                                        scope.launch {
+                                            if (readerScrollMode == "webtoon") {
+                                                webtoonListState.scrollToItem(target)
+                                            } else {
+                                                pagerState.scrollToPage(target)
+                                            }
+                                        }
+                                    },
+                                    valueRange = 0f..maxOf(0f, (pageCount - 1).toFloat()),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(horizontal = 8.dp),
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = MaterialTheme.colorScheme.primary,
+                                        activeTrackColor = MaterialTheme.colorScheme.primary,
+                                        inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant
+                                    )
+                                )
+                                Text(
+                                    text = "$pageCount",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
                         }
                     }
                 }

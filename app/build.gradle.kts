@@ -58,7 +58,6 @@ android {
             isDebuggable = true
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
-            // Add this line for dynamic app name
             resValue("string", "app_name", "PixChive Beta")
         }
 
@@ -83,8 +82,17 @@ android {
                 isEnable = true
                 reset()
                 include("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
-                isUniversalApk = false
+                isUniversalApk = true
             }
+        }
+    }
+
+    applicationVariants.all {
+        val variant = this
+        variant.outputs.all {
+            val outputImpl = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            val abiName = outputImpl.filters.find { it.filterType == "ABI" }?.identifier ?: "universal"
+            outputFileName = "PixChive-v${variant.versionName}-${abiName}.apk"
         }
     }
 

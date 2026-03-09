@@ -1,124 +1,60 @@
-# <center> PixChive</center>
+# PixChive
 
-PixChive is a **mobile-first image gallery and comic reader app** designed for smooth viewing of image folders and comic chapters.  
-It focuses on **fast performance, clean UI, and offline access**, making it ideal for reading comics, manga, or browsing image collections stored locally on the device.
+PixChive is an Android image gallery and comic reader app that I'm building to make viewing large folders of images or manga chapters as seamless as possible.
 
----
+My main focus is on creating a clean, fast experience that works completely offline with your locally stored images. If you read a lot of downloaded comics or manga chapter by chapter, or just want a lightweight and private way to browse a personal image archive, this app is designed for you.
 
-## 🚀 Features
+## Features
 
--  Folder-based image browsing
--  Comic / chapter-style reading
-- ️ Smooth image viewer with swipe navigation
--  Zoom & pan support (planned)
--  Dark mode support (planned)
--  Fast loading with optimized rendering
--  Mobile-first UI approach
--  Supports local storage images
--  Simple and clean user experience
+- Browse your images organized by folders.
+- Dedicated reading mode optimized for comics and manga.
+- Support for reading local files directly from your device storage.
+- A fast, mobile-first interface built with Jetpack Compose.
+- Smooth swipe navigation between pages.
+- Webtoon-style vertical scrolling mode alongside standard pagination.
+- Reading directions tailored for Manga (Right-To-Left).
 
----
+## Tech Stack
 
-## 🛠 Tech Stack
+The app is built natively for Android using Kotlin and Jetpack Compose. It follows an MVVM architecture and relies on Android's MediaStore and File APIs to handle local files efficiently.
 
-- **Platform:** Android  
-- **Language:** Kotlin  
-- **UI:** Jetpack Compose *(if applicable)*  
-- **Architecture:** MVVM *(recommended / in progress)*  
-- **Image Handling:** Local storage (MediaStore / File API)
+_Note: The project is actively being developed and is part of a learning journey, so expect frequent updates and structural changes._
 
-> ⚠️ PixChive is currently under active development.
+## Roadmap
 
----
+Here are some of the things I'm currently working on or planning to add:
 
-## 📱 App Use Cases
+- Grid and list view toggling
+- Better image caching and generating thumbnails
+- Showing your reading progress within a chapter
+- Automatically resuming your read from the last viewed page
+- Bookmarking specific folders
+- A fully immersive full-screen reading mode
+- Refining the pinch-to-zoom interactions
+- Adding more sorting options (by name, size, date)
 
-- Reading comics or manga stored in folders
-- Viewing downloaded image chapters
-- Personal image archive viewer
-- Lightweight offline gallery app
+## How to build and run
 
----
+If you want to try it out or poke around the code:
 
-## 🖼️ Screenshots
-
-> Screenshots will be added soon.
-
-Example:
-```md
-![Home Screen](screenshots/home.png)
-![Reader Screen](screenshots/reader.png)
-```
-
----
-
-## 🧭 Roadmap
-
-* [ ] Grid & list view toggle
-* [ ] Image caching & thumbnail generation
-* [ ] Page progress indicator
-* [ ] Resume last read page
-* [ ] Folder bookmarking
-* [ ] Full-screen immersive mode
-* [ ] Pinch-to-zoom improvements
-* [ ] Sorting (name, size, date)
-
----
-
-## ⚙️ Installation
-
-1. Clone the repository:
-
+1. Clone this repository:
    ```bash
    git clone https://github.com/DevSon1024/PixChive.git
    ```
+2. Open the project in Android Studio.
+3. Let Gradle sync the project files.
+4. Run the app on your emulator or connected physical Android device.
 
-2. Open the project in **Android Studio**
+## Contributing
 
-3. Sync Gradle files
+If you're interested in helping improve PixChive, contributions are definitely welcome. Feel free to fork the repository, make your changes on a new branch, and open a pull request.
 
-4. Run the app on an emulator or physical device
+## License
 
----
+This project is open-source and licensed under the GNU General Public License v3.0. You can check out the `LICENSE` file for more details.
 
-## 📂 Project Status
+## Author
 
-🟡 **In Development**
-This project is part of a learning + portfolio journey and will be continuously improved with new features and optimizations.
+Created by Devson.
 
----
-
-## 🤝 Contributing
-
-Contributions are welcome!
-
-If you want to improve PixChive:
-
-* Fork the repo
-* Create a new branch
-* Commit your changes
-* Open a Pull Request
-
----
-
-## 📜 License
-
-This project is licensed under the **GNU General Public License v3.0**
-See the [LICENSE](LICENSE) file for details.
-
----
-
-## 👤 Author
-
-**Devson**
-
-* GitHub: [@DevSon1024](https://github.com/DevSon1024)
-
----
-
-## ⭐ Support
-
-If you like this project:
-
-* Give it a ⭐ on GitHub
-* Share feedback or suggestions
+You can find me on GitHub at [@DevSon1024](https://github.com/DevSon1024). If you find this project useful, I'd appreciate a star on the repo or any feedback you might have!

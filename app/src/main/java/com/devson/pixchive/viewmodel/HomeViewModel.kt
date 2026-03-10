@@ -60,6 +60,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
     init {
         loadPreferences()
     }
@@ -112,6 +115,41 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         
         if (changed) {
              preferencesManager.saveFolders(validFolders)
+        }
+    }
+
+    fun refreshFolders() {
+        viewModelScope.launch {
+            if (_isRefreshing.value) return@launch
+            _isRefreshing.value = true
+            
+            // Re-validate and trigger sync for all valid folders
+            validateFolders()
+            val currentFolders = preferencesManager.foldersFlow.first()
+            val workManager = WorkManager.getInstance(getApplication())
+            
+            currentFolders.forEach { folder ->
+                val showHidden = preferencesManager.showHiddenFilesFlow.first()
+                val workRequest = androidx.work.OneTimeWorkRequestBuilder<FolderSyncWorker>()
+                    .setInputData(
+                        androidx.work.workDataOf(
+                            FolderSyncWorker.KEY_FOLDER_ID to folder.id,
+                            FolderSyncWorker.KEY_FOLDER_URI to folder.uri,
+                            FolderSyncWorker.KEY_SHOW_HIDDEN to showHidden
+                        )
+                    )
+                    .build()
+                    
+                workManager.enqueueUniqueWork(
+                    "sync_folder_${folder.id}",
+                    androidx.work.ExistingWorkPolicy.REPLACE,
+                    workRequest
+                )
+            }
+            
+            // Minimum spinner duration of 1 second for tactical feel
+            kotlinx.coroutines.delay(1000)
+            _isRefreshing.value = false
         }
     }
 

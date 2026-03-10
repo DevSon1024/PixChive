@@ -57,6 +57,7 @@ import com.devson.pixchive.ui.components.SkeletonGrid
 import com.devson.pixchive.ui.components.SkeletonList
 import com.devson.pixchive.utils.PermissionHelper
 import com.devson.pixchive.viewmodel.HomeViewModel
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,6 +76,7 @@ fun HomeScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
     val recentHistory by viewModel.recentHistory.collectAsState()
 
     val layoutMode by viewModel.layoutMode.collectAsState()
@@ -192,71 +194,77 @@ fun HomeScreen(
                 else -> {
                     val gridCols = if (layoutMode == "grid") gridColumns else 1
 
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(gridCols),
-                        contentPadding = PaddingValues(bottom = 88.dp), // FAB clearance
+                    PullToRefreshBox(
+                        isRefreshing = isRefreshing,
+                        onRefresh = { viewModel.refreshFolders() },
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        // HISTORY SECTION 
-                        if (recentHistory.isNotEmpty()) {
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(gridCols),
+                            contentPadding = PaddingValues(bottom = 88.dp), // FAB clearance
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            // HISTORY SECTION 
+                            if (recentHistory.isNotEmpty()) {
+                                item(span = { GridItemSpan(maxLineSpan) }) {
+                                    SectionHeader(
+                                        title = "Jump Back In",
+                                        icon = Icons.Default.History
+                                    )
+                                }
+
+                                item(span = { GridItemSpan(maxLineSpan) }) {
+                                    LazyRow(
+                                        contentPadding = PaddingValues(horizontal = 16.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        items(recentHistory, key = { it.chapterPath }) { entry ->
+                                            HistoryCard(
+                                                entry = entry,
+                                                onClick = {
+                                                    onResumeChapter(entry.folderId, entry.chapterPath, entry.currentPage)
+                                                },
+                                                onDeleteClick = {
+                                                    viewModel.removeHistoryItem(entry.folderId, entry.chapterPath)
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+
+                                item(span = { GridItemSpan(maxLineSpan) }) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                }
+                            }
+
+                            // FOLDERS SECTION
                             item(span = { GridItemSpan(maxLineSpan) }) {
                                 SectionHeader(
-                                    title = "Jump Back In",
-                                    icon = Icons.Default.History
+                                    title = "My Folders",
+                                    icon = Icons.Default.FolderOpen
                                 )
                             }
 
-                            item(span = { GridItemSpan(maxLineSpan) }) {
-                                LazyRow(
-                                    contentPadding = PaddingValues(horizontal = 16.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    items(recentHistory, key = { it.chapterPath }) { entry ->
-                                        HistoryCard(
-                                            entry = entry,
-                                            onClick = {
-                                                onResumeChapter(entry.folderId, entry.chapterPath, entry.currentPage)
-                                            },
-                                            onDeleteClick = {
-                                                viewModel.removeHistoryItem(entry.folderId, entry.chapterPath)
-                                            }
+                            if (layoutMode == "grid") {
+                                items(folders, key = { it.id }, contentType = { "folder_grid" }) { folder ->
+                                    Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
+                                        FolderGridItem(
+                                            folder = folder,
+                                            onDelete = { viewModel.removeFolder(folder.id) },
+                                            onClick = { onFolderClick(folder.id) }
                                         )
                                     }
                                 }
-                            }
-
-                            item(span = { GridItemSpan(maxLineSpan) }) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                            }
-                        }
-
-                        // FOLDERS SECTION
-                        item(span = { GridItemSpan(maxLineSpan) }) {
-                            SectionHeader(
-                                title = "My Folders",
-                                icon = Icons.Default.FolderOpen
-                            )
-                        }
-
-                        if (layoutMode == "grid") {
-                            items(folders, key = { it.id }, contentType = { "folder_grid" }) { folder ->
-                                Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
-                                    FolderGridItem(
-                                        folder = folder,
-                                        onDelete = { viewModel.removeFolder(folder.id) },
-                                        onClick = { onFolderClick(folder.id) }
-                                    )
-                                }
-                            }
-                        } else {
-                            items(folders, key = { it.id }, contentType = { "folder_list" }) { folder ->
-                                Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
-                                    FolderCard(
-                                        folder = folder,
-                                        onDelete = { viewModel.removeFolder(folder.id) },
-                                        onClick = { onFolderClick(folder.id) }
-                                    )
+                            } else {
+                                items(folders, key = { it.id }, contentType = { "folder_list" }) { folder ->
+                                    Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                                        FolderCard(
+                                            folder = folder,
+                                            onDelete = { viewModel.removeFolder(folder.id) },
+                                            onClick = { onFolderClick(folder.id) }
+                                        )
+                                    }
                                 }
                             }
                         }

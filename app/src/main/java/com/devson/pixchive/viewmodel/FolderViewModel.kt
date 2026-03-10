@@ -210,6 +210,9 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
     private val _viewMode = MutableStateFlow("explorer")
     val viewMode: StateFlow<String> = _viewMode.asStateFlow()
 
@@ -341,6 +344,18 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     fun refreshFolder(folderId: String) {
         if (folderId != "favorites") {
             loadFolder(folderId, forceRescan = true)
+        }
+    }
+    
+    fun refreshCurrentFolder() {
+        val folder = _currentFolder.value ?: return
+        viewModelScope.launch {
+            if (_isRefreshing.value) return@launch
+            _isRefreshing.value = true
+            refreshFolder(folder.id)
+            // UI Delay for tactile feedback
+            kotlinx.coroutines.delay(1000)
+            _isRefreshing.value = false
         }
     }
 

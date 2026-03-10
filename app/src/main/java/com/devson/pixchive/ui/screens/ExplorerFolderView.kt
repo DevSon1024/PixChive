@@ -31,6 +31,8 @@ import com.devson.pixchive.ui.components.EmptyChaptersView
 import com.devson.pixchive.viewmodel.FolderViewModel
 import kotlinx.coroutines.flow.filter
 import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.ExperimentalMaterial3Api
 
 /**
  * Self-contained Explorer (chapter) view composable.
@@ -54,6 +56,7 @@ fun ExplorerFolderView(
     viewModel: FolderViewModel = viewModel()
 ) {
     val chapters by viewModel.chapters.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
     val currentFolder by viewModel.currentFolder.collectAsState()
     val isStaleState = currentFolder?.id != folderId
 
@@ -61,6 +64,7 @@ fun ExplorerFolderView(
 
     if (!isLoading && chapters.isEmpty()) { EmptyChaptersView(); return }
 
+    @OptIn(ExperimentalMaterial3Api::class)
     if (layoutMode == "grid") {
         val gridState = rememberLazyGridState(
             initialFirstVisibleItemIndex = initialScrollIndex,
@@ -72,21 +76,28 @@ fun ExplorerFolderView(
                 .filter { !it }
                 .collect { onSaveScroll(gridState.firstVisibleItemIndex, 0) }
         }
-        LazyVerticalGrid(
-            state = gridState,
-            columns = GridCells.Fixed(gridColumns),
-            contentPadding = PaddingValues(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { viewModel.refreshCurrentFolder() },
+            modifier = Modifier.fillMaxSize()
         ) {
-            items(chapters, key = { it.path }) { chapter ->
-                ChapterGridItem(
-                    chapter = chapter,
-                    columns = gridColumns,
-                    savedPage = readProgressMap[chapter.path] ?: 0,
-                    onClick = { onChapterClick(chapter.path) },
-                    onRemove = { viewModel.removeFolder(chapter.path) }
-                )
+            LazyVerticalGrid(
+                state = gridState,
+                columns = GridCells.Fixed(gridColumns),
+                contentPadding = PaddingValues(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(chapters, key = { it.path }) { chapter ->
+                    ChapterGridItem(
+                        chapter = chapter,
+                        columns = gridColumns,
+                        savedPage = readProgressMap[chapter.path] ?: 0,
+                        onClick = { onChapterClick(chapter.path) },
+                        onRemove = { viewModel.removeFolder(chapter.path) }
+                    )
+                }
             }
         }
     } else {
@@ -100,13 +111,19 @@ fun ExplorerFolderView(
                 .filter { !it }
                 .collect { onSaveScroll(listState.firstVisibleItemIndex, 0) }
         }
-        LazyColumn(state = listState, contentPadding = PaddingValues(bottom = 16.dp)) {
-            items(chapters, key = { it.path }) { chapter ->
-                ChapterListItem(
-                    chapter = chapter,
-                    onClick = { onChapterClick(chapter.path) },
-                    onRemove = { viewModel.removeFolder(chapter.path) }
-                )
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { viewModel.refreshCurrentFolder() },
+            modifier = Modifier.fillMaxSize()
+        ) {
+            LazyColumn(state = listState, contentPadding = PaddingValues(bottom = 16.dp), modifier = Modifier.fillMaxSize()) {
+                items(chapters, key = { it.path }) { chapter ->
+                    ChapterListItem(
+                        chapter = chapter,
+                        onClick = { onChapterClick(chapter.path) },
+                        onRemove = { viewModel.removeFolder(chapter.path) }
+                    )
+                }
             }
         }
     }

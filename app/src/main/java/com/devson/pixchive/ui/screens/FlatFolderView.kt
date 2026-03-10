@@ -19,6 +19,8 @@ import com.devson.pixchive.ui.components.ImageGridItem
 import com.devson.pixchive.ui.components.ImageListItem
 import com.devson.pixchive.viewmodel.FolderViewModel
 import kotlinx.coroutines.flow.filter
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.ExperimentalMaterial3Api
 
 /**
  * Self-contained Flat view composable.
@@ -42,6 +44,7 @@ fun FlatFolderView(
     viewModel: FolderViewModel = viewModel()
 ) {
     val currentFolder by viewModel.currentFolder.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
     val isStaleState = currentFolder?.id != folderId
 
     if (isStaleState) return
@@ -53,9 +56,10 @@ fun FlatFolderView(
     // If we return early while loadState.refresh is still Loading, the
     // LazyGrid is never added to the composition, the Pager never receives
     // a collector, and no pages are ever fetched - causing a blank screen.
-    val isRefreshing = images.loadState.refresh is LoadState.Loading
-    if (!isRefreshing && images.itemCount == 0) { EmptyImagesView(); return }
+    val isPagingRefreshing = images.loadState.refresh is LoadState.Loading
+    if (!isPagingRefreshing && images.itemCount == 0) { EmptyImagesView(); return }
 
+    @OptIn(ExperimentalMaterial3Api::class)
     key(folderId) {
         if (layoutMode == "grid") {
             val gridState = rememberLazyGridState(
@@ -68,23 +72,30 @@ fun FlatFolderView(
                     .filter { !it }
                     .collect { onSaveScroll(gridState.firstVisibleItemIndex, 0) }
             }
-            LazyVerticalGrid(
-                state = gridState,
-                columns = GridCells.Fixed(gridColumns),
-                contentPadding = PaddingValues(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+            PullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = { viewModel.refreshCurrentFolder() },
+                modifier = Modifier.fillMaxSize()
             ) {
-                items(
-                    count = images.itemCount,
-                    key = images.itemKey { it.path },
-                    contentType = images.itemContentType { "image" }
-                ) { index ->
-                    val image = images[index]
-                    if (image != null) {
-                        ImageGridItem(image, gridColumns, { onImageClick(index) }, {
-                            viewModel.refreshFolder(folderId)
-                        })
+                LazyVerticalGrid(
+                    state = gridState,
+                    columns = GridCells.Fixed(gridColumns),
+                    contentPadding = PaddingValues(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(
+                        count = images.itemCount,
+                        key = images.itemKey { it.path },
+                        contentType = images.itemContentType { "image" }
+                    ) { index ->
+                        val image = images[index]
+                        if (image != null) {
+                            ImageGridItem(image, gridColumns, { onImageClick(index) }, {
+                                viewModel.refreshFolder(folderId)
+                            })
+                        }
                     }
                 }
             }
@@ -99,17 +110,23 @@ fun FlatFolderView(
                     .filter { !it }
                     .collect { onSaveScroll(listState.firstVisibleItemIndex, 0) }
             }
-            LazyColumn(state = listState, contentPadding = PaddingValues(bottom = 16.dp)) {
-                items(
-                    count = images.itemCount,
-                    key = images.itemKey { it.path },
-                    contentType = images.itemContentType { "image" }
-                ) { index ->
-                    val image = images[index]
-                    if (image != null) {
-                        ImageListItem(image, { onImageClick(index) }, {
-                            viewModel.refreshFolder(folderId)
-                        })
+            PullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = { viewModel.refreshCurrentFolder() },
+                modifier = Modifier.fillMaxSize()
+            ) {
+                LazyColumn(state = listState, contentPadding = PaddingValues(bottom = 16.dp), modifier = Modifier.fillMaxSize()) {
+                    items(
+                        count = images.itemCount,
+                        key = images.itemKey { it.path },
+                        contentType = images.itemContentType { "image" }
+                    ) { index ->
+                        val image = images[index]
+                        if (image != null) {
+                            ImageListItem(image, { onImageClick(index) }, {
+                                viewModel.refreshFolder(folderId)
+                            })
+                        }
                     }
                 }
             }

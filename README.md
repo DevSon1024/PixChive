@@ -1,4 +1,35 @@
+<div align="center">
+
+<img src="assets/logo.webp" width="160" height="160" style="border-radius: 80px;"/>
+
 # PixChive
+
+### Native Android Gallery App
+
+[![GitHub release](https://img.shields.io/github/v/release/DevSon1024/pixchive?label=Release&logo=github)](https://github.com/DevSon1024/pixchive/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/DevSon1024/pixchive/total?logo=github)](https://github.com/DevSon1024/pixchive/releases)
+[![License: MIT](https://img.shields.io/github/license/DevSon1024/pixchive)](LICENSE)
+
+## Download
+
+[![PixChive](https://img.shields.io/github/release/DevSon1024/pixchive.svg?maxAge=3600&label=Stable&labelColor=06599d&color=043b69)](https://github.com/DevSon1024/pixchive/releases)
+
+## _Requires Android 8.0 or higher._
+
+## 📱 Screenshots
+
+<div align="center">
+<img src="screenshots/HomeScreen.jpeg" width="30%" style="border-radius: 14px;"/>
+<img src="screenshots/ChapterScreen.jpeg" width="30%" style="border-radius: 14px;"/>
+<img src="screenshots/ChapterViewOptions.jpeg" width="30%" style="border-radius: 14px;"/>
+<img src="screenshots/FavouriteScreen.jpeg" width="30%" style="border-radius: 14px;"/>
+<img src="screenshots/ReaderScreenWithOptions.jpeg" width="30%" style="border-radius: 14px;"/>
+<img src="screenshots/SettingsScreen.jpeg" width="30%" style="border-radius: 14px;"/>
+
+</div>
+</div>
+
+---
 
 PixChive is an Android image gallery and comic reader app that I'm building to make viewing large folders of images or manga chapters as seamless as possible.
 

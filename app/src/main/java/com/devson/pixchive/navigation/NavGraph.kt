@@ -26,6 +26,14 @@ fun NavGraph(
     // Shared ViewModel for all Folder/Reader/Favorites screens
     val folderViewModel: FolderViewModel = viewModel()
 
+    // FIX: Safe navigate back helper to prevent popping the root screen (HomeScreen)
+    // on rapid/multiple back button clicks.
+    val safeNavigateBack: () -> Unit = {
+        if (navController.previousBackStackEntry != null) {
+            navController.popBackStack()
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = startDestination
@@ -50,7 +58,7 @@ fun NavGraph(
         // Favorites Route - Now uses shared folderViewModel
         composable("favorites") {
             FavoritesScreen(
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = safeNavigateBack, // Use safe pop
                 onImageClick = { index ->
                     // Pass "favorites" as ID so Reader knows what to load
                     navController.navigate(Screen.ImageViewer.createRoute("favorites", "favorites_view", index))
@@ -61,14 +69,14 @@ fun NavGraph(
 
         composable(Screen.Settings.route) {
             SettingsScreen(
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = safeNavigateBack, // Use safe pop
                 onNavigateToAbout = { navController.navigate(Screen.About.route) }
             )
         }
 
         composable(Screen.About.route) {
             AboutScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = safeNavigateBack // Use safe pop
             )
         }
 
@@ -82,7 +90,7 @@ fun NavGraph(
 
             FolderViewScreen(
                 folderId = folderId,
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = safeNavigateBack, // Use safe pop
                 onChapterClick = { chapterPath ->
                     navController.navigate(Screen.ChapterView.createRoute(folderId, chapterPath))
                 },
@@ -111,7 +119,7 @@ fun NavGraph(
             ChapterViewScreen(
                 folderId = folderId,
                 chapterPath = chapterPath,
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = safeNavigateBack, // Use safe pop
                 onImageClick = { imageIndex ->
                     navController.navigate(Screen.ImageViewer.createRoute(folderId, chapterPath, imageIndex))
                 },
@@ -140,7 +148,7 @@ fun NavGraph(
                 folderId = folderId,
                 chapterPath = chapterPath,
                 initialIndex = imageIndex,
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = safeNavigateBack, // Use safe pop
                 viewModel = folderViewModel
             )
         }

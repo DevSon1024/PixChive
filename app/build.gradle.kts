@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.androidx.baselineprofile)
 }
 
 val keystorePropertiesFile = rootProject.file("keystore.properties")
@@ -130,6 +131,12 @@ android {
     ndkVersion = "27.0.12077973"
 }
 
+baselineProfile {
+    // Generate the baseline profile during continuous integration
+    saveInSrc = true 
+    automaticGenerationDuringBuild = false
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -142,6 +149,9 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+
+    baselineProfile(project(":macrobenchmark"))
+    implementation(libs.androidx.profileinstaller)
 
     // Material Icons Extended
     implementation("androidx.compose.material:material-icons-extended:1.6.0")

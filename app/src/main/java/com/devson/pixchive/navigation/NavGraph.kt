@@ -8,6 +8,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.devson.pixchive.ui.screens.AboutScreen
+import com.devson.pixchive.ui.screens.PrivacyPolicyScreen
 import com.devson.pixchive.ui.screens.ChapterViewScreen
 import com.devson.pixchive.ui.screens.FolderViewScreen
 import com.devson.pixchive.ui.screens.HomeScreen
@@ -70,12 +71,19 @@ fun NavGraph(
         composable(Screen.Settings.route) {
             SettingsScreen(
                 onNavigateBack = safeNavigateBack, // Use safe pop
-                onNavigateToAbout = { navController.navigate(Screen.About.route) }
+                onNavigateToAbout = { navController.navigate(Screen.About.route) },
+                onNavigateToPrivacyPolicy = { navController.navigate(Screen.PrivacyPolicy.route) }
             )
         }
 
         composable(Screen.About.route) {
             AboutScreen(
+                onNavigateBack = safeNavigateBack // Use safe pop
+            )
+        }
+
+        composable(Screen.PrivacyPolicy.route) {
+            PrivacyPolicyScreen(
                 onNavigateBack = safeNavigateBack // Use safe pop
             )
         }

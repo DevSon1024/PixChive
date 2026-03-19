@@ -6,13 +6,13 @@
 
 ### Native Android Gallery App
 
-[![GitHub release](https://img.shields.io/github/v/release/DevSon1024/pixchive?label=Release&logo=github)](https://github.com/DevSon1024/pixchive/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/DevSon1024/pixchive/total?logo=github)](https://github.com/DevSon1024/pixchive/releases)
-[![License: MIT](https://img.shields.io/github/license/DevSon1024/pixchive)](LICENSE)
+[![GitHub release](https://img.shields.io/github/v/release/DevSon1024/PixChive?label=Release&logo=github)](https://github.com/DevSon1024/PixChive/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/DevSon1024/PixChive/total.svg?logo=github)](https://github.com/DevSon1024/PixChive/releases)
+[![License: MIT](https://img.shields.io/github/license/DevSon1024/PixChive)](LICENSE)
 
 ## Download
 
-[![PixChive](https://img.shields.io/github/release/DevSon1024/pixchive.svg?maxAge=3600&label=Stable&labelColor=06599d&color=043b69)](https://github.com/DevSon1024/pixchive/releases)
+[![PixChive](https://img.shields.io/github/release/DevSon1024/PixChive.svg?maxAge=3600&label=Stable&labelColor=06599d&color=043b69)](https://github.com/DevSon1024/PixChive/releases)
 
 ## _Requires Android 8.0 or higher._
 

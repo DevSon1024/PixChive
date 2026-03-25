@@ -1,6 +1,7 @@
 package com.devson.pixchive.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -10,12 +11,14 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -33,15 +36,8 @@ import kotlinx.coroutines.flow.filter
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import java.io.File
 
-/**
- * Self-contained Explorer (chapter) view composable.
- *
- * [FolderViewModel.chapters] is collected HERE so Compose cancels the expensive group-and-sort
- * StateFlow collection the moment the user switches to Flat mode. Combined with
- * [SharingStarted.WhileSubscribed(5000)] in the ViewModel, the heavy flatMap + groupBy +
- * sort pipeline shuts down 5 s after it loses its last subscriber, saving significant CPU.
- */
 @Composable
 fun ExplorerFolderView(
     folderId: String,
@@ -89,6 +85,7 @@ fun ExplorerFolderView(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
+                // The keys are correct here
                 items(chapters, key = { it.path }) { chapter ->
                     ChapterGridItem(
                         chapter = chapter,
@@ -105,7 +102,6 @@ fun ExplorerFolderView(
             initialFirstVisibleItemIndex = initialScrollIndex,
             initialFirstVisibleItemScrollOffset = initialScrollOffset
         )
-        // Save only when scrolling fully stops - avoids per-pixel coroutine spam that causes ANR
         LaunchedEffect(listState) {
             snapshotFlow { listState.isScrollInProgress }
                 .filter { !it }
@@ -117,6 +113,7 @@ fun ExplorerFolderView(
             modifier = Modifier.fillMaxSize()
         ) {
             LazyColumn(state = listState, contentPadding = PaddingValues(bottom = 16.dp), modifier = Modifier.fillMaxSize()) {
+                // The keys are correct here
                 items(chapters, key = { it.path }) { chapter ->
                     ChapterListItem(
                         chapter = chapter,
@@ -138,18 +135,37 @@ fun ChapterGridItem(
     onClick: () -> Unit,
     onRemove: () -> Unit
 ) {
+    val context = LocalContext.current
     val haptics = LocalHapticFeedback.current
     var showMenu by remember { mutableStateOf(false) }
 
     val showDetails = columns <= 2
     val showName = columns <= 4
-    val fetchSize = if (columns <= 2) 600 else 300
+    // Reduced fetch size to prevent GC thrashing when rendering folder grids
+    val fetchSize = if (columns <= 2) 400 else 250
+
+    // CRITICAL FIX: Remember the request, use hardware bitmaps, and load from File path
+    val firstImagePath = chapter.images.firstOrNull()?.path
+    val imageRequest = remember(firstImagePath, fetchSize) {
+        if (firstImagePath != null) {
+            ImageRequest.Builder(context)
+                .data(File(firstImagePath))
+                .size(fetchSize)
+                .allowHardware(true) // Stops the NativeAlloc GC stutter
+                .crossfade(false)
+                .build()
+        } else null
+    }
 
     Box {
-        Card(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(0.75f)
+                .graphicsLayer {
+                    clip = true
+                    shape = RoundedCornerShape(8.dp)
+                }
                 .combinedClickable(
                     onClick = onClick,
                     onLongClick = {
@@ -158,62 +174,56 @@ fun ChapterGridItem(
                     }
                 )
         ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                if (chapter.images.isNotEmpty()) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(chapter.images.first().uri)
-                            .size(fetchSize)
-                            .crossfade(false)
-                            .build(),
-                        contentDescription = chapter.displayName,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Icon(
-                        Icons.Default.Folder,
-                        null,
-                        modifier = Modifier.align(Alignment.Center).size(64.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
+            if (firstImagePath != null) {
+                AsyncImage(
+                    model = imageRequest,
+                    contentDescription = chapter.displayName,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Icon(
+                    Icons.Default.Folder,
+                    null,
+                    modifier = Modifier.align(Alignment.Center).size(64.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
 
-                if (showName) {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter),
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
-                    ) {
-                        Column(modifier = Modifier.padding(8.dp)) {
-                            Text(
-                                chapter.displayName,
-                                style = MaterialTheme.typography.labelMedium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            if (showDetails) {
-                                Text(
-                                    "${chapter.imageCount} images",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
+            if (showName) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
+                        .padding(8.dp)
+                ) {
+                    Text(
+                        chapter.displayName,
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (showDetails) {
+                        Text(
+                            "${chapter.imageCount} images",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
+            }
 
-                // Progress bar overlay - shown when user has started reading this chapter
-                if (savedPage > 0 && chapter.imageCount > 0) {
-                    LinearProgressIndicator(
-                        progress = { savedPage.toFloat() / chapter.imageCount },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(3.dp)
-                            .align(Alignment.BottomCenter),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = Color.Transparent
-                    )
-                }
+            if (savedPage > 0 && chapter.imageCount > 0) {
+                LinearProgressIndicator(
+                    progress = { savedPage.toFloat() / chapter.imageCount },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .align(Alignment.BottomCenter),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = Color.Transparent
+                )
             }
         }
         DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {

@@ -164,6 +164,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
                 // Scan and Insert into DB
                 FolderScanner.scanAndInsert(
+                    getApplication(),
                     uri,
                     folderId,
                     imageDao,

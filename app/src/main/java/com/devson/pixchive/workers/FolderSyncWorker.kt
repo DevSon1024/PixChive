@@ -34,6 +34,7 @@ class FolderSyncWorker(
             
             // We use the existing FolderScanner code to process SAF
             FolderScanner.scanAndInsert(
+                applicationContext,
                 uri,
                 folderId,
                 database.imageDao(),

@@ -8,7 +8,8 @@ import androidx.room.PrimaryKey
     tableName = "images",
     indices = [
         Index(value = ["folderId"]),
-        Index(value = ["parentFolderPath"])
+        Index(value = ["dateModified"]),
+        Index(value = ["parentFolderPath", "name"])
     ]
 )
 data class ImageEntity(

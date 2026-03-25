@@ -41,16 +41,15 @@ fun ImageListItem(
     var showMenu by remember { mutableStateOf(false) }
 
     val formattedSize = image.formattedSize
-    val formattedDate = remember(image.dateModified) { formatDate(image.dateModified) }
     val placeholderColor = MaterialTheme.colorScheme.surfaceVariant
-    val placeholderPainter = remember(placeholderColor) {
-        ColorPainter(placeholderColor)
-    }
+    val placeholderPainter = remember(placeholderColor) { ColorPainter(placeholderColor) }
 
-    val imageRequest = remember(image.uri) {
+    // Performance fix for list view
+    val imageRequest = remember(image.path) {
         ImageRequest.Builder(context)
-            .data(image.uri)
-            .size(200)
+            .data(File(image.path))
+            .size(200) // Fixed small size for lists
+            .allowHardware(true) 
             .crossfade(false)
             .bitmapConfig(android.graphics.Bitmap.Config.RGB_565)
             .memoryCachePolicy(CachePolicy.ENABLED)
@@ -58,85 +57,68 @@ fun ImageListItem(
             .build()
     }
 
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Card(
-                shape = MaterialTheme.shapes.extraSmall,
-                modifier = Modifier.size(48.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.LightGray)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AsyncImage(
+            model = imageRequest,
+            contentDescription = image.name,
+            placeholder = placeholderPainter,
+            error = placeholderPainter,
+            modifier = Modifier.size(64.dp),
+            contentScale = ContentScale.Crop
+        )
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = image.name,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "$formattedSize • ${formatDate(image.dateModified)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Box {
+            IconButton(onClick = { showMenu = true }) {
+                Icon(Icons.Default.MoreVert, contentDescription = "More options")
+            }
+
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false }
             ) {
-                AsyncImage(
-                    model = imageRequest,
-                    contentDescription = null,
-                    placeholder = placeholderPainter,
-                    error = placeholderPainter,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
+                DropdownMenuItem(
+                    text = { Text("Share") },
+                    leadingIcon = { Icon(Icons.Default.Share, null) },
+                    onClick = {
+                        showMenu = false
+                        shareItem(context, image)
+                    }
                 )
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = image.name,
-                    style = MaterialTheme.typography.bodyLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "$formattedSize | $formattedDate",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Box {
-                IconButton(onClick = { showMenu = true }) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Options",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Share") },
-                        leadingIcon = { Icon(Icons.Default.Share, null) },
-                        onClick = {
-                            showMenu = false
-                            shareItem(context, image)
+                DropdownMenuItem(
+                    text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                    leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
+                    onClick = {
+                        showMenu = false
+                        if (deleteItem(context, File(image.path))) {
+                            onRefresh()
                         }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
-                        leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
-                        onClick = {
-                            showMenu = false
-                            if (deleteItem(context, File(image.path))) {
-                                onRefresh()
-                            }
-                        }
-                    )
-                }
+                    }
+                )
             }
         }
-        HorizontalDivider(
-            modifier = Modifier.padding(start = 80.dp),
-            thickness = 0.5.dp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
-        )
     }
 }
 
@@ -178,6 +160,6 @@ private fun deleteItem(context: Context, file: File): Boolean {
 }
 
 private fun formatDate(timestamp: Long): String {
-    if (timestamp == 0L) return "Unknown Date"
+    if (timestamp == 0L) return "Unknown"
     return listItemDateFormat.format(Date(timestamp))
 }

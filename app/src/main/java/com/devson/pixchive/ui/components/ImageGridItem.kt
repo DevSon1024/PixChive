@@ -3,15 +3,19 @@ package com.devson.pixchive.ui.components
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
@@ -73,10 +77,14 @@ fun ImageGridItem(
     }
 
     Box {
-        Card(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(0.7f)
+                .graphicsLayer {
+                    clip = true
+                    shape = RoundedCornerShape(8.dp)
+                }
                 .combinedClickable(
                     onClick = onClick,
                     onLongClick = {
@@ -85,39 +93,36 @@ fun ImageGridItem(
                     }
                 )
         ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                AsyncImage(
-                    model = imageRequest,
-                    contentDescription = image.name,
-                    placeholder = placeholderPainter,
-                    error = placeholderPainter,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
+            AsyncImage(
+                model = imageRequest,
+                contentDescription = image.name,
+                placeholder = placeholderPainter,
+                error = placeholderPainter,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
 
-                // Overlay Text (Name) only if enabled
-                if (showName) {
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .align(androidx.compose.ui.Alignment.BottomCenter),
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
-                    ) {
-                        Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
-                            Text(
-                                text = image.name,
-                                style = MaterialTheme.typography.bodySmall,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            if (showDetails) {
-                                Text(
-                                    text = formattedSize,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
+            // Overlay Text (Name) only if enabled
+            if (showName) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = image.name,
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (showDetails) {
+                        Text(
+                            text = formattedSize,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }

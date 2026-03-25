@@ -1,6 +1,8 @@
 package com.devson.pixchive.utils
 
+import android.content.Context
 import android.net.Uri
+import android.provider.MediaStore
 import android.util.Log
 import com.devson.pixchive.data.local.ImageDao
 import com.devson.pixchive.data.local.ImageEntity
@@ -14,7 +16,7 @@ import kotlin.coroutines.coroutineContext
 object FolderScanner {
 
     private const val TAG = "FolderScanner"
-    private const val BATCH_SIZE = 500
+    private const val BATCH_SIZE = 2000
     private val imageExtensions = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp")
 
     // Define folders that should ALWAYS be ignored
@@ -36,12 +38,16 @@ object FolderScanner {
      *                      value will be skipped entirely - its images are assumed unchanged.
      */
     suspend fun scanAndInsert(
+        context: Context,
         folderUri: Uri,
         folderId: String,
         imageDao: ImageDao,
         showHidden: Boolean,
         lastScanTime: Long = 0L
     ) = withContext(Dispatchers.IO) {
+        // Build a path→content:// URI lookup map from MediaStore for O(1) resolution per file.
+        // This avoids per-file ContentResolver queries during the recursive scan.
+        val mediaStoreUriMap = buildMediaStoreUriMap(context)
         try {
             val rootPath = getAbsolutePathFromSafUri(folderUri)
             if (rootPath == null) {
@@ -64,24 +70,30 @@ object FolderScanner {
 
             // 3. Recursive Scan
             scanRecursive(rootFile, showHidden, lastScanTime, existingPaths) { file ->
+                // Prefer the native content:// URI from MediaStore so Coil can use
+                // OS-level pre-generated thumbnails via MediaStoreImageThumbnailFetcher.
+                // Fall back to file:// for brand-new files not yet indexed by MediaStore.
+                val contentUri = mediaStoreUriMap[file.absolutePath]
+                    ?: Uri.fromFile(file).toString()
+
                 val entity = ImageEntity(
-                    path = file.absolutePath,
+                    path = file.absolutePath,      // Primary key – unchanged for dedup
                     folderId = folderId,
                     name = file.name,
                     size = file.length(),
-                    formattedSize = formatFileSize(file.length()), 
+                    formattedSize = formatFileSize(file.length()),
                     dateModified = file.lastModified(),
                     parentFolderPath = file.parentFile?.absolutePath ?: "",
                     parentFolderName = file.parentFile?.name ?: "",
-                    uri = Uri.fromFile(file).toString()
+                    uri = contentUri
                 )
                 buffer.add(entity)
-                
+
                 // Mark as found so we don't delete it
                 existingPaths.remove(file.absolutePath)
 
                 if (buffer.size >= BATCH_SIZE) {
-                    imageDao.insertImages(buffer.toList()) // Make sure this uses OnConflictStrategy.REPLACE
+                    imageDao.insertImages(buffer.toList())
                     buffer.clear()
                 }
             }
@@ -102,6 +114,42 @@ object FolderScanner {
         } catch (e: Exception) {
             Log.e(TAG, "Error scanning folder", e)
         }
+    }
+
+    /**
+     * Queries MediaStore once and returns a Map<absolutePath, contentUriString>.
+     * This is much cheaper than issuing one ContentResolver query per image file.
+     */
+    private fun buildMediaStoreUriMap(context: Context): Map<String, String> {
+        val map = mutableMapOf<String, String>()
+        val projection = arrayOf(
+            MediaStore.Images.Media._ID,
+            MediaStore.Images.Media.DATA
+        )
+        try {
+            context.contentResolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+                val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
+                while (cursor.moveToNext()) {
+                    val id = cursor.getLong(idCol)
+                    val data = cursor.getString(dataCol) ?: continue
+                    val contentUri = Uri.withAppendedPath(
+                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                        id.toString()
+                    ).toString()
+                    map[data] = contentUri
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "MediaStore query failed, falling back to file:// URIs", e)
+        }
+        return map
     }
 
     private suspend fun scanRecursive(

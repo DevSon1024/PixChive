@@ -53,8 +53,6 @@ import com.devson.pixchive.ui.components.DisplayOptionsSheet
 import com.devson.pixchive.ui.components.PermissionDeniedDialog
 import com.devson.pixchive.ui.components.PermissionRationaleDialog
 import com.devson.pixchive.ui.components.SkeletonHome
-import com.devson.pixchive.ui.components.SkeletonGrid
-import com.devson.pixchive.ui.components.SkeletonList
 import com.devson.pixchive.utils.PermissionHelper
 import com.devson.pixchive.viewmodel.HomeViewModel
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -356,7 +354,6 @@ fun HomeScreen(
 }
 
 // Section Header
-
 @Composable
 private fun SectionHeader(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
     Row(
@@ -512,9 +509,9 @@ fun DeleteOverlay(visible: Boolean, onDeleteClick: () -> Unit) {
                     .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.9f), RoundedCornerShape(50))
             ) {
                 Icon(
-                    imageVector = Icons.Default.Close,
+                    imageVector = Icons.Default.Delete,
                     contentDescription = "Remove from history",
-                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                    tint = MaterialTheme.colorScheme.error,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -523,7 +520,6 @@ fun DeleteOverlay(visible: Boolean, onDeleteClick: () -> Unit) {
 }
 
 // Folder Views (preserved)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FolderCard(folder: ComicFolder, onDelete: () -> Unit, onClick: () -> Unit) {

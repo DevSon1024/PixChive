@@ -2,7 +2,6 @@ package com.devson.pixchive.ui.components
 
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -15,12 +14,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.devson.pixchive.data.local.ImageEntity
 import java.io.File
@@ -39,21 +40,21 @@ fun ImageListItem(
     val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
 
-    // formattedSize is pre-computed at scan time in FolderScanner and stored in the entity.
-    // No Math.log10 / Math.pow ever runs here - it's a simple field read.
     val formattedSize = image.formattedSize
     val formattedDate = remember(image.dateModified) { formatDate(image.dateModified) }
+    val placeholderColor = MaterialTheme.colorScheme.surfaceVariant
+    val placeholderPainter = remember(placeholderColor) {
+        ColorPainter(placeholderColor)
+    }
 
-    // Stable ImageRequest - only rebuilt when URI changes, not on every recomposition.
-    // Without remember, AsyncImage receives a new (non-equal) object every scroll frame
-    // and re-triggers a Coil load even though the image hasn’t changed.
     val imageRequest = remember(image.uri) {
         ImageRequest.Builder(context)
             .data(image.uri)
             .size(200)
             .crossfade(false)
             .bitmapConfig(android.graphics.Bitmap.Config.RGB_565)
-            .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
+            .memoryCachePolicy(CachePolicy.ENABLED)
+            .diskCachePolicy(CachePolicy.ENABLED)
             .build()
     }
 
@@ -73,6 +74,8 @@ fun ImageListItem(
                 AsyncImage(
                     model = imageRequest,
                     contentDescription = null,
+                    placeholder = placeholderPainter,
+                    error = placeholderPainter,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
@@ -137,7 +140,6 @@ fun ImageListItem(
     }
 }
 
-// Helpers
 private fun shareItem(context: Context, image: ImageEntity) {
     try {
         val file = File(image.path)

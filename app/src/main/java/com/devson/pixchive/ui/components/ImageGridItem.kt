@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -51,6 +52,10 @@ fun ImageGridItem(
     // formattedSize is pre-computed at scan time in FolderScanner and stored in the entity.
     // No Math.log10 / Math.pow ever runs here - it's a simple field read.
     val formattedSize = image.formattedSize
+    val placeholderColor = MaterialTheme.colorScheme.surfaceVariant
+    val placeholderPainter = remember(placeholderColor) {
+        ColorPainter(placeholderColor)
+    }
 
     // remember ensures the same ImageRequest object is reused across recompositions
     // as long as the URI and fetchSize haven't changed.  Without this, AsyncImage
@@ -84,6 +89,8 @@ fun ImageGridItem(
                 AsyncImage(
                     model = imageRequest,
                     contentDescription = image.name,
+                    placeholder = placeholderPainter,
+                    error = placeholderPainter,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )

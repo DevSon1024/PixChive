@@ -22,6 +22,9 @@ class PixChiveApplication : Application(), ImageLoaderFactory {
 
     override fun newImageLoader(): ImageLoader {
         return ImageLoader.Builder(this)
+            .components {
+                add(MediaStoreImageThumbnailFetcher.Factory())
+            }
             .memoryCache {
                 MemoryCache.Builder(this)
                     // 40% of available RAM - keeps more decoded bitmaps warm

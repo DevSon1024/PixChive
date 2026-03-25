@@ -9,7 +9,8 @@
 [![GitHub release](https://img.shields.io/github/v/release/DevSon1024/PixChive?label=Release&logo=github)](https://github.com/DevSon1024/PixChive/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/DevSon1024/PixChive/total.svg?logo=github)](https://github.com/DevSon1024/PixChive/releases)
 [![License: MIT](https://img.shields.io/github/license/DevSon1024/PixChive)](LICENSE)
-
+---
+[![Platform](https://img.shields.io/badge/Platform-Android-00DE7A.svg?logo=android)](https://developer.android.com)
 ## Download
 
 [![PixChive](https://img.shields.io/github/release/DevSon1024/PixChive.svg?maxAge=3600&label=Stable&labelColor=06599d&color=043b69)](https://github.com/DevSon1024/PixChive/releases)

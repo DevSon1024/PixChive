@@ -76,7 +76,6 @@ android {
         }
     }
 
-
     if (splitApks) {
         splits {
             abi {

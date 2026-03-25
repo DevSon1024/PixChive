@@ -54,30 +54,34 @@ object FolderScanner {
                 return@withContext
             }
 
-            // 1. Clear previous data
-            imageDao.deleteFolderContent(folderId)
+            // 1. GET EXISTING FILES (Do NOT call deleteFolderContent anymore!)
+            // We put them in a MutableSet. As we find files, we remove them from this set.
+            // Whatever is left in the set at the end are files that were deleted from storage.
+            val existingPaths = imageDao.getAllPathsForFolder(folderId).toMutableSet()
 
             // 2. Buffer for batch insertion
             val buffer = mutableListOf<ImageEntity>()
 
-            // 3. Recursive Scan (with cooperative cancellation via yield)
-            //    lastScanTime is forwarded so unchanged subdirectories can be skipped.
-            scanRecursive(rootFile, showHidden, lastScanTime) { file ->
+            // 3. Recursive Scan
+            scanRecursive(rootFile, showHidden, lastScanTime, existingPaths) { file ->
                 val entity = ImageEntity(
                     path = file.absolutePath,
                     folderId = folderId,
                     name = file.name,
                     size = file.length(),
-                    formattedSize = formatFileSize(file.length()), // Pre-compute so Compose never runs Math.*
+                    formattedSize = formatFileSize(file.length()), 
                     dateModified = file.lastModified(),
                     parentFolderPath = file.parentFile?.absolutePath ?: "",
                     parentFolderName = file.parentFile?.name ?: "",
                     uri = Uri.fromFile(file).toString()
                 )
                 buffer.add(entity)
+                
+                // Mark as found so we don't delete it
+                existingPaths.remove(file.absolutePath)
 
                 if (buffer.size >= BATCH_SIZE) {
-                    imageDao.insertImages(buffer.toList())
+                    imageDao.insertImages(buffer.toList()) // Make sure this uses OnConflictStrategy.REPLACE
                     buffer.clear()
                 }
             }
@@ -87,9 +91,16 @@ object FolderScanner {
                 imageDao.insertImages(buffer)
             }
 
+            // 5. Cleanup: Delete files from DB that no longer exist on disk
+            if (existingPaths.isNotEmpty()) {
+                // Batch delete by paths (SQLite limits parameters, so chunk it if it's huge)
+                existingPaths.chunked(900).forEach { chunk ->
+                    imageDao.deleteImagesByPaths(chunk)
+                }
+            }
+
         } catch (e: Exception) {
             Log.e(TAG, "Error scanning folder", e)
-            e.printStackTrace()
         }
     }
 
@@ -97,42 +108,26 @@ object FolderScanner {
         directory: File,
         showHidden: Boolean,
         lastScanTime: Long,
+        existingPaths: MutableSet<String>, // Pass the set down
         onImageFound: suspend (File) -> Unit
     ) {
         val files = directory.listFiles() ?: return
 
         for (file in files) {
-            // Cooperative cancellation: yield() lets the dispatcher serve pending UI/other tasks
-            // between each file during a deep scan, preventing thread starvation.
             yield()
-
-            // Early-exit if the enclosing coroutine has been cancelled
             if (!coroutineContext.isActive) return
 
-            // 1. Check for specific ignored folders (Thumbnails, Trash)
-            if (file.isDirectory && isIgnoredDirectory(file.name)) {
-                continue
-            }
-
-            // 2. Handle Hidden Files setting (skip if hidden AND showHidden is false)
-            if (!showHidden && file.name.startsWith(".")) {
-                continue
-            }
+            if (file.isDirectory && isIgnoredDirectory(file.name)) continue
+            if (!showHidden && file.name.startsWith(".")) continue
 
             if (file.isDirectory) {
-                // --- Delta-scan optimisation -----------------------------------
-                // If this subdirectory (and everything beneath it) hasn't been
-                // touched since the last scan we can skip the whole subtree.
-                // lastModified on a directory is updated by the OS whenever a
-                // direct child is added, removed, or renamed.
-                // We use a small 1-second (1000 ms) grace-period to handle any
-                // clock-skew between the filesystem and System.currentTimeMillis.
+                // Delta-scan optimisation
                 if (lastScanTime > 0L && file.lastModified() < lastScanTime - 1_000L) {
                     Log.d(TAG, "Skipping unchanged dir: ${file.absolutePath}")
+                    existingPaths.removeAll { it.startsWith(file.absolutePath + File.separator) }
                     continue
                 }
-                // ---------------------------------------------------------------
-                scanRecursive(file, showHidden, lastScanTime, onImageFound)
+                scanRecursive(file, showHidden, lastScanTime, existingPaths, onImageFound)
             } else if (file.isFile && isImageFile(file.name)) {
                 onImageFound(file)
             }

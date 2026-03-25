@@ -13,19 +13,9 @@ import com.devson.pixchive.ui.components.DisplayOptionsSheet
 import com.devson.pixchive.ui.components.SkeletonGrid
 import com.devson.pixchive.ui.components.SkeletonList
 import com.devson.pixchive.viewmodel.FolderViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 
-/**
- * Root screen for a folder. Responsible ONLY for:
- * - The top app bar, scaffold, and display-options sheet
- * - Routing between [ExplorerFolderView] and [FlatFolderView]
- *
- * Critical performance design: the heavy flows are NOT collected here at the root.
- * Each child composable ([ExplorerFolderView] / [FlatFolderView]) collects its own flow
- * internally. When the user switches views, Compose removes the inactive composable
- * from the tree, automatically cancelling its flow collection. This prevents:
- * - The chapter group-and-sort pipeline running while the Flat view is open
- * - The Pager loading pages while the Explorer view is open
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FolderViewScreen(
@@ -54,6 +44,19 @@ fun FolderViewScreen(
     var showDisplayOptions by remember { mutableStateOf(false) }
 
     LaunchedEffect(folderId) { viewModel.loadFolder(folderId) }
+
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                // Silently checks for new/deleted files every time user returns to the app.
+                // Because we fixed FolderScanner, this will not cause any UI stutter!
+                viewModel.refreshFolder(folderId)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     Scaffold(
         topBar = {

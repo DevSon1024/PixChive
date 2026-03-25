@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ImageDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @androidx.room.Insert(onConflict = androidx.room.OnConflictStrategy.REPLACE)
     suspend fun insertImages(images: List<ImageEntity>)
 
     @Query("DELETE FROM images WHERE folderId = :folderId")
@@ -79,4 +79,11 @@ interface ImageDao {
 
     @Query("SELECT COUNT(DISTINCT parentFolderPath) FROM images WHERE folderId = :folderId")
     suspend fun getChapterCount(folderId: String): Int
+
+    @androidx.room.Query("SELECT path FROM images WHERE folderId = :folderId")
+    suspend fun getAllPathsForFolder(folderId: String): List<String>
+
+    @androidx.room.Query("DELETE FROM images WHERE path IN (:paths)")
+    suspend fun deleteImagesByPaths(paths: List<String>)
+
 }

@@ -17,3 +17,6 @@ keystore.properties
 update_details.md
 *.jks
 *.keystore
+/*.log
+/*.txt
+/.kotlin

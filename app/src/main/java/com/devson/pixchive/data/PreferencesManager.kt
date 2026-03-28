@@ -48,6 +48,7 @@ class PreferencesManager(private val context: Context) {
         // Reader Settings
         private val READER_SCROLL_MODE_KEY = stringPreferencesKey("reader_scroll_mode")  // "pager" | "webtoon"
         private val MANGA_MODE_KEY = booleanPreferencesKey("manga_mode")                 // RTL paging
+        private val VOLUME_KEYS_NAVIGATION_KEY = booleanPreferencesKey("volume_keys_navigation")
         private val READ_PROGRESS_KEY = stringPreferencesKey("read_progress")            // JSON: "folderId|chapterPath" → pageIndex
     }
 
@@ -214,6 +215,14 @@ class PreferencesManager(private val context: Context) {
 
     val mangaModeFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[MANGA_MODE_KEY] ?: false
+    }.distinctUntilChanged()
+
+    suspend fun setVolumeKeysNavigation(enabled: Boolean) {
+        context.dataStore.edit { preferences -> preferences[VOLUME_KEYS_NAVIGATION_KEY] = enabled }
+    }
+
+    val volumeKeysNavigationFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[VOLUME_KEYS_NAVIGATION_KEY] ?: true
     }.distinctUntilChanged()
 
     // --- Read Progress ---

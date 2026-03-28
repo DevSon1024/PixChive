@@ -19,6 +19,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.pixchive.data.local.ImageEntity
+import com.devson.pixchive.ui.reader.utils.urisMatch
 import com.devson.pixchive.ui.components.DisplayOptionsSheet
 import com.devson.pixchive.ui.components.ImageGridItem
 import com.devson.pixchive.ui.components.ChapterImageListItem
@@ -28,14 +29,6 @@ import com.devson.pixchive.ui.components.SkeletonList
 import com.devson.pixchive.viewmodel.FolderViewModel
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
-
-private fun urisMatch(uri1: String, uri2: String): Boolean {
-    return try {
-        val parsed1 = Uri.parse(uri1)
-        val parsed2 = Uri.parse(uri2)
-        parsed1.scheme == parsed2.scheme && parsed1.authority == parsed2.authority && parsed1.path == parsed2.path
-    } catch (e: Exception) { uri1 == uri2 }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

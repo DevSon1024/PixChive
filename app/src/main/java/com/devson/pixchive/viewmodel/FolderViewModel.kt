@@ -228,6 +228,9 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     private val _mangaMode = MutableStateFlow(false)
     val mangaMode: StateFlow<Boolean> = _mangaMode.asStateFlow()
 
+    private val _volumeKeysNavigation = MutableStateFlow(true)
+    val volumeKeysNavigation: StateFlow<Boolean> = _volumeKeysNavigation.asStateFlow()
+
     // Progress map for the current folder: chapterPath -> last read page
     val readProgressMap: StateFlow<Map<String, Int>> = _currentFolder
         .flatMapLatest { folder ->
@@ -265,6 +268,7 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
             _favoritesSortOption.value = preferencesManager.favoritesSortOptionFlow.first()
             _readerScrollMode.value = preferencesManager.readerScrollModeFlow.first()
             _mangaMode.value = preferencesManager.mangaModeFlow.first()
+            _volumeKeysNavigation.value = preferencesManager.volumeKeysNavigationFlow.first()
         }
     }
 
@@ -427,6 +431,13 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             _mangaMode.value = enabled
             preferencesManager.saveMangaMode(enabled)
+        }
+    }
+
+    fun setVolumeKeysNavigation(enabled: Boolean) {
+        viewModelScope.launch {
+            _volumeKeysNavigation.value = enabled
+            preferencesManager.setVolumeKeysNavigation(enabled)
         }
     }
 

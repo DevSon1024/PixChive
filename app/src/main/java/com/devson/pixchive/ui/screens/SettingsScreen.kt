@@ -9,7 +9,6 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.*
@@ -27,6 +26,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.os.Build
 import android.widget.Toast
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import com.devson.pixchive.data.PreferencesManager
 import com.devson.pixchive.utils.BackupRestoreManager
 import kotlinx.coroutines.Dispatchers
@@ -45,6 +46,7 @@ fun SettingsScreen(
 
     val showHiddenFiles by preferencesManager.showHiddenFilesFlow.collectAsState(initial = false)
     val appTheme by preferencesManager.appThemeFlow.collectAsState(initial = "system")
+    val volumeKeysNavigation by preferencesManager.volumeKeysNavigationFlow.collectAsState(initial = true)
 
     var showThemeDialog by remember { mutableStateOf(false) }
 
@@ -170,9 +172,19 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            //  Scanning Options 
-            SettingsSectionLabel("Scanning Options")
+            //  General 
+            SettingsSectionLabel("General")
             SettingsCard {
+                SettingsToggleRow(
+                    icon = Icons.AutoMirrored.Filled.VolumeUp,
+                    title = "Volume button use",
+                    subtitle = "Use volume buttons to navigate pages",
+                    checked = volumeKeysNavigation,
+                    onCheckedChange = { checked ->
+                        scope.launch { preferencesManager.setVolumeKeysNavigation(checked) }
+                    }
+                )
+                SettingsDivider()
                 SettingsToggleRow(
                     icon = Icons.Default.FolderOpen,
                     title = "Show hidden files",

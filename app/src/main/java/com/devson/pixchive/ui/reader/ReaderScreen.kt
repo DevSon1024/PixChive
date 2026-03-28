@@ -19,7 +19,6 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.animation.animateColorAsState
@@ -42,6 +41,9 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
@@ -87,6 +89,7 @@ fun ReaderScreen(
     val favorites by viewModel.favoriteUrisFlow.collectAsState()
     val readerScrollMode by viewModel.readerScrollMode.collectAsState()
     val mangaMode by viewModel.mangaMode.collectAsState()
+    val volumeKeysNavigation by viewModel.volumeKeysNavigation.collectAsState()
 
     // --- FLAT VIEW: use true DB total instead of paging snapshot ---
     val flatImageCount by viewModel.flatImageCount.collectAsState()
@@ -209,13 +212,17 @@ fun ReaderScreen(
     val audioManager = remember { context.getSystemService(android.content.Context.AUDIO_SERVICE) as AudioManager }
     val focusRequester = remember { FocusRequester() }
 
-    // Suppress system volume overlay while in reader
-    DisposableEffect(Unit) {
-        @Suppress("DEPRECATION")
-        audioManager.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
-        onDispose {
+    // Suppress system volume overlay while in reader ONLY if navigating by volume keys
+    DisposableEffect(volumeKeysNavigation) {
+        if (volumeKeysNavigation) {
             @Suppress("DEPRECATION")
-            audioManager.abandonAudioFocus(null)
+            audioManager.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
+        }
+        onDispose {
+            if (volumeKeysNavigation) {
+                @Suppress("DEPRECATION")
+                audioManager.abandonAudioFocus(null)
+            }
         }
     }
 
@@ -248,7 +255,7 @@ fun ReaderScreen(
             .focusRequester(focusRequester)
             .focusable()
             .onKeyEvent { event ->
-                if (event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
+                if (volumeKeysNavigation && event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
                     when (event.nativeKeyEvent.keyCode) {
                         KeyEvent.KEYCODE_VOLUME_DOWN -> {
                             scope.launch {
@@ -577,6 +584,13 @@ fun ReaderScreen(
                                         label = if (mangaMode) "LTR" else "MANGA",
                                         isActive = mangaMode,
                                         onClick = { viewModel.setMangaMode(!mangaMode) }
+                                    )
+                                    // Volume Keys toggle
+                                    ReaderActionButton(
+                                        icon = if (volumeKeysNavigation) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
+                                        label = "VOL NAV",
+                                        isActive = volumeKeysNavigation,
+                                        onClick = { viewModel.setVolumeKeysNavigation(!volumeKeysNavigation) }
                                     )
                                 }
                             }

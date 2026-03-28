@@ -2,7 +2,6 @@ package com.devson.pixchive.ui.screens
 
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -179,19 +178,6 @@ fun AboutScreen(
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val packageInfo = remember {
-        runCatching {
-            context.packageManager.getPackageInfo(context.packageName, 0)
-        }.getOrNull()
-    }
-    val versionName = packageInfo?.versionName ?: "1.0"
-    val versionCode = packageInfo?.longVersionCode ?: 1L
-
-    // Detect ABI at runtime
-    val abi = remember {
-        Build.SUPPORTED_ABIS.firstOrNull() ?: "universal"
-    }
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -213,17 +199,6 @@ fun AboutScreen(
                 .padding(paddingValues),
             contentPadding = PaddingValues(bottom = 32.dp)
         ) {
-            // ----------------------------------------------------------------
-            // App hero card
-            // ----------------------------------------------------------------
-            item {
-                AppHeroSection(
-                    versionName = versionName,
-                    versionCode = versionCode,
-                    abi = abi
-                )
-            }
-
             // ----------------------------------------------------------------
             // Developer / Links section
             // ----------------------------------------------------------------
@@ -275,113 +250,6 @@ fun AboutScreen(
             item {
                 FooterSection()
             }
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// App hero section
-// ---------------------------------------------------------------------------
-
-@Composable
-private fun AppHeroSection(
-    versionName: String,
-    versionCode: Long,
-    abi: String
-) {
-    val gradientColors = listOf(
-        MaterialTheme.colorScheme.primaryContainer,
-        MaterialTheme.colorScheme.secondaryContainer
-    )
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(Brush.linearGradientBrush(gradientColors))
-            .padding(24.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            // App icon placeholder with gradient ring
-            Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(MaterialTheme.colorScheme.primary),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.PhotoLibrary,
-                    contentDescription = null,
-                    modifier = Modifier.size(44.dp),
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            Text(
-                text = "PixChive",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-
-            Spacer(Modifier.height(4.dp))
-
-            Text(
-                text = "Image gallery & comic reader",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(Modifier.height(16.dp))
-
-            // Version + ABI row
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                VersionChip(
-                    icon = Icons.Default.Info,
-                    label = "v$versionName ($versionCode)"
-                )
-                VersionChip(
-                    icon = Icons.Default.Memory,
-                    label = abi
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun VersionChip(icon: ImageVector, label: String) {
-    Surface(
-        shape = RoundedCornerShape(50),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.70f),
-        tonalElevation = 2.dp
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(14.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
         }
     }
 }

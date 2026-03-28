@@ -1,24 +1,31 @@
 package com.devson.pixchive.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import android.os.Build
 import android.widget.Toast
 import com.devson.pixchive.data.PreferencesManager
 import com.devson.pixchive.utils.BackupRestoreManager
@@ -41,6 +48,13 @@ fun SettingsScreen(
 
     var showThemeDialog by remember { mutableStateOf(false) }
 
+    // Resolve version name
+    val versionName = remember {
+        runCatching {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        }.getOrNull() ?: "1.0"
+    }
+
     val backupLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/zip")
     ) { uri ->
@@ -48,7 +62,11 @@ fun SettingsScreen(
             scope.launch {
                 val success = BackupRestoreManager.performBackup(context, uri)
                 launch(Dispatchers.Main) {
-                    Toast.makeText(context, if (success) "Backup created successfully" else "Failed to create backup", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        context,
+                        if (success) "Backup created successfully" else "Failed to create backup",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
         }
@@ -69,6 +87,7 @@ fun SettingsScreen(
         }
     }
 
+    //  Theme picker dialog 
     if (showThemeDialog) {
         AlertDialog(
             onDismissRequest = { showThemeDialog = false },
@@ -102,9 +121,7 @@ fun SettingsScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showThemeDialog = false }) {
-                    Text("Cancel")
-                }
+                TextButton(onClick = { showThemeDialog = false }) { Text("Cancel") }
             }
         )
     }
@@ -124,232 +141,297 @@ fun SettingsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(paddingValues)
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp)
         ) {
-            // --- Appearance Section ---
-            Text(
-                text = "Appearance",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+            Spacer(Modifier.height(8.dp))
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showThemeDialog = true }
-                    .padding(vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Theme",
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    Text(
-                        text = when(appTheme) {
-                            "light" -> "Light"
-                            "dark" -> "Dark"
-                            else -> "System Default"
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+            //  App identity card (Google-Play-style header) 
+            AppIdentityCard(versionName = versionName)
+
+            Spacer(Modifier.height(20.dp))
+
+            //  Appearance 
+            SettingsSectionLabel("Appearance")
+            SettingsCard {
+                SettingsRow(
+                    icon = Icons.Default.Palette,
+                    title = "Theme",
+                    subtitle = when (appTheme) {
+                        "light" -> "Light"
+                        "dark" -> "Dark"
+                        else -> "System Default"
+                    },
+                    onClick = { showThemeDialog = true }
+                )
             }
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            Spacer(Modifier.height(16.dp))
 
-            // --- Scanning Options Section ---
-            Text(
-                text = "Scanning Options",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-
-            // Show Hidden Files Toggle
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        scope.launch {
-                            preferencesManager.setShowHiddenFiles(!showHiddenFiles)
-                        }
-                    }
-                    .padding(vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Show hidden files",
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    Text(
-                        text = "Include folders and files starting with a dot (.)",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Switch(
+            //  Scanning Options 
+            SettingsSectionLabel("Scanning Options")
+            SettingsCard {
+                SettingsToggleRow(
+                    icon = Icons.Default.FolderOpen,
+                    title = "Show hidden files",
+                    subtitle = "Include folders and files starting with a dot (.)",
                     checked = showHiddenFiles,
                     onCheckedChange = { checked ->
-                        scope.launch {
-                            preferencesManager.setShowHiddenFiles(checked)
-                        }
+                        scope.launch { preferencesManager.setShowHiddenFiles(checked) }
                     }
                 )
             }
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-            // --- Data & Backup Section ---
-            Text(
-                text = "Data & Backup",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+            Spacer(Modifier.height(16.dp))
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
+            //  Data & Backup 
+            SettingsSectionLabel("Data & Backup")
+            SettingsCard {
+                SettingsRow(
+                    icon = Icons.Default.Backup,
+                    title = "Create Backup",
+                    subtitle = "Export database and settings to a zip file",
+                    onClick = {
                         backupLauncher.launch("PixChive_Backup_${System.currentTimeMillis()}.zip")
                     }
-                    .padding(vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Create Backup",
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    Text(
-                        text = "Export database and settings to a zip file",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
+                )
+                SettingsDivider()
+                SettingsRow(
+                    icon = Icons.Default.Restore,
+                    title = "Restore Backup",
+                    subtitle = "Import data and settings from a previous backup",
+                    onClick = {
                         restoreLauncher.launch(arrayOf("application/zip"))
                     }
-                    .padding(vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Restore Backup",
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    Text(
-                        text = "Import data and settings from a previous backup",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-            // --- Privacy & Policy Section ---
-            Text(
-                text = "Privacy",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onNavigateToPrivacyPolicy() }
-                    .padding(vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Lock,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .size(24.dp)
-                        .padding(end = 0.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Privacy & Policy",
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    Text(
-                        text = "User data privacy, offline details",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-            // --- About Section ---
-            Text(
-                text = "About",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+            Spacer(Modifier.height(16.dp))
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onNavigateToAbout() }
-                    .padding(vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Info,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .size(24.dp)
-                        .padding(end = 0.dp)
+            //  Privacy 
+            SettingsSectionLabel("Privacy")
+            SettingsCard {
+                SettingsRow(
+                    icon = Icons.Default.Lock,
+                    title = "Privacy & Policy",
+                    subtitle = "User data privacy, offline details",
+                    onClick = onNavigateToPrivacyPolicy
                 )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "About PixChive",
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    Text(
-                        text = "Libraries, version info, and developer links",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            //  About 
+            SettingsSectionLabel("About")
+            SettingsCard {
+                SettingsRow(
+                    icon = Icons.Default.Info,
+                    title = "About PixChive",
+                    subtitle = "Libraries, version info, and developer links",
+                    onClick = onNavigateToAbout
                 )
             }
         }
     }
 }
+
+//  App Identity Header Card 
+
+@Composable
+private fun AppIdentityCard(versionName: String) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        tonalElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // App logo circle (mirrors AboutScreen's AppHeroSection icon style)
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PhotoLibrary,
+                    contentDescription = null,
+                    modifier = Modifier.size(36.dp),
+                    tint = MaterialTheme.colorScheme.onPrimary
+                )
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "PixChive",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = "Version $versionName",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+//  Section label 
+
+@Composable
+private fun SettingsSectionLabel(label: String) {
+    Text(
+        text = label,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
+    )
+}
+
+//  Rounded card wrapper 
+
+@Composable
+private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        tonalElevation = 2.dp
+    ) {
+        Column(content = content)
+    }
+}
+
+//  Thin divider inside a card 
+
+@Composable
+private fun SettingsDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(start = 56.dp, end = 0.dp),
+        color = MaterialTheme.colorScheme.outlineVariant
+    )
+}
+
+//  Standard clickable row 
+
+@Composable
+private fun SettingsRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Leading icon in a small tinted circle
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.secondaryContainer),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+        }
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+//  Toggle row 
+
+@Composable
+private fun SettingsToggleRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.secondaryContainer),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+        }
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange
+        )
+    }
+}
+
+//  Theme dialog option 
 
 @Composable
 fun ThemeOption(
@@ -368,14 +450,8 @@ fun ThemeOption(
             .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        RadioButton(
-            selected = selected,
-            onClick = null
-        )
+        RadioButton(selected = selected, onClick = null)
         Spacer(modifier = Modifier.width(16.dp))
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyLarge
-        )
+        Text(text = text, style = MaterialTheme.typography.bodyLarge)
     }
 }

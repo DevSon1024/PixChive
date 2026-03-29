@@ -10,16 +10,15 @@ import com.devson.pixchive.data.ComicFolder
 import com.devson.pixchive.data.PreferencesManager
 import com.devson.pixchive.utils.FolderScanner
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
-import java.io.File
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import androidx.work.ExistingWorkPolicy
+import androidx.work.WorkInfo
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
@@ -80,7 +79,7 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val hasSubfolders: StateFlow<Boolean> = chapters
-        .map { it.size > 1 }
+        .map { it.isEmpty() || it.size > 1 }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     // --- PAGING 3 FOR FLAT VIEW (sort-aware) ---
@@ -305,13 +304,14 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     fun loadFolder(folderId: String, forceRescan: Boolean = false) {
         if (folderId == "favorites") return
         
-        // INSTANTLY clear the cached flows if we are opening a different folder
         if (_currentFolder.value?.id != folderId) {
             _currentFolder.value = null
+            _isLoading.value = true
+        } else if (chapters.value.isEmpty()) {
+            _isLoading.value = true
         }
 
         scanJob?.cancel()
-        _isLoading.value = true
 
         viewModelScope.launch {
             val folders = preferencesManager.foldersFlow.first()
@@ -326,8 +326,6 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
 
             val count = imageDao.getImageCount(folderId)
             if (count > 0 && !forceRescan) {
-                // Wait for the chapters flow to emit real data before hiding the loader.
-                // 3-second timeout is a safety net for genuinely empty folders.
                 withTimeoutOrNull(3_000) {
                     chapters.first { it.isNotEmpty() }
                 }
@@ -338,6 +336,26 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
             val showHidden = preferencesManager.showHiddenFilesFlow.first()
             val uri = Uri.parse(folder.uri)
             enqueueSyncWorker(folderId, uri.toString(), showHidden)
+            
+            observeWorkerState(folderId)
+        }
+    }
+
+    private fun observeWorkerState(folderId: String) {
+        scanJob = viewModelScope.launch {
+            val workManager = WorkManager.getInstance(getApplication())
+            val workFlow = workManager.getWorkInfosForUniqueWorkFlow("sync_folder_$folderId")
+            
+            // Combine the chapters data and the background worker state
+            combine(chapters, workFlow) { chapterList, workInfos ->
+                val workInfo = workInfos.firstOrNull()
+                val isFinished = workInfo == null || workInfo.state.isFinished
+                val hasData = chapterList.isNotEmpty()
+                
+                hasData || isFinished
+            }.first { shouldStop -> shouldStop }
+            
+            kotlinx.coroutines.delay(100)
             _isLoading.value = false
         }
     }

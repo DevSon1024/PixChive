@@ -1,5 +1,7 @@
 package com.devson.pixchive.navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -24,11 +26,8 @@ fun NavGraph(
     navController: NavHostController,
     startDestination: String = Screen.Home.route
 ) {
-    // Shared ViewModel for all Folder/Reader/Favorites screens
     val folderViewModel: FolderViewModel = viewModel()
 
-    // FIX: Safe navigate back helper to prevent popping the root screen (HomeScreen)
-    // on rapid/multiple back button clicks.
     val safeNavigateBack: () -> Unit = {
         if (navController.previousBackStackEntry != null) {
             navController.popBackStack()
@@ -37,7 +36,35 @@ fun NavGraph(
 
     NavHost(
         navController = navController,
-        startDestination = startDestination
+        startDestination = startDestination,
+        enterTransition = {
+            // Slide in from right to left when opening a new screen
+            slideIntoContainer(
+                AnimatedContentTransitionScope.SlideDirection.Left,
+                animationSpec = tween(300)
+            )
+        },
+        exitTransition = {
+            // Slide current screen to the left when opening a new screen
+            slideOutOfContainer(
+                AnimatedContentTransitionScope.SlideDirection.Left,
+                animationSpec = tween(300)
+            )
+        },
+        popEnterTransition = {
+            // Slide previous screen in from left to right when pressing back
+            slideIntoContainer(
+                AnimatedContentTransitionScope.SlideDirection.Right,
+                animationSpec = tween(300)
+            )
+        },
+        popExitTransition = {
+            // Slide current screen out left to right when pressing back
+            slideOutOfContainer(
+                AnimatedContentTransitionScope.SlideDirection.Right,
+                animationSpec = tween(300)
+            )
+        }
     ) {
         composable(Screen.Home.route) {
             HomeScreen(

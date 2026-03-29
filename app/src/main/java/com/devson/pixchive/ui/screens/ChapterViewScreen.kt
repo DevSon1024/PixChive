@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.pixchive.data.local.ImageEntity
 import com.devson.pixchive.ui.reader.utils.urisMatch
-import com.devson.pixchive.ui.components.DisplayOptionsSheet
+import com.devson.pixchive.ui.components.ViewSettingsBottomSheet
 import com.devson.pixchive.ui.components.ImageGridItem
 import com.devson.pixchive.ui.components.ChapterImageListItem
 import com.devson.pixchive.ui.components.EmptyChapterImagesView
@@ -97,7 +97,7 @@ fun ChapterViewScreen(
             }
         }
         if (showDisplayOptions) {
-            DisplayOptionsSheet(
+            ViewSettingsBottomSheet(
                 onDismiss = { showDisplayOptions = false }, viewMode = null, layoutMode = layoutMode, gridColumns = gridColumns, sortOption = null,
                 onLayoutModeChange = { viewModel.setLayoutMode(it) }, onGridColumnsChange = { viewModel.setGridColumns(it) }
             )

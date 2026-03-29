@@ -55,6 +55,18 @@ interface ImageDao {
     @Query("SELECT * FROM images WHERE folderId = :folderId ORDER BY dateModified ASC")
     fun getImagesPagedDateOldest(folderId: String): PagingSource<Int, ImageEntity>
 
+    @Query("SELECT * FROM images WHERE folderId = :folderId ORDER BY size ASC")
+    fun getImagesPagedSizeAsc(folderId: String): PagingSource<Int, ImageEntity>
+
+    @Query("SELECT * FROM images WHERE folderId = :folderId ORDER BY size DESC")
+    fun getImagesPagedSizeDesc(folderId: String): PagingSource<Int, ImageEntity>
+
+    @Query("SELECT * FROM images WHERE folderId = :folderId ORDER BY path ASC")
+    fun getImagesPagedPathAsc(folderId: String): PagingSource<Int, ImageEntity>
+
+    @Query("SELECT * FROM images WHERE folderId = :folderId ORDER BY path DESC")
+    fun getImagesPagedPathDesc(folderId: String): PagingSource<Int, ImageEntity>
+
     /**
      * Sort-aware PagingSource - ORDER BY is injected dynamically by the ViewModel
      * so the grid and the reader always use an identical sort order.

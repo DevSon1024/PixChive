@@ -20,7 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.devson.pixchive.data.local.ImageEntity
-import com.devson.pixchive.ui.components.DisplayOptionsSheet
+import com.devson.pixchive.ui.components.ViewSettingsBottomSheet
 import com.devson.pixchive.ui.components.EmptyFavoritesView
 import com.devson.pixchive.ui.components.ImageGridItem
 import com.devson.pixchive.ui.components.ImageListItem
@@ -90,7 +90,7 @@ fun FavoritesScreen(
         }
 
         if (showDisplayOptions) {
-            DisplayOptionsSheet(
+            ViewSettingsBottomSheet(
                 onDismiss = { showDisplayOptions = false },
                 viewMode = null,
                 layoutMode = layoutMode,

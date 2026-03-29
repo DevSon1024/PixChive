@@ -67,7 +67,7 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
                         name = images.first().parentFolderName,
                         path = path,
                         imageCount = images.size,
-                        images = images.sortedWith { a, b -> FolderScanner.compareNatural(a.name, b.name) }
+                        images = sortImages(images, sort)
                     )
                 }
                 // Heavy Sort #2
@@ -112,6 +112,12 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
                         "name_desc"    -> imageDao.getImagesPagedNameDesc(folder.id)
                         "date_newest"  -> imageDao.getImagesPagedDateNewest(folder.id)
                         "date_oldest"  -> imageDao.getImagesPagedDateOldest(folder.id)
+                        "size_asc", "resolution_asc" -> imageDao.getImagesPagedSizeAsc(folder.id)
+                        "size_desc", "resolution_desc" -> imageDao.getImagesPagedSizeDesc(folder.id)
+                        "path_asc" -> imageDao.getImagesPagedPathAsc(folder.id)
+                        "path_desc" -> imageDao.getImagesPagedPathDesc(folder.id)
+                        "type_asc" -> imageDao.getImagesPagedNameAsc(folder.id)
+                        "type_desc" -> imageDao.getImagesPagedNameDesc(folder.id)
                         else           -> imageDao.getImagesPagedNameAsc(folder.id) // "name_asc" + default
                     }
                 }
@@ -193,18 +199,26 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private fun favoriteOrderBy(sort: String) = when (sort) {
-        "name_desc"   -> "images.parentFolderPath DESC, images.name DESC"
+        "name_desc", "type_desc"   -> "images.parentFolderPath DESC, images.name DESC"
         "date_newest" -> "favorite_images.addedAt DESC"
         "date_oldest" -> "favorite_images.addedAt ASC"
+        "size_asc", "resolution_asc" -> "images.size ASC"
+        "size_desc", "resolution_desc" -> "images.size DESC"
+        "path_asc" -> "images.path ASC"
+        "path_desc" -> "images.path DESC"
         else          -> "images.parentFolderPath ASC, images.name ASC"
     }
 
     // Used by getFlatImageAt() to match the Pager's ORDER BY for by-offset lookup.
     private fun flatOrderBy(sort: String) = when (sort) {
-        "name_desc"   -> "parentFolderPath DESC, name DESC"
+        "name_desc", "type_desc"   -> "parentFolderPath DESC, name DESC"
         "date_newest" -> "dateModified DESC"
         "date_oldest" -> "dateModified ASC"
-        else          -> "parentFolderPath ASC, name ASC" // "name_asc" + default
+        "size_asc", "resolution_asc" -> "size ASC"
+        "size_desc", "resolution_desc" -> "size DESC"
+        "path_asc" -> "path ASC"
+        "path_desc" -> "path DESC"
+        else          -> "parentFolderPath ASC, name ASC" // "name_asc", "type_asc" + default
     }
 
     private val _isLoading = MutableStateFlow(true)
@@ -277,10 +291,14 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
             FolderScanner.compareNatural(a.name, b.name)
         }
         return when (option) {
-            "name_desc"   -> chapters.sortedWith(nameComparator).reversed()
+            "name_desc", "type_desc"   -> chapters.sortedWith(nameComparator).reversed()
             "date_newest" -> chapters.sortedByDescending { it.images.maxOfOrNull { img -> img.dateModified } ?: 0L }
             "date_oldest" -> chapters.sortedBy { it.images.minOfOrNull { img -> img.dateModified } ?: 0L }
-            else          -> chapters.sortedWith(nameComparator) // "name_asc" + default
+            "size_asc", "resolution_asc" -> chapters.sortedBy { it.images.sumOf { img -> img.size } }
+            "size_desc", "resolution_desc" -> chapters.sortedByDescending { it.images.sumOf { img -> img.size } }
+            "path_asc" -> chapters.sortedBy { it.path }
+            "path_desc" -> chapters.sortedByDescending { it.path }
+            else          -> chapters.sortedWith(nameComparator) // "name_asc", "type_asc" + default
         }
     }
 
@@ -486,5 +504,23 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     suspend fun getReadProgress(chapterPath: String): Int {
         val folderId = _currentFolder.value?.id ?: return 0
         return preferencesManager.getReadProgress(folderId, chapterPath)
+    }
+
+    private fun sortImages(images: List<ImageEntity>, sort: String): List<ImageEntity> {
+        val naturalNameComparator = Comparator<ImageEntity> { a, b ->
+            FolderScanner.compareNatural(a.name, b.name)
+        }
+        return when (sort) {
+            "name_desc" -> images.sortedWith(naturalNameComparator).reversed()
+            "date_newest" -> images.sortedByDescending { it.dateModified }
+            "date_oldest" -> images.sortedBy { it.dateModified }
+            "size_asc", "resolution_asc" -> images.sortedBy { it.size }
+            "size_desc", "resolution_desc" -> images.sortedByDescending { it.size }
+            "path_asc" -> images.sortedBy { it.path }
+            "path_desc" -> images.sortedByDescending { it.path }
+            "type_asc" -> images.sortedBy { it.name.substringAfterLast('.', "") }
+            "type_desc" -> images.sortedByDescending { it.name.substringAfterLast('.', "") }
+            else -> images.sortedWith(naturalNameComparator) // "name_asc" + default
+        }
     }
 }

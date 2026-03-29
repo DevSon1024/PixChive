@@ -49,7 +49,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.devson.pixchive.data.ComicFolder
 import com.devson.pixchive.data.local.HistoryEntity
-import com.devson.pixchive.ui.components.DisplayOptionsSheet
+import com.devson.pixchive.ui.components.ViewSettingsBottomSheet
 import com.devson.pixchive.ui.components.PermissionDeniedDialog
 import com.devson.pixchive.ui.components.PermissionRationaleDialog
 import com.devson.pixchive.ui.components.SkeletonHome
@@ -306,7 +306,7 @@ fun HomeScreen(
         }
 
         if (showDisplayOptions) {
-            DisplayOptionsSheet(
+            ViewSettingsBottomSheet(
                 onDismiss = { showDisplayOptions = false },
                 viewMode = null,
                 layoutMode = layoutMode,

@@ -9,7 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.devson.pixchive.ui.components.DisplayOptionsSheet
+import com.devson.pixchive.ui.components.ViewSettingsBottomSheet
 import com.devson.pixchive.ui.components.SkeletonGrid
 import com.devson.pixchive.ui.components.SkeletonList
 import com.devson.pixchive.viewmodel.FolderViewModel
@@ -125,7 +125,7 @@ fun FolderViewScreen(
         }
 
         if (showDisplayOptions) {
-            DisplayOptionsSheet(
+            ViewSettingsBottomSheet(
                 onDismiss = { showDisplayOptions = false },
                 viewMode = if (hasSubfolders) currentViewMode else null,
                 layoutMode = layoutMode,

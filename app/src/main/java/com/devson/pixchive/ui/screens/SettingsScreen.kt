@@ -38,11 +38,16 @@ import kotlinx.coroutines.launch
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToAbout: () -> Unit = {},
-    onNavigateToPrivacyPolicy: () -> Unit = {}
+    onNavigateToPrivacyPolicy: () -> Unit = {},
+    onNavigateToDeveloperOptions: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val preferencesManager = remember { PreferencesManager(context) }
+
+    val devOptionsEnabled by preferencesManager.developerOptionsEnabledFlow.collectAsState(initial = false)
+    var tapCount by remember { mutableIntStateOf(0) }
+    var lastTapTime by remember { mutableLongStateOf(0L) }
 
     val showHiddenFiles by preferencesManager.showHiddenFilesFlow.collectAsState(initial = false)
     val appTheme by preferencesManager.appThemeFlow.collectAsState(initial = "system")
@@ -151,7 +156,26 @@ fun SettingsScreen(
             Spacer(Modifier.height(8.dp))
 
             //  App identity card (Google-Play-style header) 
-            AppIdentityCard(versionName = versionName)
+            // App identity card (Google-Play-style header) 
+            AppIdentityCard(
+                versionName = versionName,
+                onVersionTap = {
+                    val now = System.currentTimeMillis()
+                    // Reset tap count if user pauses for more than 500ms
+                    if (now - lastTapTime > 500) tapCount = 1 else tapCount++
+                    lastTapTime = now
+
+                    if (!devOptionsEnabled) {
+                        if (tapCount >= 8) {
+                            scope.launch { preferencesManager.setDeveloperOptionsEnabled(true) }
+                            Toast.makeText(context, "You are now a developer!", Toast.LENGTH_SHORT).show()
+                            tapCount = 0
+                        } else if (tapCount >= 4) {
+                            Toast.makeText(context, "Tap ${8 - tapCount} more times to be a developer", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            )
 
             Spacer(Modifier.height(20.dp))
 
@@ -235,6 +259,20 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(16.dp))
 
+            // --- ADD DEVELOPER SECTION HERE ---
+            if (devOptionsEnabled) {
+                SettingsSectionLabel("Developer")
+                SettingsCard {
+                    SettingsRow(
+                        icon = Icons.Default.Code,
+                        title = "Developer Options",
+                        subtitle = "Logs, debugging, and experimental features",
+                        onClick = onNavigateToDeveloperOptions
+                    )
+                }
+                Spacer(Modifier.height(16.dp))
+            }
+
             //  About 
             SettingsSectionLabel("About")
             SettingsCard {
@@ -252,7 +290,7 @@ fun SettingsScreen(
 //  App Identity Header Card 
 
 @Composable
-private fun AppIdentityCard(versionName: String) {
+private fun AppIdentityCard(versionName: String, onVersionTap: () -> Unit = {}) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -262,6 +300,7 @@ private fun AppIdentityCard(versionName: String) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .clickable { onVersionTap() }
                 .padding(horizontal = 20.dp, vertical = 18.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)

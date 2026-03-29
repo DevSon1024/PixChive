@@ -17,6 +17,8 @@ import com.devson.pixchive.ui.screens.HomeScreen
 import com.devson.pixchive.ui.screens.SettingsScreen
 import com.devson.pixchive.ui.screens.FavoritesScreen
 import com.devson.pixchive.ui.reader.ReaderScreen
+import com.devson.pixchive.ui.screens.DeveloperOptionsScreen
+import com.devson.pixchive.ui.screens.LogsScreen
 import com.devson.pixchive.viewmodel.FolderViewModel
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
@@ -97,10 +99,22 @@ fun NavGraph(
 
         composable(Screen.Settings.route) {
             SettingsScreen(
-                onNavigateBack = safeNavigateBack, // Use safe pop
+                onNavigateBack = safeNavigateBack,
                 onNavigateToAbout = { navController.navigate(Screen.About.route) },
-                onNavigateToPrivacyPolicy = { navController.navigate(Screen.PrivacyPolicy.route) }
+                onNavigateToPrivacyPolicy = { navController.navigate(Screen.PrivacyPolicy.route) },
+                onNavigateToDeveloperOptions = { navController.navigate(Screen.DeveloperOptions.route) }
             )
+        }
+
+        composable(Screen.DeveloperOptions.route) {
+            DeveloperOptionsScreen(
+                onNavigateBack = safeNavigateBack,
+                onNavigateToLogs = { navController.navigate(Screen.Logs.route) }
+            )
+        }
+
+        composable(Screen.Logs.route) {
+            LogsScreen(onNavigateBack = safeNavigateBack)
         }
 
         composable(Screen.About.route) {

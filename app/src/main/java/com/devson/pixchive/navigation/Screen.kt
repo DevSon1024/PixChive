@@ -10,6 +10,9 @@ sealed class Screen(val route: String) {
     object About : Screen("about")
     object PrivacyPolicy : Screen("privacy")
 
+    object DeveloperOptions : Screen("developer_options")
+    object Logs : Screen("logs")
+
     object FolderView : Screen("folder/{folderId}") {
         fun createRoute(folderId: String): String {
             return "folder/$folderId"

@@ -8,6 +8,7 @@ import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import coil.request.CachePolicy
 import com.devson.pixchive.data.local.AppDatabase
+import com.devson.pixchive.utils.AppLogger
 
 class PixChiveApplication : Application(), ImageLoaderFactory {
 
@@ -15,8 +16,9 @@ class PixChiveApplication : Application(), ImageLoaderFactory {
     lateinit var database: AppDatabase
         private set
 
-    override fun onCreate() {
+   override fun onCreate() {
         super.onCreate()
+        AppLogger.init(this)
         database = AppDatabase.getDatabase(this)
     }
 

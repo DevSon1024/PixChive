@@ -39,7 +39,8 @@ fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToAbout: () -> Unit = {},
     onNavigateToPrivacyPolicy: () -> Unit = {},
-    onNavigateToDeveloperOptions: () -> Unit = {}
+    onNavigateToDeveloperOptions: () -> Unit = {},
+    onNavigateToAppearance: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -51,9 +52,8 @@ fun SettingsScreen(
 
     val showHiddenFiles by preferencesManager.showHiddenFilesFlow.collectAsState(initial = false)
     val appTheme by preferencesManager.appThemeFlow.collectAsState(initial = "system")
-    val volumeKeysNavigation by preferencesManager.volumeKeysNavigationFlow.collectAsState(initial = true)
 
-    var showThemeDialog by remember { mutableStateOf(false) }
+    val volumeKeysNavigation by preferencesManager.volumeKeysNavigationFlow.collectAsState(initial = true)
 
     // Resolve version name
     val versionName = remember {
@@ -94,44 +94,6 @@ fun SettingsScreen(
         }
     }
 
-    //  Theme picker dialog 
-    if (showThemeDialog) {
-        AlertDialog(
-            onDismissRequest = { showThemeDialog = false },
-            title = { Text("Choose Theme") },
-            text = {
-                Column(modifier = Modifier.selectableGroup()) {
-                    ThemeOption(
-                        text = "System Default",
-                        selected = appTheme == "system",
-                        onClick = {
-                            scope.launch { preferencesManager.saveAppTheme("system") }
-                            showThemeDialog = false
-                        }
-                    )
-                    ThemeOption(
-                        text = "Light",
-                        selected = appTheme == "light",
-                        onClick = {
-                            scope.launch { preferencesManager.saveAppTheme("light") }
-                            showThemeDialog = false
-                        }
-                    )
-                    ThemeOption(
-                        text = "Dark",
-                        selected = appTheme == "dark",
-                        onClick = {
-                            scope.launch { preferencesManager.saveAppTheme("dark") }
-                            showThemeDialog = false
-                        }
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showThemeDialog = false }) { Text("Cancel") }
-            }
-        )
-    }
 
     Scaffold(
         topBar = {
@@ -190,7 +152,7 @@ fun SettingsScreen(
                         "dark" -> "Dark"
                         else -> "System Default"
                     },
-                    onClick = { showThemeDialog = true }
+                    onClick = onNavigateToAppearance
                 )
             }
 
@@ -479,30 +441,5 @@ private fun SettingsToggleRow(
             checked = checked,
             onCheckedChange = onCheckedChange
         )
-    }
-}
-
-//  Theme dialog option 
-
-@Composable
-fun ThemeOption(
-    text: String,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .selectable(
-                selected = selected,
-                onClick = onClick,
-                role = Role.RadioButton
-            )
-            .padding(vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        RadioButton(selected = selected, onClick = null)
-        Spacer(modifier = Modifier.width(16.dp))
-        Text(text = text, style = MaterialTheme.typography.bodyLarge)
     }
 }

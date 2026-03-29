@@ -45,6 +45,7 @@ class PreferencesManager(private val context: Context) {
 
         // Theme Settings [ADDED]
         private val APP_THEME_KEY = stringPreferencesKey("app_theme")
+        private val DYNAMIC_COLOR_KEY = booleanPreferencesKey("dynamic_color")
 
         // Reader Settings
         private val READER_SCROLL_MODE_KEY = stringPreferencesKey("reader_scroll_mode")  // "pager" | "webtoon"
@@ -207,6 +208,14 @@ class PreferencesManager(private val context: Context) {
     // Values: "system", "light", "dark"
     val appThemeFlow: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[APP_THEME_KEY] ?: "system"
+    }.distinctUntilChanged()
+
+    suspend fun saveDynamicColor(enabled: Boolean) {
+        context.dataStore.edit { preferences -> preferences[DYNAMIC_COLOR_KEY] = enabled }
+    }
+
+    val dynamicColorFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[DYNAMIC_COLOR_KEY] ?: true
     }.distinctUntilChanged()
 
     // --- Reader Settings ---

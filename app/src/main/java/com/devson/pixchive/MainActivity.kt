@@ -28,6 +28,7 @@ class MainActivity : ComponentActivity() {
             val context = LocalContext.current
             val preferencesManager = remember { PreferencesManager(context) }
             val appTheme by preferencesManager.appThemeFlow.collectAsState(initial = "system")
+            val dynamicColor by preferencesManager.dynamicColorFlow.collectAsState(initial = true)
 
             // Determine if dark theme should be enabled based on preference
             val isDarkTheme = when (appTheme) {
@@ -36,7 +37,7 @@ class MainActivity : ComponentActivity() {
                 else -> isSystemInDarkTheme()
             }
 
-            PixChiveTheme(darkTheme = isDarkTheme) {
+            PixChiveTheme(darkTheme = isDarkTheme, dynamicColor = dynamicColor) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background

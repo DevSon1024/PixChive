@@ -19,6 +19,7 @@ import com.devson.pixchive.ui.screens.FavoritesScreen
 import com.devson.pixchive.ui.reader.ReaderScreen
 import com.devson.pixchive.ui.screens.DeveloperOptionsScreen
 import com.devson.pixchive.ui.screens.LogsScreen
+import com.devson.pixchive.ui.screens.AppearanceSettingsScreen
 import com.devson.pixchive.viewmodel.FolderViewModel
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
@@ -102,7 +103,14 @@ fun NavGraph(
                 onNavigateBack = safeNavigateBack,
                 onNavigateToAbout = { navController.navigate(Screen.About.route) },
                 onNavigateToPrivacyPolicy = { navController.navigate(Screen.PrivacyPolicy.route) },
-                onNavigateToDeveloperOptions = { navController.navigate(Screen.DeveloperOptions.route) }
+                onNavigateToDeveloperOptions = { navController.navigate(Screen.DeveloperOptions.route) },
+                onNavigateToAppearance = { navController.navigate(Screen.AppearanceSettings.route) }
+            )
+        }
+
+        composable(Screen.AppearanceSettings.route) {
+            AppearanceSettingsScreen(
+                onNavigateBack = safeNavigateBack
             )
         }
 

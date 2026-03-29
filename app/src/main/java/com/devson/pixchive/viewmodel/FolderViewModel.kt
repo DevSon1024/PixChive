@@ -44,37 +44,32 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _favoritesSortOption = MutableStateFlow("date_newest")
     val favoritesSortOption: StateFlow<String> = _favoritesSortOption.asStateFlow()
-
-    // --- MAIN DATA FLOW ---
+    
     val chapters: StateFlow<List<Chapter>> = combine(
-        _currentFolder.filterNotNull(),
+        _currentFolder,
         _sortOption,
         preferencesManager.ignoredPathsFlow
     ) { folder, sort, ignoredPaths ->
-        // Observe DB
-        imageDao.getImagesFlow(folder.id)
-            // 1. DEBOUNCE: Wait 250ms for burst inserts to settle before processing
-            // This drastically reduces how often we re-sort the list during scanning
-            .debounce(250)
-            .map { entities ->
-                // 2. HEAVY COMPUTATION: Grouping and sorting
-                val grouped = entities.groupBy { it.parentFolderPath }
-                    .filter { (path, _) -> !ignoredPaths.contains(path) }
-
-                val chapterList = grouped.map { (path, images) ->
-                    Chapter(
-                        name = images.first().parentFolderName,
-                        path = path,
-                        imageCount = images.size,
-                        images = sortImages(images, sort)
-                    )
+        if (folder == null) {
+            flowOf(emptyList())
+        } else {
+            imageDao.getImagesFlow(folder.id)
+                .debounce(250)
+                .map { entities ->
+                    val grouped = entities.groupBy { it.parentFolderPath }
+                        .filter { (path, _) -> !ignoredPaths.contains(path) }
+                    val chapterList = grouped.map { (path, images) ->
+                        Chapter(
+                            name = images.first().parentFolderName,
+                            path = path,
+                            imageCount = images.size,
+                            images = sortImages(images, sort)
+                        )
+                    }
+                    sortChapters(chapterList, sort)
                 }
-                // Heavy Sort #2
-                sortChapters(chapterList, sort)
-            }
-            // 3. OFFLOAD: Move all the map/sort logic above to the Default (CPU) dispatcher
-            // This frees up the Main Thread to handle touch events, preventing ANR.
-            .flowOn(Dispatchers.Default)
+                .flowOn(Dispatchers.Default)
+        }
     }.flatMapLatest { it }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -305,11 +300,16 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
         if (folderId == "favorites") return
         
         if (_currentFolder.value?.id != folderId) {
-            _currentFolder.value = null
-            _isLoading.value = true
-        } else if (chapters.value.isEmpty()) {
-            _isLoading.value = true
-        }
+        _currentFolder.value = null
+        _isLoading.value = true
+        // clear scroll state so new folder starts at top
+        _flatScrollIndex.value = 0
+        _flatScrollOffset.value = 0
+        _allFoldersScrollIndex.value = 0
+        _allFoldersScrollOffset.value = 0
+    } else if (chapters.value.isEmpty()) {
+        _isLoading.value = true
+    }
 
         scanJob?.cancel()
 

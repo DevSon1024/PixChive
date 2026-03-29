@@ -85,7 +85,8 @@ fun FolderViewScreen(
         }
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-            val isStaleState = currentFolder?.id != folderId
+            val isStaleState = currentFolder?.id != folderId || 
+                   (currentFolder != null && isLoading)
 
             if (isLoading || isStaleState) {
                 // Show skeleton while loadFolder is running

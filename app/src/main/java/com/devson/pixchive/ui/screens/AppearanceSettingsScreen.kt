@@ -59,7 +59,7 @@ fun AppearanceSettingsScreen(
             text = {
                 Column(modifier = Modifier.selectableGroup()) {
                     ThemeOption(
-                        text = "Off",
+                        text = "Light",
                         selected = appTheme == "light",
                         onClick = {
                             scope.launch { preferencesManager.saveAppTheme("light") }
@@ -67,7 +67,7 @@ fun AppearanceSettingsScreen(
                         }
                     )
                     ThemeOption(
-                        text = "On",
+                        text = "Dark",
                         selected = appTheme == "dark",
                         onClick = {
                             scope.launch { preferencesManager.saveAppTheme("dark") }
@@ -75,7 +75,7 @@ fun AppearanceSettingsScreen(
                         }
                     )
                     ThemeOption(
-                        text = "Use system setting",
+                        text = "System",
                         selected = appTheme == "system",
                         onClick = {
                             scope.launch { preferencesManager.saveAppTheme("system") }
@@ -93,7 +93,7 @@ fun AppearanceSettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Appearance") },
+                title = { Text("Display") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -109,23 +109,6 @@ fun AppearanceSettingsScreen(
                 .padding(paddingValues)
                 .padding(horizontal = 20.dp)
         ) {
-            Text(
-                text = "Display",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(vertical = 16.dp)
-            )
-
-            // Preview Card
-            PreviewCard()
-
-            Spacer(Modifier.height(24.dp))
-
-            // Theme presets row (Mocking the color circles from the image)
-            ThemePresetsRow()
-
-            Spacer(Modifier.height(32.dp))
-
             // Dynamic color toggle
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 AppearanceToggleRow(
@@ -143,8 +126,8 @@ fun AppearanceSettingsScreen(
                 icon = Icons.Default.DarkMode,
                 title = "Dark theme",
                 subtitle = when (appTheme) {
-                    "light" -> "Off"
-                    "dark" -> "On"
+                    "light" -> "Light"
+                    "dark" -> "Dark"
                     else -> "System"
                 },
                 onClick = { showThemeDialog = true }
@@ -153,7 +136,7 @@ fun AppearanceSettingsScreen(
             AppearanceRow(
                 icon = Icons.Default.Language,
                 title = "Display language",
-                subtitle = "System",
+                subtitle = "*Work in Progress on this for now English is Default*",
                 onClick = { /* Handle language selection if implemented */ }
             )
 
@@ -162,156 +145,6 @@ fun AppearanceSettingsScreen(
     }
 }
 
-@Composable
-private fun PreviewCard() {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        tonalElevation = 2.dp
-    ) {
-        Column {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(180.dp)
-                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.primaryContainer,
-                                MaterialTheme.colorScheme.secondaryContainer
-                            )
-                        )
-                    )
-            ) {
-                // Mock image content
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.ColorLens,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-                    )
-                }
-
-                // Duration tag
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(8.dp),
-                    color = Color.Black.copy(alpha = 0.7f),
-                    shape = RoundedCornerShape(4.dp)
-                ) {
-                    Text(
-                        text = "69.00 M | 05:59",
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        fontSize = 10.sp
-                    )
-                }
-            }
-
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "Video title sample text",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "Video creator sample text",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ThemePresetsRow() {
-    val presets = listOf(
-        listOf(Color(0xFFE1BEE7), Color(0xFFD1C4E9), Color(0xFFC5CAE9), Color(0xFFBBDEFB)), // Multi-color
-        listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.primary), // Current theme
-        listOf(Color(0xFFBBDEFB), Color(0xFF90CAF9)), // Blue
-        listOf(Color(0xFFC8E6C9), Color(0xFFA5D6A7)), // Green
-    )
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        presets.forEachIndexed { index, colors ->
-            ThemePresetCircle(colors = colors, isSelected = index == 1)
-        }
-    }
-
-    // Pager indicators (Mocked)
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 16.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        repeat(8) { i ->
-            Box(
-                modifier = Modifier
-                    .padding(horizontal = 3.dp)
-                    .size(if (i == 4) 6.dp else 4.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (i == 4) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                    )
-            )
-        }
-    }
-}
-
-@Composable
-private fun ThemePresetCircle(colors: List<Color>, isSelected: Boolean) {
-    Box(
-        modifier = Modifier
-            .size(64.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-            .clickable { /* Handle preset selection */ },
-        contentAlignment = Alignment.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(
-                    if (colors.size > 1) {
-                        Brush.sweepGradient(colors)
-                    } else {
-                        Brush.linearGradient(listOf(colors[0], colors[0]))
-                    }
-                )
-                .border(2.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f), CircleShape)
-        ) {
-            if (isSelected) {
-                Icon(
-                    Icons.Default.Check,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(24.dp)
-                        .align(Alignment.Center),
-                    tint = Color.White
-                )
-            }
-        }
-    }
-}
 
 @Composable
 private fun AppearanceRow(

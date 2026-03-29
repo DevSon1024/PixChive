@@ -146,12 +146,8 @@ fun SettingsScreen(
             SettingsCard {
                 SettingsRow(
                     icon = Icons.Default.Palette,
-                    title = "Theme",
-                    subtitle = when (appTheme) {
-                        "light" -> "Light"
-                        "dark" -> "Dark"
-                        else -> "System Default"
-                    },
+                    title = "Display",
+                    subtitle = "Theme, language, and more",
                     onClick = onNavigateToAppearance
                 )
             }
@@ -164,7 +160,7 @@ fun SettingsScreen(
                 SettingsToggleRow(
                     icon = Icons.AutoMirrored.Filled.VolumeUp,
                     title = "Volume button use",
-                    subtitle = "Use volume buttons to navigate pages",
+                    subtitle = "Use volume buttons to navigate pages by toggle ON",
                     checked = volumeKeysNavigation,
                     onCheckedChange = { checked ->
                         scope.launch { preferencesManager.setVolumeKeysNavigation(checked) }

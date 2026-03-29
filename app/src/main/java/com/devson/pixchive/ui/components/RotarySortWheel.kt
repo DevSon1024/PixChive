@@ -3,6 +3,7 @@ package com.devson.pixchive.ui.components
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -52,7 +53,7 @@ fun formatSortField(field: SortField): String {
 
 fun getSortDirectionLabels(field: SortField): Pair<String, String> {
     return when (field) {
-        SortField.TITLE -> "A to Z" to "Z to A"
+        SortField.TITLE -> "A → Z" to "Z → A"
         SortField.DATE -> "Oldest" to "Newest"
         SortField.SIZE -> "Smallest" to "Largest"
         SortField.RESOLUTION -> "Lowest" to "Highest"
@@ -108,7 +109,7 @@ fun RotarySortWheelDialog(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.4f))
+                .background(Color.Black.copy(alpha = 0.6f))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -116,7 +117,6 @@ fun RotarySortWheelDialog(
                 ),
             contentAlignment = Alignment.Center
         ) {
-            // Prevent click-through to backdrop from the wheel
             Box(
                 modifier = Modifier
                     .clickable(
@@ -127,8 +127,16 @@ fun RotarySortWheelDialog(
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
+                    // Title label above wheel
+                    Text(
+                        text = "Sort By",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White.copy(alpha = 0.85f),
+                        fontWeight = FontWeight.SemiBold
+                    )
+
                     RotarySortWheel(
                         currentSortField = currentSortField,
                         sortDirection = sortDirection,
@@ -136,23 +144,34 @@ fun RotarySortWheelDialog(
                         onSortOrderToggled = onSortOrderToggled
                     )
 
-                    // Selected field label below wheel
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    // Bottom info card — properly visible on any background
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        tonalElevation = 4.dp,
+                        shadowElevation = 4.dp,
+                        modifier = Modifier.widthIn(min = 180.dp)
                     ) {
-                        Text(
-                            text = formatSortField(currentSortField),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        val dirLabels = getSortDirectionLabels(currentSortField)
-                        Text(
-                            text = if (sortDirection == SortDirection.ASCENDING) dirLabels.first else dirLabels.second,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
+                        ) {
+                            val dirLabels = getSortDirectionLabels(currentSortField)
+                            Text(
+                                text = formatSortField(currentSortField),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = if (sortDirection == SortDirection.ASCENDING)
+                                    dirLabels.first else dirLabels.second,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                 }
             }
@@ -175,26 +194,27 @@ fun RotarySortWheel(
     val rotationAngle = remember { Animatable(-(initialSelectedIndex * anglePerItem)) }
     val coroutineScope = rememberCoroutineScope()
 
-    val wheelDiameterDp = 280.dp // Slightly larger to accommodate more items (6 total)
-    val radiusDp = 95.dp
+    // Slightly larger wheel for comfortable touch targets
+    val wheelDiameterDp = 300.dp
+    val radiusDp = 102.dp
     val density = LocalDensity.current
     val radiusPx = with(density) { radiusDp.toPx() }
 
-    // Outer wheel ring
     Box(
         modifier = Modifier
             .size(wheelDiameterDp)
             .shadow(
-                elevation = 8.dp,
+                elevation = 12.dp,
                 shape = CircleShape,
                 ambientColor = MaterialTheme.colorScheme.primary,
                 spotColor = MaterialTheme.colorScheme.primary
             )
             .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+            // More opaque ring so it's clearly visible on the dark scrim
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.95f))
             .border(
                 width = 2.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
                 shape = CircleShape
             )
             .pointerInput(Unit) {
@@ -242,13 +262,18 @@ fun RotarySortWheel(
             },
         contentAlignment = Alignment.Center
     ) {
-        // Top indicator dot
+        // Top pointer indicator — triangle for clear directionality
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 10.dp)
-                .size(6.dp)
-                .clip(CircleShape)
+                .padding(top = 8.dp)
+                .size(width = 12.dp, height = 10.dp)
+                .clip(
+                    RoundedCornerShape(
+                        topStart = 2.dp, topEnd = 2.dp,
+                        bottomStart = 6.dp, bottomEnd = 6.dp
+                    )
+                )
                 .background(MaterialTheme.colorScheme.primary)
         )
 
@@ -262,14 +287,8 @@ fun RotarySortWheel(
 
             val isSelected = field == currentSortField
 
-            val labelAlpha by animateFloatAsState(
-                targetValue = if (isSelected) 1f else 0.8f,
-                animationSpec = spring(),
-                label = "labelAlpha_$index"
-            )
-
             val scale by animateFloatAsState(
-                targetValue = if (isSelected) 1.15f else 0.95f,
+                targetValue = if (isSelected) 1.18f else 0.92f,
                 animationSpec = spring(dampingRatio = 0.6f, stiffness = 200f),
                 label = "scale_$index"
             )
@@ -281,25 +300,23 @@ fun RotarySortWheel(
                         y = with(density) { yOffset.toDp() }
                     )
                     .scale(scale)
+                    // Larger minimum touch target for comfort
+                    .defaultMinSize(minWidth = 60.dp, minHeight = 36.dp)
                     .then(
                         if (isSelected) {
                             Modifier
-                                .shadow(4.dp, RoundedCornerShape(20.dp))
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(MaterialTheme.colorScheme.primaryContainer)
-                                .border(
-                                    width = 1.5.dp,
-                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                                    shape = RoundedCornerShape(20.dp)
-                                )
+                                .shadow(6.dp, RoundedCornerShape(24.dp))
+                                .clip(RoundedCornerShape(24.dp))
+                                // Use primary directly for stronger selected contrast
+                                .background(MaterialTheme.colorScheme.primary)
                         } else {
                             Modifier
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(MaterialTheme.colorScheme.surfaceContainerLow)
                                 .border(
                                     width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                                    shape = RoundedCornerShape(20.dp)
+                                    color = MaterialTheme.colorScheme.outlineVariant,
+                                    shape = RoundedCornerShape(24.dp)
                                 )
                         }
                     )
@@ -314,7 +331,6 @@ fun RotarySortWheel(
                         if (indexDiff > itemCount / 2) indexDiff -= itemCount
                         if (indexDiff < -itemCount / 2) indexDiff += itemCount
                         val targetRawIndex = currentRawIndex + indexDiff
-                        
                         coroutineScope.launch {
                             rotationAngle.animateTo(
                                 targetValue = -(targetRawIndex * anglePerItem),
@@ -322,51 +338,49 @@ fun RotarySortWheel(
                             )
                         }
                     }
-                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = formatSortField(field),
+                    // onPrimary for selected (white on primary colour), high-contrast unselected
                     color = if (isSelected)
-                        MaterialTheme.colorScheme.onPrimaryContainer
+                        MaterialTheme.colorScheme.onPrimary
                     else
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = labelAlpha),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
+                        MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    fontSize = 15.sp
                 )
             }
         }
 
-        // Center hub
-        Box(
-            modifier = Modifier
-                .size(110.dp)
-                .shadow(
-                    elevation = 12.dp,
-                    shape = CircleShape,
-                )
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surface)
-                .border(
-                    width = 2.dp,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                    shape = CircleShape
-                ),
-            contentAlignment = Alignment.Center
+        // Center hub — tonal surface so it stands out from the ring
+        Surface(
+            modifier = Modifier.size(118.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            tonalElevation = 8.dp,
+            shadowElevation = 12.dp,
+            border = BorderStroke(
+                width = 2.dp,
+                color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.35f)
+            )
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(horizontal = 4.dp)
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 6.dp, vertical = 8.dp)
             ) {
                 val dirLabels = getSortDirectionLabels(currentSortField)
-                
                 SortOrderButton(
                     label = dirLabels.first,
                     icon = Icons.Outlined.KeyboardArrowUp,
                     isActive = sortDirection == SortDirection.ASCENDING,
                     onClick = { onSortOrderToggled(SortDirection.ASCENDING) }
                 )
+                Spacer(modifier = Modifier.height(6.dp))
                 SortOrderButton(
                     label = dirLabels.second,
                     icon = Icons.Outlined.KeyboardArrowDown,
@@ -385,37 +399,48 @@ private fun SortOrderButton(
     isActive: Boolean,
     onClick: () -> Unit
 ) {
-    val iconAlpha by animateFloatAsState(
-        targetValue = if (isActive) 1f else 0.45f,
+    val contentAlpha by animateFloatAsState(
+        targetValue = if (isActive) 1f else 0.4f,
         animationSpec = spring(),
-        label = "iconAlpha_$label"
+        label = "alpha_$label"
     )
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
         modifier = Modifier
-            .fillMaxWidth(0.9f)
-            .clip(RoundedCornerShape(8.dp))
+            .fillMaxWidth(0.88f)
+            .clip(RoundedCornerShape(10.dp))
             .then(
-                if (isActive) Modifier.background(MaterialTheme.colorScheme.secondaryContainer)
-                else Modifier
+                if (isActive)
+                    Modifier.background(MaterialTheme.colorScheme.secondary)
+                else
+                    Modifier.background(
+                        MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.08f)
+                    )
             )
             .clickable(onClick = onClick)
-            .padding(horizontal = 4.dp, vertical = 6.dp)
+            // Taller hit area for easier tapping
+            .padding(horizontal = 6.dp, vertical = 7.dp)
     ) {
         Icon(
             imageVector = icon,
             contentDescription = label,
-            tint = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = iconAlpha),
-            modifier = Modifier.size(16.dp)
+            tint = if (isActive)
+                MaterialTheme.colorScheme.onSecondary
+            else
+                MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = contentAlpha),
+            modifier = Modifier.size(18.dp)
         )
         Spacer(modifier = Modifier.width(4.dp))
         Text(
             text = label,
-            fontSize = 11.sp,
-            color = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = iconAlpha),
-            fontWeight = if (isActive) FontWeight.Medium else FontWeight.Normal,
+            fontSize = 12.sp,
+            color = if (isActive)
+                MaterialTheme.colorScheme.onSecondary
+            else
+                MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = contentAlpha),
+            fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
             maxLines = 1
         )
     }

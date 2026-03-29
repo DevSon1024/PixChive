@@ -112,7 +112,7 @@ class PreferencesManager(private val context: Context) {
     }
 
     val viewModeFlow: Flow<String> = context.dataStore.data.map { preferences ->
-        preferences[VIEW_MODE_KEY] ?: "explorer"
+        preferences[VIEW_MODE_KEY] ?: "all_folders"
     }.distinctUntilChanged()
 
     suspend fun saveLayoutMode(mode: String) {

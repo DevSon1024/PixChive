@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 fun ViewSettingsBottomSheet(
     onDismiss: () -> Unit,
     // State
-    viewMode: String? = null, // "all_folders", "explorer", "flat" (null to hide)
+    viewMode: String? = null, // "all_folders", "flat" (null to hide)
     layoutMode: String, // "grid", "list"
     gridColumns: Int,
     sortOption: String? = null, // null to hide sort section
@@ -70,13 +70,6 @@ fun ViewSettingsBottomSheet(
                         title = "All Folders",
                         icon = Icons.Default.FolderCopy,
                         onClick = { onViewModeChange("all_folders") },
-                        modifier = Modifier.weight(1f)
-                    )
-                    SelectionCard(
-                        selected = viewMode == "explorer",
-                        title = "Explorer",
-                        icon = Icons.Default.FolderOpen,
-                        onClick = { onViewModeChange("explorer") },
                         modifier = Modifier.weight(1f)
                     )
                     SelectionCard(
@@ -141,7 +134,7 @@ fun ViewSettingsBottomSheet(
                     value = gridColumns.toFloat(),
                     onValueChange = { onGridColumnsChange(it.toInt()) },
                     valueRange = 1f..6f,
-                    steps = 4, // 1 to 6
+                    steps = 4,
                     colors = SliderDefaults.colors(
                         thumbColor = MaterialTheme.colorScheme.primary,
                         activeTrackColor = MaterialTheme.colorScheme.primary,

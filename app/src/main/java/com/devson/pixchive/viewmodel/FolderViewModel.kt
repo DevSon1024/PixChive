@@ -183,19 +183,19 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     val flatScrollIndex:  StateFlow<Int> = _flatScrollIndex.asStateFlow()
     val flatScrollOffset: StateFlow<Int> = _flatScrollOffset.asStateFlow()
 
-    private val _explorerScrollIndex  = MutableStateFlow(0)
-    private val _explorerScrollOffset = MutableStateFlow(0)
-    val explorerScrollIndex:  StateFlow<Int> = _explorerScrollIndex.asStateFlow()
-    val explorerScrollOffset: StateFlow<Int> = _explorerScrollOffset.asStateFlow()
+    private val _allFoldersScrollIndex  = MutableStateFlow(0)
+    private val _allFoldersScrollOffset = MutableStateFlow(0)
+    val allFoldersScrollIndex:  StateFlow<Int> = _allFoldersScrollIndex.asStateFlow()
+    val allFoldersScrollOffset: StateFlow<Int> = _allFoldersScrollOffset.asStateFlow()
 
     fun saveFlatScrollPosition(index: Int, offset: Int) {
         _flatScrollIndex.value  = index
         _flatScrollOffset.value = offset
     }
 
-    fun saveExplorerScrollPosition(index: Int, offset: Int) {
-        _explorerScrollIndex.value  = index
-        _explorerScrollOffset.value = offset
+    fun saveAllFoldersScrollPosition(index: Int, offset: Int) {
+        _allFoldersScrollIndex.value  = index
+        _allFoldersScrollOffset.value = offset
     }
 
     private fun favoriteOrderBy(sort: String) = when (sort) {
@@ -227,7 +227,7 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
-    private val _viewMode = MutableStateFlow("explorer")
+    private val _viewMode = MutableStateFlow("all_folders")
     val viewMode: StateFlow<String> = _viewMode.asStateFlow()
 
     private val _layoutMode = MutableStateFlow("grid")

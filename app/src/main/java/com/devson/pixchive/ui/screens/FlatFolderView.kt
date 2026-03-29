@@ -27,9 +27,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
  *
  * Flow collection happens HERE, inside the composable, so Compose automatically
  * cancels the [FolderViewModel.flatImages] paging collection the moment this
- * composable leaves the composition (i.e. when the user switches to Explorer mode).
+ * composable leaves the composition (i.e. when the user switches to All_Folders mode).
  *
- * This prevents the Pager from loading pages in the background while the Explorer
+ * This prevents the Pager from loading pages in the background while the All_Folders
  * view is active, saving both RAM and CPU.
  */
 @Composable

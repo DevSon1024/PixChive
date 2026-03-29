@@ -38,8 +38,8 @@ fun FolderViewScreen(
     // Scroll position restoration (plain Int state - no heavy flow work)
     val flatScrollIndex       by viewModel.flatScrollIndex.collectAsState()
     val flatScrollOffset      by viewModel.flatScrollOffset.collectAsState()
-    val explorerScrollIndex   by viewModel.explorerScrollIndex.collectAsState()
-    val explorerScrollOffset  by viewModel.explorerScrollOffset.collectAsState()
+    val allFoldersScrollIndex   by viewModel.allFoldersScrollIndex.collectAsState()
+    val allFoldersScrollOffset  by viewModel.allFoldersScrollOffset.collectAsState()
 
     var showDisplayOptions by remember { mutableStateOf(false) }
 
@@ -108,15 +108,15 @@ fun FolderViewScreen(
                         onImageClick = onImageClick,
                         viewModel = viewModel
                     )
-                    else -> ExplorerFolderView(
+                    else -> AllFoldersView(
                         folderId = folderId,
                         layoutMode = layoutMode,
                         gridColumns = gridColumns,
                         isLoading = isLoading,
                         readProgressMap = readProgressMap,
-                        initialScrollIndex = explorerScrollIndex,
-                        initialScrollOffset = explorerScrollOffset,
-                        onSaveScroll = { idx, off -> viewModel.saveExplorerScrollPosition(idx, off) },
+                        initialScrollIndex = allFoldersScrollIndex,
+                        initialScrollOffset = allFoldersScrollOffset,
+                        onSaveScroll = { idx, off -> viewModel.saveAllFoldersScrollPosition(idx, off) },
                         onChapterClick = onChapterClick,
                         viewModel = viewModel
                     )

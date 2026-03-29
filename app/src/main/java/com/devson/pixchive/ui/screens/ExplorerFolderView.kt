@@ -39,7 +39,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import java.io.File
 
 @Composable
-fun ExplorerFolderView(
+fun AllFoldersView(
     folderId: String,
     layoutMode: String,
     gridColumns: Int,

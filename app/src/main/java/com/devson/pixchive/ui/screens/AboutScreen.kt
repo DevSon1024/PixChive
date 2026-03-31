@@ -14,7 +14,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -160,10 +162,7 @@ private val categoryColors = listOf(
     Color(0xFF004BA1), // blue
 )
 
-// ---------------------------------------------------------------------------
 // Helpers
-// ---------------------------------------------------------------------------
-
 private fun categoryColor(category: String): Color {
     return categoryColors[Math.abs(category.hashCode()) % categoryColors.size]
 }
@@ -177,7 +176,44 @@ private fun categoryColor(category: String): Color {
 fun AboutScreen(
     onNavigateBack: () -> Unit
 ) {
+    var showCredits by remember { mutableStateOf(false) }
+
+    if (showCredits) {
+        CreditsScreen(onNavigateBack = { showCredits = false })
+    } else {
+        MainAboutScreen(
+            onNavigateBack = onNavigateBack,
+            onShowCredits = { showCredits = true }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MainAboutScreen(
+    onNavigateBack: () -> Unit,
+    onShowCredits: () -> Unit
+) {
     val context = LocalContext.current
+    val packageInfo = remember {
+        try {
+            context.packageManager.getPackageInfo(context.packageName, 0)
+        } catch (e: Exception) {
+            null
+        }
+    }
+    val versionName = packageInfo?.versionName ?: "Unknown"
+    val versionCode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+        packageInfo?.longVersionCode?.toString() ?: "Unknown"
+    } else {
+        @Suppress("DEPRECATION")
+        packageInfo?.versionCode?.toString() ?: "Unknown"
+    }
+    
+    val androidVersion = android.os.Build.VERSION.RELEASE
+    val apiLevel = android.os.Build.VERSION.SDK_INT
+    val abis = android.os.Build.SUPPORTED_ABIS.joinToString(", ")
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -199,9 +235,6 @@ fun AboutScreen(
                 .padding(paddingValues),
             contentPadding = PaddingValues(bottom = 32.dp)
         ) {
-            // ----------------------------------------------------------------
-            // Developer / Links section
-            // ----------------------------------------------------------------
             item {
                 DeveloperSection(
                     onLinkClick = { url ->
@@ -210,9 +243,100 @@ fun AboutScreen(
                 )
             }
 
-            // ----------------------------------------------------------------
-            // Open-source libraries header
-            // ----------------------------------------------------------------
+            item {
+                Column(modifier = Modifier.padding(top = 8.dp)) {
+                    AboutActionItem(
+                        icon = Icons.Default.Info,
+                        title = "App Version $versionName ($versionCode)",
+                        subtitle = "Device Information: Android $androidVersion (API $apiLevel)\nSupported ABIs: [$abis]",
+                        onClick = {}
+                    )
+                    
+                    AboutActionItem(
+                        icon = Icons.AutoMirrored.Filled.List,
+                        title = "Readme",
+                        subtitle = "Check the GitHub repository and the readme",
+                        onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/DevSon1024/pixchive/blob/main/README.md"))) }
+                    )
+                    
+                    AboutActionItem(
+                        icon = Icons.Default.Star,
+                        title = "Latest Release",
+                        subtitle = "Look for changelogs and new versions",
+                        onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/DevSon1024/pixchive/releases/latest"))) }
+                    )
+                    
+                    AboutActionItem(
+                        icon = Icons.Default.Build,
+                        title = "Github Issue",
+                        subtitle = "Submit an issue for bug report or feature request",
+                        onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/DevSon1024/pixchive/issues/new"))) }
+                    )
+                    
+                    AboutActionItem(
+                        icon = Icons.Default.Favorite,
+                        title = "Sponsor",
+                        subtitle = "Support this app by sponsoring on github [coming soon]",
+                        onClick = {}
+                    )
+
+                    AboutActionItem(
+                        icon = Icons.AutoMirrored.Filled.Send,
+                        title = "Telegram channel",
+                        subtitle = "https://t.me/pixchive",
+                        onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/pixchive"))) }
+                    )
+                    
+                    AboutActionItem(
+                        icon = Icons.Default.Code,
+                        title = "Credits",
+                        subtitle = "Open source libraries used in this project",
+                        onClick = onShowCredits
+                    )
+                    
+                    AboutActionItem(
+                        icon = Icons.Default.Sync,
+                        title = "Auto Update",
+                        subtitle = "Coming Soon",
+                        onClick = {}
+                    )
+                }
+            }
+
+            item {
+                FooterSection()
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CreditsScreen(
+    onNavigateBack: () -> Unit
+) {
+    val context = LocalContext.current
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Credits") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            )
+        }
+    ) { paddingValues ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues),
+            contentPadding = PaddingValues(bottom = 32.dp)
+        ) {
             item {
                 Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                     Spacer(Modifier.height(4.dp))
@@ -232,9 +356,6 @@ fun AboutScreen(
                 }
             }
 
-            // ----------------------------------------------------------------
-            // Library cards
-            // ----------------------------------------------------------------
             items(openSourceLibraries) { library ->
                 LibraryCard(
                     library = library,
@@ -243,21 +364,47 @@ fun AboutScreen(
                     }
                 )
             }
-
-            // ----------------------------------------------------------------
-            // Footer
-            // ----------------------------------------------------------------
-            item {
-                FooterSection()
-            }
         }
     }
 }
 
-// ---------------------------------------------------------------------------
-// Developer section
-// ---------------------------------------------------------------------------
+@Composable
+private fun AboutActionItem(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(24.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Spacer(Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
 
+// Developer section
 @Composable
 private fun DeveloperSection(onLinkClick: (String) -> Unit) {
     Column(
@@ -385,10 +532,7 @@ private fun LinkRow(
     }
 }
 
-// ---------------------------------------------------------------------------
 // Library card
-// ---------------------------------------------------------------------------
-
 @Composable
 private fun LibraryCard(
     library: OpenSourceLibrary,
@@ -534,10 +678,7 @@ private fun LibraryCard(
     }
 }
 
-// ---------------------------------------------------------------------------
 // Footer
-// ---------------------------------------------------------------------------
-
 @Composable
 private fun FooterSection() {
     Column(
@@ -562,9 +703,6 @@ private fun FooterSection() {
     }
 }
 
-// ---------------------------------------------------------------------------
 // Brush extension helper (linear gradient for Box)
-// ---------------------------------------------------------------------------
-
 private fun Brush.Companion.linearGradientBrush(colors: List<Color>) =
     linearGradient(colors)

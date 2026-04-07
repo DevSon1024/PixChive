@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
+import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
@@ -24,7 +25,6 @@ import com.devson.pixchive.ui.components.ViewSettingsBottomSheet
 import com.devson.pixchive.ui.components.EmptyFavoritesView
 import com.devson.pixchive.ui.components.ImageGridItem
 import com.devson.pixchive.ui.components.ImageListItem
-// import com.devson.pixchive.ui.components.VerticalFastScroller <-- REMOVED
 import com.devson.pixchive.viewmodel.FolderViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -37,7 +37,6 @@ fun FavoritesScreen(
     val folderId = "favorites"
 
     val lazyImages = viewModel.favoriteImages.collectAsLazyPagingItems()
-    val isLoading by viewModel.isLoading.collectAsState()
 
     val layoutMode by viewModel.layoutMode.collectAsState()
     val gridColumns by viewModel.gridColumns.collectAsState()
@@ -64,10 +63,10 @@ fun FavoritesScreen(
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             when {
-                isLoading && lazyImages.itemCount == 0 -> {
+                lazyImages.loadState.refresh is LoadState.Loading && lazyImages.itemCount == 0 -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
-                lazyImages.itemCount == 0 -> {
+                lazyImages.itemCount == 0 && lazyImages.loadState.refresh is LoadState.NotLoading -> {
                     EmptyFavoritesView()
                 }
                 else -> {

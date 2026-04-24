@@ -46,6 +46,8 @@ class PreferencesManager(private val context: Context) {
         // Theme Settings [ADDED]
         private val APP_THEME_KEY = stringPreferencesKey("app_theme")
         private val DYNAMIC_COLOR_KEY = booleanPreferencesKey("dynamic_color")
+        private val SELECTED_PALETTE_KEY = stringPreferencesKey("selected_palette")
+        private val NAV_BAR_TRANSPARENT_KEY = booleanPreferencesKey("nav_bar_transparent")
 
         // Reader Settings
         private val READER_SCROLL_MODE_KEY = stringPreferencesKey("reader_scroll_mode")  // "pager" | "webtoon"
@@ -216,6 +218,22 @@ class PreferencesManager(private val context: Context) {
 
     val dynamicColorFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[DYNAMIC_COLOR_KEY] ?: true
+    }.distinctUntilChanged()
+
+    suspend fun saveSelectedPalette(palette: String) {
+        context.dataStore.edit { preferences -> preferences[SELECTED_PALETTE_KEY] = palette }
+    }
+
+    val selectedPaletteFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[SELECTED_PALETTE_KEY] ?: "BLUE"
+    }.distinctUntilChanged()
+
+    suspend fun saveNavBarTransparent(transparent: Boolean) {
+        context.dataStore.edit { preferences -> preferences[NAV_BAR_TRANSPARENT_KEY] = transparent }
+    }
+
+    val navBarTransparentFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[NAV_BAR_TRANSPARENT_KEY] ?: false
     }.distinctUntilChanged()
 
     // --- Reader Settings ---

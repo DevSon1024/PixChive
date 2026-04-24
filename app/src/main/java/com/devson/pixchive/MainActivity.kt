@@ -17,7 +17,8 @@ import androidx.core.view.WindowCompat
 import androidx.navigation.compose.rememberNavController
 import com.devson.pixchive.data.PreferencesManager
 import com.devson.pixchive.navigation.NavGraph
-import com.devson.pixchive.ui.theme.PixChiveTheme
+import com.devson.pixchive.ui.theme.AppThemePalette
+import com.devson.pixchive.ui.theme.PixchiveTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -29,15 +30,23 @@ class MainActivity : ComponentActivity() {
             val preferencesManager = remember { PreferencesManager(context) }
             val appTheme by preferencesManager.appThemeFlow.collectAsState(initial = "system")
             val dynamicColor by preferencesManager.dynamicColorFlow.collectAsState(initial = true)
+            val selectedPaletteStr by preferencesManager.selectedPaletteFlow.collectAsState(initial = "BLUE")
+            val selectedPalette = try { AppThemePalette.valueOf(selectedPaletteStr) } catch(e: Exception) { AppThemePalette.BLUE }
+            val isNavBarTransparent by preferencesManager.navBarTransparentFlow.collectAsState(initial = false)
 
             // Determine if dark theme should be enabled based on preference
             val isDarkTheme = when (appTheme) {
                 "light" -> false
                 "dark" -> true
-                else -> isSystemInDarkTheme()
+                else -> null
             }
 
-            PixChiveTheme(darkTheme = isDarkTheme, dynamicColor = dynamicColor) {
+            PixchiveTheme(
+                forceDark = isDarkTheme,
+                dynamicColor = dynamicColor,
+                palette = selectedPalette,
+                isNavBarTransparent = isNavBarTransparent
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background

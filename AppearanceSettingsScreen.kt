@@ -1,4 +1,4 @@
-package com.devson.pixchive.ui.screens
+package com.devson.nosvedplayer.ui.screens.settings
 
 import android.os.Build
 import androidx.compose.animation.animateColorAsState
@@ -36,10 +36,10 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
-import com.devson.pixchive.R
-import com.devson.pixchive.ui.theme.AppThemePalette
-import com.devson.pixchive.ui.theme.*
-import com.devson.pixchive.viewmodel.SettingsViewModel
+import com.devson.nosvedplayer.R
+import com.devson.nosvedplayer.ui.theme.AppThemePalette
+import com.devson.nosvedplayer.ui.theme.*
+import com.devson.nosvedplayer.viewmodel.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -637,3 +637,4 @@ private fun ThemeOption(
         RadioButton(selected = selected, onClick = null)
     }
 }
+

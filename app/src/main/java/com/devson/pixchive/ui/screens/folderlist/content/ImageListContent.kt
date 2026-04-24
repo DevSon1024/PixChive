@@ -14,15 +14,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
-import com.devson.pixchive.data.ComicFolder
 import com.devson.pixchive.data.local.ImageEntity
-import com.devson.pixchive.ui.screens.folderlist.folder.FolderGridItem
-import com.devson.pixchive.ui.screens.folderlist.folder.FolderListItem
+import com.devson.pixchive.ui.components.EmptyImagesView
 import com.devson.pixchive.ui.screens.folderlist.image.SelectableImageGridItem
 import com.devson.pixchive.ui.screens.folderlist.image.SelectableImageListItem
 import com.devson.pixchive.ui.screens.folderlist.model.LayoutMode
@@ -30,15 +27,10 @@ import com.devson.pixchive.ui.screens.folderlist.model.ViewSettings
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ExplorerListContent(
-    folders: List<ComicFolder>,
+fun ImageListContent(
     images: List<ImageEntity>,
-    allImagesForSize: List<ImageEntity>,
     settings: ViewSettings,
-    selectedFolders: Set<ComicFolder>,
     selectedImages: Set<ImageEntity>,
-    onFolderClick: (ComicFolder) -> Unit,
-    onFolderLongClick: (ComicFolder) -> Unit,
     onImageClick: (ImageEntity) -> Unit,
     onImageLongClick: (ImageEntity) -> Unit,
     listState: LazyListState = rememberLazyListState(),
@@ -47,6 +39,11 @@ fun ExplorerListContent(
 ) {
     val haptic = LocalHapticFeedback.current
 
+    if (images.isEmpty()) {
+        EmptyImagesView()
+        return
+    }
+
     if (settings.layoutMode == LayoutMode.GRID) {
         LazyVerticalGrid(
             columns = GridCells.Fixed(settings.gridColumns),
@@ -54,27 +51,13 @@ fun ExplorerListContent(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
                 start = 8.dp,
-                end = 8.dp,
                 top = contentPadding.calculateTopPadding() + 8.dp,
-                bottom = contentPadding.calculateBottomPadding() + 8.dp
+                end = 8.dp,
+                bottom = contentPadding.calculateBottomPadding() + 40.dp
             ),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(folders) { folder ->
-                val folderImages = remember(folder, allImagesForSize) { allImagesForSize.filter { it.path.startsWith(folder.id) } }
-                FolderGridItem(
-                    folder = folder,
-                    images = folderImages,
-                    settings = settings,
-                    isSelected = folder in selectedFolders,
-                    onClick = { onFolderClick(folder) },
-                    onLongClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onFolderLongClick(folder)
-                    }
-                )
-            }
             items(images) { image ->
                 SelectableImageGridItem(
                     image = image,
@@ -94,23 +77,9 @@ fun ExplorerListContent(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
                 top = contentPadding.calculateTopPadding(),
-                bottom = contentPadding.calculateBottomPadding() + 16.dp
+                bottom = contentPadding.calculateBottomPadding() + 32.dp
             )
         ) {
-            items(folders) { folder ->
-                val folderImages = remember(folder, allImagesForSize) { allImagesForSize.filter { it.path.startsWith(folder.id) } }
-                FolderListItem(
-                    folder = folder,
-                    images = folderImages,
-                    settings = settings,
-                    isSelected = folder in selectedFolders,
-                    onClick = { onFolderClick(folder) },
-                    onLongClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onFolderLongClick(folder)
-                    }
-                )
-            }
             items(images) { image ->
                 SelectableImageListItem(
                     image = image,

@@ -20,3 +20,5 @@ update_details.md
 /*.log
 /*.txt
 /.kotlin
+# Added by code-review-graph
+.code-review-graph/

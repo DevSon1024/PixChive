@@ -2,7 +2,6 @@ package com.devson.pixchive.ui.screens.folderlist.content
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,49 +13,37 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.devson.pixchive.R
-import com.devson.pixchive.model.LayoutMode
-import com.devson.pixchive.model.Video
-import com.devson.pixchive.model.VideoFolder
-import com.devson.pixchive.model.ViewSettings
-import com.devson.pixchive.model.WatchHistory
-import com.devson.pixchive.ui.components.CustomEmptyStateView
+import com.devson.pixchive.data.ComicFolder
+import com.devson.pixchive.data.local.ImageEntity
+import com.devson.pixchive.ui.components.EmptyFoldersView
+import com.devson.pixchive.ui.screens.folderlist.folder.FolderGridItem
+import com.devson.pixchive.ui.screens.folderlist.folder.FolderListItem
+import com.devson.pixchive.ui.screens.folderlist.model.LayoutMode
+import com.devson.pixchive.ui.screens.folderlist.model.ViewSettings
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FolderListContent(
-    folders: Map<VideoFolder, List<Video>>,
+    folders: List<ComicFolder>,
     settings: ViewSettings,
-    selectedFolders: Set<VideoFolder>,
-    historyMap: Map<String, WatchHistory> = emptyMap(),
-    onFolderClick: (VideoFolder) -> Unit,
-    onFolderLongClick: (VideoFolder) -> Unit,
+    selectedFolders: Set<ComicFolder>,
+    onFolderClick: (ComicFolder) -> Unit,
+    onFolderLongClick: (ComicFolder) -> Unit,
     listState: LazyListState = rememberLazyListState(),
     gridState: LazyGridState = rememberLazyGridState(),
     contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     val haptic = LocalHapticFeedback.current
-    val sortedFolders = remember(folders) { folders.keys.toList().sortedBy { it.name.lowercase() } }
+    val sortedFolders = remember(folders) { folders.sortedBy { it.name.lowercase() } }
 
     if (sortedFolders.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CustomEmptyStateView(
-                icon    = Icons.Filled.VideoLibrary,
-                heading = stringResource(R.string.folder_no_folders_found),
-                subtext = stringResource(R.string.folder_no_folders_desc),
-                ctaLabel = stringResource(R.string.folder_scan_cta)
-            )
-        }
+        EmptyFoldersView()
         return
     }
 
@@ -77,10 +64,8 @@ fun FolderListContent(
             items(sortedFolders) { folder ->
                 FolderGridItem(
                     folder = folder,
-                    videos = folders[folder] ?: emptyList(),
                     settings = settings,
                     isSelected = folder in selectedFolders,
-                    historyMap = historyMap,
                     onClick = { onFolderClick(folder) },
                     onLongClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -101,10 +86,8 @@ fun FolderListContent(
             items(sortedFolders) { folder ->
                 FolderListItem(
                     folder = folder,
-                    videos = folders[folder] ?: emptyList(),
                     settings = settings,
                     isSelected = folder in selectedFolders,
-                    historyMap = historyMap,
                     onClick = { onFolderClick(folder) },
                     onLongClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)

@@ -59,7 +59,7 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
 
     //  DELETE 
 
-    fun deleteVideos(context: Context, uris: List<Uri>, trash: Boolean = false) {
+    fun deleteImages(context: Context, uris: List<Uri>, trash: Boolean = false) {
         if (uris.isEmpty()) return
         viewModelScope.launch {
             _operationInProgress.value = true
@@ -93,7 +93,7 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
-    fun restoreVideos(context: Context, uris: List<Uri>) {
+    fun restoreImages(context: Context, uris: List<Uri>) {
         if (uris.isEmpty() || Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
         viewModelScope.launch {
             _operationInProgress.value = true
@@ -111,7 +111,7 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
     fun onRestorePermissionGranted(context: Context) {
         val action = pendingAction as? PendingFileAction.Restore ?: return
         pendingAction = null
-        _operationResult.value = "Successfully restored ${action.uris.size} videos."
+        _operationResult.value = "Successfully restored ${action.uris.size} images."
         _needsRefresh.value = true
         _operationInProgress.value = false
     }
@@ -137,9 +137,9 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
                     }
                 }
                 _operationResult.value = if (action.trash) {
-                    "Thrown $deletedCount video(s) to Recycle Bin"
+                    "Thrown $deletedCount image(s) to Recycle Bin"
                 } else {
-                    "Successfully deleted $deletedCount videos."
+                    "Successfully deleted $deletedCount images."
                 }
                 _needsRefresh.value = true
             } catch (e: Exception) {
@@ -151,7 +151,7 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
     }
 
     //  RENAME 
-    fun renameVideo(context: Context, uri: Uri, newName: String) {
+    fun renameImage(context: Context, uri: Uri, newName: String) {
         viewModelScope.launch {
             _operationInProgress.value = true
             try {
@@ -242,7 +242,7 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
      * Copies all [uris] into the [targetTreeUri] directory chosen via OpenDocumentTree.
      * Uses SAF DocumentFile API which works across all API levels without permission dialogs.
      */
-    fun copyVideos(context: Context, uris: List<Uri>, targetTreeUri: Uri) {
+    fun copyImages(context: Context, uris: List<Uri>, targetTreeUri: Uri) {
         if (uris.isEmpty()) return
         viewModelScope.launch {
             _operationInProgress.value = true
@@ -256,7 +256,7 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
                         try {
                             // Derive filename from MediaStore display name
                             val fileName = getDisplayName(context, uri) ?: uri.lastPathSegment ?: "video_${System.currentTimeMillis()}"
-                            val mimeType = context.contentResolver.getType(uri) ?: "video/mp4"
+                            val mimeType = context.contentResolver.getType(uri) ?: "image/mp4"
                             val destFile = targetDir.createFile(mimeType, fileName)
                                 ?: throw IllegalStateException("Could not create file in target.")
 
@@ -285,7 +285,7 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
     /**
      * Moves all [uris] into the [targetTreeUri] directory: copy first, then delete originals.
      */
-    fun moveVideos(context: Context, uris: List<Uri>, targetTreeUri: Uri) {
+    fun moveImages(context: Context, uris: List<Uri>, targetTreeUri: Uri) {
         if (uris.isEmpty()) return
         viewModelScope.launch {
             _operationInProgress.value = true
@@ -298,7 +298,7 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
                     for (uri in uris) {
                         try {
                             val fileName = getDisplayName(context, uri) ?: "video_${System.currentTimeMillis()}"
-                            val mimeType = context.contentResolver.getType(uri) ?: "video/mp4"
+                            val mimeType = context.contentResolver.getType(uri) ?: "image/mp4"
                             val destFile = targetDir.createFile(mimeType, fileName)
                                 ?: throw IllegalStateException("Could not create file in target.")
 
@@ -442,9 +442,7 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
-    // 
     // PRIVATE HELPERS
-    // 
 
     private suspend fun executeDeleteApi29(context: Context, uris: List<Uri>) {
         withContext(Dispatchers.IO) {
@@ -466,7 +464,7 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
             }
             val deletedCount = uris.size - failedUris.size
             if (failedUris.isEmpty()) {
-                _operationResult.value = "Successfully deleted ${deletedCount} videos."
+                _operationResult.value = "Successfully deleted ${deletedCount} images."
             }
             // If there are failed URIs with a RecoverableSecurityException,
             // UI will see pendingIntentSender and launch it.

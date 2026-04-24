@@ -1,4 +1,4 @@
-package com.devson.pixchive.ui.screens.folderlist.components.topbar
+package com.devson.pixchive.ui.screens.folderlist.topbar
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardActions
@@ -29,8 +29,6 @@ import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
-import com.devson.pixchive.model.Video
-import com.devson.pixchive.ui.components.SearchSuggestionsPopup
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,7 +49,7 @@ fun FolderListTopAppBar(
     searchText: String = "",
     onSearchActiveChange: (Boolean) -> Unit = {},
     onSearchTextChange: (String) -> Unit = {},
-    searchSuggestions: List<Video> = emptyList(),
+    searchSuggestions: List<String> = emptyList(),
     searchFocusRequester: FocusRequester = remember { FocusRequester() },
     keyboard: SoftwareKeyboardController? = null
 ) {
@@ -95,12 +93,10 @@ fun FolderListTopAppBar(
                     OutlinedTextField(
                         value = searchText,
                         onValueChange = onSearchTextChange,
-                        placeholder = { Text("Search videos...") },
+                        placeholder = { Text("Search images...") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth().focusRequester(searchFocusRequester),
-                        keyboardOptions = KeyboardOptions(
-                            imeAction = ImeAction.Search
-                        ),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         keyboardActions = KeyboardActions(
                             onSearch = {
                                 keyboard?.hide()
@@ -117,7 +113,7 @@ fun FolderListTopAppBar(
                     )
                 } else {
                     Text(
-                        titleText ?: "Nosved Player",
+                        titleText ?: "PixChive",
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -153,15 +149,5 @@ fun FolderListTopAppBar(
                 }
             }
         )
-        if (searchActive && searchSuggestions.isNotEmpty()) {
-            SearchSuggestionsPopup(
-                suggestions = searchSuggestions,
-                keyboard = keyboard,
-                onSuggestionClick = { title ->
-                    onSearchActiveChange(false)
-                    onSearch(title)
-                }
-            )
-        }
     }
 }

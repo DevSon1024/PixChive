@@ -92,6 +92,15 @@ interface ImageDao {
     @Query("SELECT COUNT(DISTINCT parentFolderPath) FROM images WHERE folderId = :folderId")
     suspend fun getChapterCount(folderId: String): Int
 
+    @Query("SELECT DISTINCT parentFolderPath FROM images WHERE folderId = :folderId AND parentFolderPath LIKE :pathPrefix || '/%'")
+    fun getSubfoldersFlow(folderId: String, pathPrefix: String): Flow<List<String>>
+
+    @Query("SELECT * FROM images WHERE folderId = :folderId AND parentFolderPath = :path")
+    fun getImagesInPathFlow(folderId: String, path: String): Flow<List<ImageEntity>>
+
+    @Query("SELECT * FROM images WHERE name LIKE '%' || :query || '%' OR parentFolderName LIKE '%' || :query || '%' LIMIT 100")
+    fun searchImages(query: String): Flow<List<ImageEntity>>
+
     @androidx.room.Query("SELECT path FROM images WHERE folderId = :folderId")
     suspend fun getAllPathsForFolder(folderId: String): List<String>
 

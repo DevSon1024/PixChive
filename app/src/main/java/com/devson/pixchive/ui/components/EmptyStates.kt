@@ -27,6 +27,23 @@ fun EmptyChaptersView() {
 }
 
 @Composable
+fun EmptyFoldersView() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Text(text = "📁", style = MaterialTheme.typography.displayMedium)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(text = "No Folders Found", style = MaterialTheme.typography.titleLarge)
+        }
+    }
+}
+
+@Composable
 fun EmptyImagesView() {
     Box(
         modifier = Modifier.fillMaxSize(),

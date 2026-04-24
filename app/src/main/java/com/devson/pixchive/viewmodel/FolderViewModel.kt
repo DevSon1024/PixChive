@@ -27,6 +27,9 @@ import androidx.sqlite.db.SimpleSQLiteQuery
 import com.devson.pixchive.data.local.HistoryEntity
 import com.devson.pixchive.data.local.ImageEntity
 import com.devson.pixchive.workers.FolderSyncWorker
+import com.devson.pixchive.ui.screens.folderlist.model.ViewSettings
+import com.devson.pixchive.ui.screens.folderlist.model.ViewMode
+import java.io.File
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class, kotlinx.coroutines.FlowPreview::class)
 class FolderViewModel(application: Application) : AndroidViewModel(application) {
@@ -44,6 +47,46 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _favoritesSortOption = MutableStateFlow("date_newest")
     val favoritesSortOption: StateFlow<String> = _favoritesSortOption.asStateFlow()
+
+    val folders: StateFlow<List<ComicFolder>> = preferencesManager.foldersFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    private val _currentExplorerPath = MutableStateFlow<String?>(null)
+    val currentExplorerPath: StateFlow<String?> = _currentExplorerPath.asStateFlow()
+
+    val explorerNodes: StateFlow<Pair<List<ComicFolder>, List<ImageEntity>>> = combine(
+        _currentExplorerPath,
+        _currentFolder
+    ) { path, rootFolder ->
+        path to rootFolder
+    }.flatMapLatest { (path, rootFolder) ->
+        if (path == null) {
+            folders.map { it to emptyList<ImageEntity>() }
+        } else if (rootFolder != null) {
+            val subfoldersFlow = imageDao.getSubfoldersFlow(rootFolder.id, path)
+                .map { paths ->
+                    paths.map { subPath ->
+                        val relativePath = subPath.removePrefix(path).removePrefix("/")
+                        val folderName = relativePath.substringBefore("/")
+                        val fullPath = if (path.endsWith("/")) path + folderName else "$path/$folderName"
+                        ComicFolder(
+                            id = "${rootFolder.id}_$fullPath",
+                            name = folderName,
+                            uri = Uri.fromFile(File(fullPath)).toString(),
+                            path = fullPath
+                        )
+                    }.distinctBy { it.path }
+                }
+            val imagesFlow = imageDao.getImagesInPathFlow(rootFolder.id, path)
+            
+            combine(subfoldersFlow, imagesFlow) { subs, imgs -> subs to imgs }
+        } else {
+            flowOf(emptyList<ComicFolder>() to emptyList<ImageEntity>())
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList<ComicFolder>() to emptyList<ImageEntity>())
     
     val chapters: StateFlow<List<Chapter>> = combine(
         _currentFolder,
@@ -239,6 +282,43 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     private val _volumeKeysNavigation = MutableStateFlow(true)
     val volumeKeysNavigation: StateFlow<Boolean> = _volumeKeysNavigation.asStateFlow()
 
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    private val _searchSuggestions = MutableStateFlow<List<String>>(emptyList())
+    val searchSuggestions: StateFlow<List<String>> = _searchSuggestions.asStateFlow()
+
+    val searchResults: StateFlow<List<ImageEntity>> = _searchQuery
+        .debounce(300)
+        .flatMapLatest { query ->
+            if (query.length < 2) flowOf(emptyList())
+            else imageDao.searchImages(query)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val viewSettings: StateFlow<ViewSettings> = combine(
+        _viewMode,
+        _layoutMode,
+        _gridColumns,
+        _sortOption,
+        preferencesManager.showFloatingButtonFlow,
+        preferencesManager.enableFabPreviewFlow
+    ) { mode, layout, columns, sort, showFab, fabPreview ->
+        ViewSettings(
+            viewMode = when(mode) {
+                "files" -> ViewMode.FILES
+                "folders" -> ViewMode.FOLDERS
+                else -> ViewMode.ALL_FOLDERS
+            },
+            layoutMode = layout,
+            gridColumns = columns,
+            sortField = sort.substringBefore("_"),
+            sortDirection = sort.substringAfter("_"),
+            showFloatingButton = showFab,
+            enableFabPreview = fabPreview
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ViewSettings())
+
     // Progress map for the current folder: chapterPath -> last read page
     val readProgressMap: StateFlow<Map<String, Int>> = _currentFolder
         .flatMapLatest { folder ->
@@ -410,6 +490,37 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
             _viewMode.value = mode
             preferencesManager.saveViewMode(mode)
         }
+    }
+
+    fun setViewMode(mode: ViewMode) {
+        val modeStr = when(mode) {
+            ViewMode.ALL_FOLDERS -> "all_folders"
+            ViewMode.FILES -> "files"
+            ViewMode.FOLDERS -> "folders"
+        }
+        setViewMode(modeStr)
+    }
+
+    fun navigateExplorerUp() {
+        val current = _currentExplorerPath.value ?: return
+        val parent = File(current).parent
+        _currentExplorerPath.value = if (parent == "/" || parent == null) null else parent
+    }
+
+    fun navigateToExplorerPath(path: String) {
+        _currentExplorerPath.value = path
+    }
+
+    fun selectFolder(folder: ComicFolder?) {
+        _currentFolder.value = folder
+    }
+
+    fun clearSearch() {
+        _searchSuggestions.value = emptyList()
+    }
+
+    fun onSearchQueryChanged(query: String) {
+        _searchQuery.value = query
     }
 
     fun setLayoutMode(mode: String) {

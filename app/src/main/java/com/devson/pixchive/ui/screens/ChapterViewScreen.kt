@@ -67,12 +67,14 @@ fun ChapterViewScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+        Box(modifier = Modifier.fillMaxSize()) {
             if (isLoading) {
-                if (layoutMode == "grid") {
-                    SkeletonGrid(columns = gridColumns)
-                } else {
-                    SkeletonList()
+                Box(modifier = Modifier.padding(top = padding.calculateTopPadding())) {
+                    if (layoutMode == "grid") {
+                        SkeletonGrid(columns = gridColumns)
+                    } else {
+                        SkeletonList()
+                    }
                 }
             } else if (chapterImages.isEmpty()) {
                 EmptyChapterImagesView(chapterName, chapters.size)
@@ -83,7 +85,10 @@ fun ChapterViewScreen(
                     LazyVerticalGrid(
                         state = gridState,
                         columns = GridCells.Fixed(gridColumns),
-                        contentPadding = PaddingValues(8.dp),
+                        contentPadding = PaddingValues(
+                            top = padding.calculateTopPadding() + 8.dp,
+                            bottom = padding.calculateBottomPadding() + 16.dp
+                        ),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -92,7 +97,12 @@ fun ChapterViewScreen(
                         }
                     }
                 } else {
-                    LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
+                    LazyColumn(
+                        contentPadding = PaddingValues(
+                            top = padding.calculateTopPadding(),
+                            bottom = padding.calculateBottomPadding() + 16.dp
+                        )
+                    ) {
                         itemsIndexed(chapterImages) { index, image ->
                             ChapterImageListItem(image, { onImageClick(index) }, onRefresh)
                         }

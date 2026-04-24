@@ -182,28 +182,38 @@ fun HomeScreen(
             }
         }
     ) { paddingValues ->
-
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
+            modifier = Modifier.fillMaxSize()
         ) {
             when {
                 isLoading -> {
-                    SkeletonHome(layoutMode = layoutMode, columns = gridColumns, showHistory = recentHistory.isNotEmpty())
+                    // Apply top padding to skeleton to avoid overlap with top bar
+                    Box(modifier = Modifier.padding(top = paddingValues.calculateTopPadding())) {
+                        SkeletonHome(layoutMode = layoutMode, columns = gridColumns, showHistory = recentHistory.isNotEmpty())
+                    }
                 }
-                folders.isEmpty() -> EmptyStateContent()
+                folders.isEmpty() -> {
+                    // Apply top padding to empty state
+                    Box(modifier = Modifier.padding(top = paddingValues.calculateTopPadding())) {
+                        EmptyStateContent()
+                    }
+                }
                 else -> {
                     val gridCols = if (layoutMode == "grid") gridColumns else 1
 
                     PullToRefreshBox(
                         isRefreshing = isRefreshing,
                         onRefresh = { viewModel.refreshFolders() },
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
+                        // Offset the refresh indicator by the top bar height
+                        contentAlignment = Alignment.TopCenter
                     ) {
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(gridCols),
-                            contentPadding = PaddingValues(bottom = 88.dp), // FAB clearance
+                            contentPadding = PaddingValues(
+                                top = paddingValues.calculateTopPadding() + 8.dp,
+                                bottom = paddingValues.calculateBottomPadding() + 88.dp // FAB clearance
+                            ),
                             modifier = Modifier.fillMaxSize()
                         ) {
                             // HISTORY SECTION 

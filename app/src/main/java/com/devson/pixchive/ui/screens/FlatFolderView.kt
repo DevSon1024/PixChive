@@ -41,7 +41,8 @@ fun FlatFolderView(
     initialScrollOffset: Int = 0,
     onSaveScroll: (Int, Int) -> Unit = { _, _ -> },
     onImageClick: (Int) -> Unit,
-    viewModel: FolderViewModel = viewModel()
+    viewModel: FolderViewModel = viewModel(),
+    paddingValues: PaddingValues = PaddingValues(0.dp)
 ) {
     val currentFolder by viewModel.currentFolder.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
@@ -80,7 +81,10 @@ fun FlatFolderView(
                 LazyVerticalGrid(
                     state = gridState,
                     columns = GridCells.Fixed(gridColumns),
-                    contentPadding = PaddingValues(8.dp),
+                    contentPadding = PaddingValues(
+                        top = paddingValues.calculateTopPadding() + 8.dp,
+                        bottom = paddingValues.calculateBottomPadding() + 16.dp
+                    ),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxSize()

@@ -49,7 +49,8 @@ fun AllFoldersView(
     initialScrollOffset: Int = 0,
     onSaveScroll: (Int, Int) -> Unit = { _, _ -> },
     onChapterClick: (String) -> Unit,
-    viewModel: FolderViewModel = viewModel()
+    viewModel: FolderViewModel = viewModel(),
+    paddingValues: PaddingValues = PaddingValues(0.dp)
 ) {
     val chapters by viewModel.chapters.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
@@ -80,7 +81,10 @@ fun AllFoldersView(
             LazyVerticalGrid(
                 state = gridState,
                 columns = GridCells.Fixed(gridColumns),
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(
+                    top = paddingValues.calculateTopPadding() + 16.dp,
+                    bottom = paddingValues.calculateBottomPadding() + 16.dp
+                ),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxSize()
@@ -112,7 +116,14 @@ fun AllFoldersView(
             onRefresh = { viewModel.refreshCurrentFolder() },
             modifier = Modifier.fillMaxSize()
         ) {
-            LazyColumn(state = listState, contentPadding = PaddingValues(bottom = 16.dp), modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                state = listState,
+                contentPadding = PaddingValues(
+                    top = paddingValues.calculateTopPadding(),
+                    bottom = paddingValues.calculateBottomPadding() + 16.dp
+                ),
+                modifier = Modifier.fillMaxSize()
+            ) {
                 // The keys are correct here
                 items(chapters, key = { it.path }) { chapter ->
                     ChapterListItem(

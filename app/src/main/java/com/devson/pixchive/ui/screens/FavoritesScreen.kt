@@ -65,13 +65,15 @@ fun FavoritesScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+        Box(modifier = Modifier.fillMaxSize()) {
             when {
                 lazyImages.loadState.refresh is LoadState.Loading && lazyImages.itemCount == 0 -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
                 lazyImages.itemCount == 0 && lazyImages.loadState.refresh is LoadState.NotLoading -> {
-                    EmptyFavoritesView()
+                    Box(modifier = Modifier.padding(top = padding.calculateTopPadding())) {
+                        EmptyFavoritesView()
+                    }
                 }
                 else -> {
                     if (layoutMode == "grid") {
@@ -79,13 +81,15 @@ fun FavoritesScreen(
                             images = lazyImages,
                             columns = gridColumns,
                             onImageClick = onImageClick,
-                            onRefresh = {} // No manual refresh needed for favorites
+                            onRefresh = {}, // No manual refresh needed for favorites
+                            paddingValues = padding
                         )
                     } else {
                         FavoritesListView(
                             images = lazyImages,
                             onImageClick = onImageClick,
-                            onRefresh = {}
+                            onRefresh = {},
+                            paddingValues = padding
                         )
                     }
                 }
@@ -112,14 +116,18 @@ fun FavoritesGridView(
     images: LazyPagingItems<ImageEntity>,
     columns: Int,
     onImageClick: (Int) -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    paddingValues: PaddingValues
 ) {
     val gridState = rememberLazyGridState()
 
     LazyVerticalGrid(
         state = gridState,
         columns = GridCells.Fixed(columns),
-        contentPadding = PaddingValues(8.dp),
+        contentPadding = PaddingValues(
+            top = paddingValues.calculateTopPadding() + 8.dp,
+            bottom = paddingValues.calculateBottomPadding() + 16.dp
+        ),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -145,9 +153,15 @@ fun FavoritesGridView(
 fun FavoritesListView(
     images: LazyPagingItems<ImageEntity>,
     onImageClick: (Int) -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    paddingValues: PaddingValues
 ) {
-    LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
+    LazyColumn(
+        contentPadding = PaddingValues(
+            top = paddingValues.calculateTopPadding(),
+            bottom = paddingValues.calculateBottomPadding() + 16.dp
+        )
+    ) {
         items(
             count = images.itemCount,
             key = images.itemKey { it.path },

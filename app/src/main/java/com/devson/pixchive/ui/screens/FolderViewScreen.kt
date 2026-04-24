@@ -88,13 +88,15 @@ fun FolderViewScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+        Box(modifier = Modifier.fillMaxSize()) {
             val isStaleState = currentFolder?.id != folderId || 
                    (currentFolder != null && isLoading)
 
             if (isLoading || isStaleState) {
-                // Show skeleton while loadFolder is running
-                if (layoutMode == "grid") SkeletonGrid(columns = gridColumns) else SkeletonList()
+                // Show skeleton while loadFolder is running - add top padding
+                Box(modifier = Modifier.padding(top = padding.calculateTopPadding())) {
+                    if (layoutMode == "grid") SkeletonGrid(columns = gridColumns) else SkeletonList()
+                }
             } else {
                 //  KEY DESIGN POINT 
                 // Each branch renders ONE composable. When the user switches modes,
@@ -111,7 +113,8 @@ fun FolderViewScreen(
                         initialScrollOffset = flatScrollOffset,
                         onSaveScroll = { idx, off -> viewModel.saveFlatScrollPosition(idx, off) },
                         onImageClick = onImageClick,
-                        viewModel = viewModel
+                        viewModel = viewModel,
+                        paddingValues = padding
                     )
                     else -> AllFoldersView(
                         folderId = folderId,
@@ -123,7 +126,8 @@ fun FolderViewScreen(
                         initialScrollOffset = allFoldersScrollOffset,
                         onSaveScroll = { idx, off -> viewModel.saveAllFoldersScrollPosition(idx, off) },
                         onChapterClick = onChapterClick,
-                        viewModel = viewModel
+                        viewModel = viewModel,
+                        paddingValues = padding
                     )
                 }
             }

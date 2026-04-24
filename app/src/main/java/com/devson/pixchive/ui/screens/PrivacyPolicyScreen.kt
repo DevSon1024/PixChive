@@ -66,8 +66,11 @@ fun PrivacyPolicyScreen(onNavigateBack: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState())
+                .padding(
+                    top = padding.calculateTopPadding(),
+                    bottom = padding.calculateBottomPadding() + 24.dp
+                ),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Column(
@@ -226,7 +229,7 @@ fun PrivacyPolicyScreen(onNavigateBack: () -> Unit) {
                             )
                         ) {
                             Text(
-                                text = "⚠️  This permission is NEVER used to upload files, read your personal data, or perform any action unrelated to the file operations listed above. It is used exclusively as a local, on-device file manager - nothing else.",
+                                text = "⚠️ This permission is NEVER used to upload files, read your personal data, or perform any action unrelated to the file operations listed above. It is used exclusively as a local, on-device file manager - nothing else.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                                 modifier = Modifier.padding(12.dp)

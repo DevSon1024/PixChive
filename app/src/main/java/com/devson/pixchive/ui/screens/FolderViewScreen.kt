@@ -80,9 +80,13 @@ fun FolderViewScreen(
                     IconButton(onClick = { showDisplayOptions = true }) {
                         Icon(Icons.Default.Tune, "Options")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             val isStaleState = currentFolder?.id != folderId || 

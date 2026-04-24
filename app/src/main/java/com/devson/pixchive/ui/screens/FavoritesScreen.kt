@@ -57,9 +57,13 @@ fun FavoritesScreen(
                     IconButton(onClick = { showDisplayOptions = true }) {
                         Icon(Icons.Default.Tune, "Display Options")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             when {

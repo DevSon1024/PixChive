@@ -54,9 +54,13 @@ fun LogsScreen(onNavigateBack: () -> Unit) {
                     }) {
                         Icon(Icons.Default.DeleteSweep, contentDescription = "Clear Logs")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         if (isLoading) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

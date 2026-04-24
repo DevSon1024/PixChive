@@ -59,9 +59,13 @@ fun ChapterViewScreen(
             TopAppBar(
                 title = { Text(chapterName, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = { IconButton(onClick = onNavigateBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
-                actions = { IconButton(onClick = { showDisplayOptions = true }) { Icon(Icons.Default.Tune, "Options") } }
+                actions = { IconButton(onClick = { showDisplayOptions = true }) { Icon(Icons.Default.Tune, "Options") } },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (isLoading) {

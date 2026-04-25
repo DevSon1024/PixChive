@@ -28,7 +28,8 @@ import com.devson.pixchive.model.Image
 import com.devson.pixchive.model.ImageFolder
 import com.devson.pixchive.model.ViewSettings
 import com.devson.pixchive.ui.components.CustomEmptyStateView
-
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.items
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FolderListContent(

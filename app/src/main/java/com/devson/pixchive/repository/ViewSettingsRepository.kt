@@ -40,7 +40,7 @@ class ViewSettingsRepository(private val context: Context) {
             viewMode = try { ViewMode.valueOf(preferences[VIEW_MODE] ?: ViewMode.ALL_FOLDERS.name) } catch (e: Exception) { ViewMode.ALL_FOLDERS },
             layoutMode = try { LayoutMode.valueOf(preferences[LAYOUT_MODE] ?: LayoutMode.LIST.name) } catch (e: Exception) { LayoutMode.LIST },
             gridColumns = preferences[GRID_COLUMNS] ?: 2,
-            sortField = try { SortField.valueOf(preferences[SORT_FIELD] ?: SortField.TITLE.name) } catch (e: Exception) { SortField.TITLE },
+            sortField = try { SortField.valueOf(preferences[SORT_FIELD] ?: SortField.NAME.name) } catch (e: Exception) { SortField.NAME },
             sortDirection = try { SortDirection.valueOf(preferences[SORT_DIRECTION] ?: SortDirection.ASCENDING.name) } catch (e: Exception) { SortDirection.ASCENDING },
             showThumbnail = preferences[SHOW_THUMBNAIL] ?: true,
             showFileExtension = preferences[SHOW_FILE_EXTENSION] ?: false,

@@ -21,6 +21,8 @@ import com.devson.pixchive.model.LayoutMode
 import com.devson.pixchive.model.Image
 import com.devson.pixchive.model.ImageFolder
 import com.devson.pixchive.model.ViewSettings
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.items
 import com.devson.pixchive.ui.screens.imagelist.components.list.ImageGridItem
 import com.devson.pixchive.ui.screens.imagelist.components.list.ImageListItem
 import com.devson.pixchive.ui.screens.imagelist.components.folder.FolderGridItem

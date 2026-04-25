@@ -30,6 +30,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.pixchive.model.Image
 import com.devson.pixchive.model.ImageFolder
+import com.devson.pixchive.model.LayoutMode
 import com.devson.pixchive.model.ViewMode
 import com.devson.pixchive.model.applySort
 import com.devson.pixchive.ui.components.CustomRenameDialog
@@ -90,15 +91,50 @@ fun ImageListScreen(
         }
     }
 
-    val imagesByFolder by viewModel.imagesByFolder.collectAsState()
+    val imagesByFolderRaw by viewModel.imagesByFolder.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
-    val selectedFolder by viewModel.selectedFolder.collectAsState()
+    val selectedFolderRaw by viewModel.selectedFolder.collectAsState()
     val viewSettings by viewModel.viewSettings.collectAsState()
-    val explorerNodes by viewModel.explorerNodes.collectAsState()
     val currentExplorerPath by viewModel.currentExplorerPath.collectAsState()
+    val searchSuggestionsRaw by viewModel.searchSuggestions.collectAsState()
 
-    val searchSuggestions by viewModel.searchSuggestions.collectAsState()
+    val imagesByFolder: Map<ImageFolder, List<Image>> = remember(imagesByFolderRaw) {
+        imagesByFolderRaw.entries.associate { entry ->
+            val folder = ImageFolder(id = entry.key, name = entry.key.substringAfterLast('/'))
+            val images = entry.value.map {
+                Image(
+                    uri = "file://${it.path}",
+                    title = it.name,
+                    path = it.path,
+                    folderId = entry.key,
+                    folderName = entry.key.substringAfterLast('/')
+                )
+            }
+            folder to images
+        }
+    }
+
+    val selectedFolder: ImageFolder? = remember(selectedFolderRaw, imagesByFolder) {
+        selectedFolderRaw?.let { raw ->
+            imagesByFolder.keys.find { it.id == raw }
+                ?: ImageFolder(id = raw, name = raw.substringAfterLast('/'))
+        }
+    }
+
+    val searchSuggestions: List<Image> = remember(searchSuggestionsRaw) {
+        searchSuggestionsRaw.map { 
+            Image(
+                uri = "file://${it.path}",
+                title = it.name,
+                path = it.path,
+                folderId = it.path.substringBeforeLast("/"),
+                folderName = it.path.substringBeforeLast("/").substringAfterLast('/')
+            )
+        }
+    }
+
+    val explorerNodes = remember { Pair(emptyList<ImageFolder>(), emptyList<Image>()) }
     var searchActive by remember { mutableStateOf(false) }
     var searchText by remember { mutableStateOf("") }
     val searchFocusRequester = remember { FocusRequester() }
@@ -337,6 +373,9 @@ fun ImageListScreen(
                         selectedFolders = selectedFolders,
                         imagesByFolder = imagesByFolder,
                         viewSettings = viewSettings,
+                        onImageSelected = { image, images -> 
+                            onImageSelected(image.folderId, images.indexOf(image).takeIf { it >= 0 } ?: 0)
+                        },
                         onClearSelection = { selectedFolders = emptySet() },
                         onMove = {
                             if (selectedUris.isNotEmpty()) {
@@ -433,7 +472,7 @@ fun ImageListScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(onClick = {
                         val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            Manifest.permission.READ_MEDIA_IMAGE
+                            Manifest.permission.READ_MEDIA_IMAGES
                         } else {
                             Manifest.permission.READ_EXTERNAL_STORAGE
                         }
@@ -462,7 +501,7 @@ fun ImageListScreen(
                                             selectedFolders =
                                                 if (folder in selectedFolders) selectedFolders - folder else selectedFolders + folder
                                         } else {
-                                            viewModel.selectFolder(folder)
+                                            viewModel.selectFolder(folder.id)
                                         }
                                     },
                                     onFolderLongClick = { folder ->
@@ -486,7 +525,7 @@ fun ImageListScreen(
                                         if (isSelectionActive) {
                                             selectedImages = if (image in selectedImages) selectedImages - image else selectedImages + image
                                         } else {
-                                            onImageSelected(selectedFolder ?: "", sortedImages.indexOf(image))
+                                            onImageSelected(selectedFolder?.id ?: "", sortedImages.indexOf(image))
                                         }
                                     },
                                     onImageLongClick = { image ->
@@ -593,7 +632,7 @@ fun ImageListScreen(
             ViewMode.FOLDERS -> {
                 val allImagesFlat = imagesByFolder.values.flatten()
                 val fromFolders = selectedFolders.flatMap { f -> 
-                    allImagesFlat.filter { it.path.startsWith(f.id) } 
+                    allImagesFlat.filter { it.path.startsWith(f.id) }
                 }
                 (selectedImages + fromFolders).toSet()
             }
@@ -642,10 +681,16 @@ fun ImageListScreen(
 
     if (showSettingsSheet) {
         ViewSettingsBottomSheet(
-            settings = viewSettings,
-            isFolderView = selectedFolder == null,
-            onDismiss = { showSettingsSheet = false },
-            viewModel = viewModel
+            layoutMode = if (viewSettings.layoutMode == LayoutMode.GRID) "grid" else "list",
+            gridColumns = viewSettings.gridColumns,
+            onLayoutModeChange = { modeStr ->
+                val newMode = if (modeStr == "grid") LayoutMode.GRID else LayoutMode.LIST
+                viewModel.updateViewSettings(viewSettings.copy(layoutMode = newMode))
+            },
+            onGridColumnsChange = { cols ->
+                viewModel.updateViewSettings(viewSettings.copy(gridColumns = cols))
+            },
+            onDismiss = { showSettingsSheet = false }
         )
     }
 

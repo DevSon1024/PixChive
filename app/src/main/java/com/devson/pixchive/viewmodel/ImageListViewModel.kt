@@ -93,4 +93,8 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
         _searchQuery.value = ""
         _searchSuggestions.value = emptyList()
     }
+
+    fun updateViewSettings(settings: ViewSettings) {
+        _viewSettings.value = settings
+    }
 }

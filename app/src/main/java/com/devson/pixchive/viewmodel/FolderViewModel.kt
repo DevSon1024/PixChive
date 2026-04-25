@@ -154,15 +154,33 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    // Path-based flat image count for ImageListScreen navigation (folderId = "path:<path>")
+    private val _pathBasedFolderPath = MutableStateFlow<String?>(null)
+    val pathBasedImageCount: StateFlow<Int> = _pathBasedFolderPath
+        .flatMapLatest { path ->
+            if (path == null) kotlinx.coroutines.flow.flowOf(0)
+            else imageDao.getImageCountByPathFlow(path)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
     /**
-     * Loads a single image by its sorted position - uses the SAME ORDER BY as the flat view
-     * Pager so clicking image at grid index N always opens image N in the reader.
+     * Loads a single image by its sorted position.
+     * Supports two modes:
+     *   - folderId starting with "path:" -> query by parentFolderPath (from ImageListScreen)
+     *   - otherwise -> query by folderId UUID (legacy FolderViewScreen path)
      */
     suspend fun getFlatImageAt(index: Int, folderId: String? = null): ImageEntity? {
         if (folderId == "favorites") {
             val orderBy = favoriteOrderBy(_favoritesSortOption.value)
             val sql = "SELECT images.* FROM images INNER JOIN favorite_images ON images.uri = favorite_images.uri ORDER BY $orderBy LIMIT 1 OFFSET ?"
             return imageDao.getImageByIndexRaw(SimpleSQLiteQuery(sql, arrayOf(index)))
+        }
+
+        // Path-based lookup (from ImageListScreen: folderId = "path:/storage/...")
+        if (folderId != null && folderId.startsWith("path:")) {
+            val path = folderId.removePrefix("path:")
+            val sql = "SELECT * FROM images WHERE parentFolderPath = ? ORDER BY name ASC LIMIT 1 OFFSET ?"
+            return imageDao.getImageByIndexRaw(SimpleSQLiteQuery(sql, arrayOf(path, index)))
         }
 
         val targetFolderId = folderId.takeIf { it != null && it != "favorites" } ?: _currentFolder.value?.id ?: return null
@@ -297,7 +315,15 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun loadFolder(folderId: String, forceRescan: Boolean = false) {
-        if (folderId == "favorites") return
+        // Path-based IDs from ImageListScreen don't map to a ComicFolder UUID
+        if (folderId == "favorites" || folderId.startsWith("path:")) {
+            // For path-based navigation, expose the count via the path-based flow
+            if (folderId.startsWith("path:")) {
+                _pathBasedFolderPath.value = folderId.removePrefix("path:")
+                _isLoading.value = false
+            }
+            return
+        }
         
         if (_currentFolder.value?.id != folderId) {
         _currentFolder.value = null

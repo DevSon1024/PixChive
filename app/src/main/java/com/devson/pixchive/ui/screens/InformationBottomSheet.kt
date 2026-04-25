@@ -104,12 +104,7 @@ private fun localizeMetadataKey(key: String): String {
     return when (key) {
         "Title" -> stringResource(R.string.info_label_title)
         "Resolution" -> stringResource(R.string.info_label_resolution)
-        "Frame Rate" -> stringResource(R.string.info_label_frame_rate)
-        "Sample Rate" -> stringResource(R.string.info_label_sample_rate)
-        "Channels" -> stringResource(R.string.info_label_channels)
-        "Bitrate" -> stringResource(R.string.info_label_bitrate)
         "Type" -> stringResource(R.string.info_label_type)
-        "MIME" -> stringResource(R.string.info_label_mime)
         "Source" -> stringResource(R.string.info_label_source)
         "External" -> stringResource(R.string.info_label_external)
         else -> key

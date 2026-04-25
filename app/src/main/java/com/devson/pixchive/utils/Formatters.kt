@@ -12,7 +12,6 @@ import com.devson.pixchive.model.ImageFolder
 import com.devson.pixchive.model.ViewSettings
 import com.devson.pixchive.R
 import androidx.compose.ui.res.stringResource
-import android.content.Context
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -23,21 +22,13 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DriveFileRenameOutline
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.material3.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.devson.pixchive.model.applySort
-import java.util.TimeZone
 import kotlin.math.log10
 import kotlin.math.pow
 
@@ -79,18 +70,6 @@ fun getSortFieldStringRes(field: SortField): Int {
         SortField.RESOLUTION -> R.string.sort_field_resolution
         SortField.PATH -> R.string.sort_field_path
         SortField.TYPE -> R.string.sort_field_type
-    }
-}
-
-fun formatRelativeTime(context: Context, epochMs: Long): String {
-    val diff = System.currentTimeMillis() - epochMs
-    return when {
-        diff < 60_000L                  -> context.getString(R.string.relative_time_just_now)
-        diff < 3_600_000L               -> context.getString(R.string.relative_time_m_ago, (diff / 60_000).toInt())
-        diff < 86_400_000L              -> context.getString(R.string.relative_time_h_ago, (diff / 3_600_000).toInt())
-        diff < 2_592_000_000L           -> context.getString(R.string.relative_time_days_ago, (diff / 86_400_000).toInt())
-        diff < 31_536_000_000L          -> context.getString(R.string.relative_time_months_ago, (diff / 2_592_000_000).toInt())
-        else                            -> context.getString(R.string.relative_time_years_ago, (diff / 31_536_000_000).toInt())
     }
 }
 
@@ -143,26 +122,6 @@ fun SelectionBottomAppBar(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Play All
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .clickable {
-                        val sortedSelectedFolders = selectedFolders.sortedBy { it.name.lowercase() }
-                        val allImages = sortedSelectedFolders.flatMap { folder ->
-                            (imagesByFolder[folder] ?: emptyList()).applySort(viewSettings.sortField, viewSettings.sortDirection)
-                        }
-                        if (allImages.isNotEmpty()) {
-                            onImageSelected(allImages.first(), allImages)
-                        }
-                        onClearSelection()
-                    }
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                Icon(Icons.Filled.PlayArrow, contentDescription = stringResource(R.string.action_play_all))
-                Text(stringResource(R.string.action_play_all), fontSize = 10.sp)
-            }
-
             // Move
             ActionColumn(icon = Icons.AutoMirrored.Filled.DriveFileMove, label = stringResource(R.string.action_move), onClick = onMove)
             // Copy

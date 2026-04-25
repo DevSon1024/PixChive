@@ -131,20 +131,22 @@ fun NavGraph(
 
         composable(Screen.About.route) {
             AboutScreen(
-                onNavigateBack = safeNavigateBack // Use safe pop
+                onNavigateBack = safeNavigateBack
             )
         }
 
         composable(Screen.PrivacyPolicy.route) {
             PrivacyPolicyScreen(
-                onNavigateBack = safeNavigateBack // Use safe pop
+                onNavigateBack = safeNavigateBack
             )
         }
 
         composable(Screen.ImageList.route) {
             ImageListScreen(
                 onImageSelected = { folderId, imageIndex ->
-                    navController.navigate(Screen.ImageViewer.createRoute(folderId, "flat_view", imageIndex))
+                    val pathPrefixed = "path:$folderId"
+                    val encodedFolderId = java.net.URLEncoder.encode(pathPrefixed, java.nio.charset.StandardCharsets.UTF_8.toString())
+                    navController.navigate(Screen.ImageViewer.createRoute(encodedFolderId, "flat_view", imageIndex))
                 },
                 onNavigateToSettings = {
                     navController.navigate(Screen.Settings.route)
@@ -159,16 +161,21 @@ fun NavGraph(
                 navArgument("folderId") { type = NavType.StringType }
             )
         ) { backStackEntry ->
-            val folderId = backStackEntry.arguments?.getString("folderId") ?: ""
+            val encodedFolderId = backStackEntry.arguments?.getString("folderId") ?: ""
+            val folderId = try {
+                java.net.URLDecoder.decode(encodedFolderId, java.nio.charset.StandardCharsets.UTF_8.toString())
+            } catch (e: Exception) {
+                encodedFolderId
+            }
 
             FolderViewScreen(
                 folderId = folderId,
-                onNavigateBack = safeNavigateBack, // Use safe pop
+                onNavigateBack = safeNavigateBack,
                 onChapterClick = { chapterPath ->
-                    navController.navigate(Screen.ChapterView.createRoute(folderId, chapterPath))
+                    navController.navigate(Screen.ChapterView.createRoute(encodedFolderId, chapterPath))
                 },
                 onImageClick = { imageIndex ->
-                    navController.navigate(Screen.ImageViewer.createRoute(folderId, "flat_view", imageIndex))
+                    navController.navigate(Screen.ImageViewer.createRoute(encodedFolderId, "flat_view", imageIndex))
                 },
                 viewModel = folderViewModel
             )
@@ -181,7 +188,12 @@ fun NavGraph(
                 navArgument("chapterPath") { type = NavType.StringType }
             )
         ) { backStackEntry ->
-            val folderId = backStackEntry.arguments?.getString("folderId") ?: ""
+            val encodedFolderId = backStackEntry.arguments?.getString("folderId") ?: ""
+            val folderId = try {
+                java.net.URLDecoder.decode(encodedFolderId, java.nio.charset.StandardCharsets.UTF_8.toString())
+            } catch (e: Exception) {
+                encodedFolderId
+            }
             val encodedPath = backStackEntry.arguments?.getString("chapterPath") ?: ""
             val chapterPath = try {
                 URLDecoder.decode(encodedPath, StandardCharsets.UTF_8.toString())
@@ -192,9 +204,9 @@ fun NavGraph(
             ChapterViewScreen(
                 folderId = folderId,
                 chapterPath = chapterPath,
-                onNavigateBack = safeNavigateBack, // Use safe pop
+                onNavigateBack = safeNavigateBack,
                 onImageClick = { imageIndex ->
-                    navController.navigate(Screen.ImageViewer.createRoute(folderId, chapterPath, imageIndex))
+                    navController.navigate(Screen.ImageViewer.createRoute(encodedFolderId, chapterPath, imageIndex))
                 },
                 viewModel = folderViewModel
             )
@@ -208,7 +220,12 @@ fun NavGraph(
                 navArgument("imageIndex") { type = NavType.IntType }
             )
         ) { backStackEntry ->
-            val folderId = backStackEntry.arguments?.getString("folderId") ?: ""
+            val encodedFolderId = backStackEntry.arguments?.getString("folderId") ?: ""
+            val folderId = try {
+                java.net.URLDecoder.decode(encodedFolderId, java.nio.charset.StandardCharsets.UTF_8.toString())
+            } catch (e: Exception) {
+                encodedFolderId
+            }
             val encodedPath = backStackEntry.arguments?.getString("chapterPath") ?: ""
             val chapterPath = try {
                 URLDecoder.decode(encodedPath, StandardCharsets.UTF_8.toString())

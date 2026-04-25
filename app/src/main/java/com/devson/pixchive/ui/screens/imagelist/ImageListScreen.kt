@@ -99,10 +99,11 @@ fun ImageListScreen(
     val currentExplorerPath by viewModel.currentExplorerPath.collectAsState()
     val searchSuggestionsRaw by viewModel.searchSuggestions.collectAsState()
 
-    val imagesByFolder: Map<ImageFolder, List<Image>> = remember(imagesByFolderRaw) {
+    val imagesByFolder: Map<ImageFolder, List<Image>> = remember(imagesByFolderRaw, viewSettings.sortField, viewSettings.sortDirection) {
         imagesByFolderRaw.entries.associate { entry ->
             val folder = ImageFolder(id = entry.key, name = entry.key.substringAfterLast('/'))
-            val images = entry.value.map {
+            val sortedEntities = entry.value.applySort(viewSettings.sortField, viewSettings.sortDirection)
+            val images = sortedEntities.map {
                 Image(
                     uri = "file://${it.path}",
                     title = it.name,
@@ -123,7 +124,7 @@ fun ImageListScreen(
     }
 
     val searchSuggestions: List<Image> = remember(searchSuggestionsRaw) {
-        searchSuggestionsRaw.map { 
+        searchSuggestionsRaw.map {
             Image(
                 uri = "file://${it.path}",
                 title = it.name,
@@ -134,7 +135,40 @@ fun ImageListScreen(
         }
     }
 
-    val explorerNodes = remember { Pair(emptyList<ImageFolder>(), emptyList<Image>()) }
+    val explorerNodes = remember(currentExplorerPath, imagesByFolderRaw, viewSettings.sortField, viewSettings.sortDirection) {
+        val allPaths = imagesByFolderRaw.keys
+        if (currentExplorerPath == null) {
+            val roots = allPaths.map { path ->
+                val parts = path.split("/")
+                if (parts.size >= 4) parts.take(4).joinToString("/") else path
+            }.distinct()
+            val folders = roots.map { rootPath ->
+                ImageFolder(id = "$rootPath/", name = rootPath.substringAfterLast('/'))
+            }
+            Pair(folders, emptyList<Image>())
+        } else {
+            val current = currentExplorerPath!!
+            val subfolders = allPaths.filter { it.startsWith(current) && it.length > current.length }
+                .map { path ->
+                    val remainder = path.removePrefix(current)
+                    val nextSegment = remainder.substringBefore("/")
+                    ImageFolder(id = "$current$nextSegment/", name = nextSegment)
+                }.distinctBy { it.id }
+            val currentFolderKey = current.dropLast(1)
+            val rawEntities = imagesByFolderRaw[currentFolderKey] ?: emptyList()
+            val sortedEntities = rawEntities.applySort(viewSettings.sortField, viewSettings.sortDirection)
+            val images = sortedEntities.map {
+                Image(
+                    uri = "file://${it.path}",
+                    title = it.name,
+                    path = it.path,
+                    folderId = currentFolderKey,
+                    folderName = currentFolderKey.substringAfterLast('/')
+                )
+            }
+            Pair(subfolders, images)
+        }
+    }
     var searchActive by remember { mutableStateOf(false) }
     var searchText by remember { mutableStateOf("") }
     val searchFocusRequester = remember { FocusRequester() }
@@ -154,6 +188,12 @@ fun ImageListScreen(
     val sortedFolderKeys = remember(imagesByFolder, viewSettings.sortField, viewSettings.sortDirection) {
         val keys = imagesByFolder.keys.toList()
         keys.applyFolderSort(imagesByFolder, viewSettings.sortField, viewSettings.sortDirection)
+    }
+
+    val sortedImagesByFolder = remember(imagesByFolder, sortedFolderKeys) {
+        val sortedMap = java.util.LinkedHashMap<ImageFolder, List<Image>>()
+        sortedFolderKeys.forEach { key -> sortedMap[key] = imagesByFolder[key] ?: emptyList() }
+        sortedMap
     }
     val isSelectionActive = selectedFolders.isNotEmpty() || selectedImages.isNotEmpty()
 
@@ -363,7 +403,6 @@ fun ImageListScreen(
                 }
 
                 // In ALL_FOLDERS folder-list view, keep the original SelectionBottomAppBar
-                // for its folder-centric features (Play All folder, Rename folder, etc.)
                 val useFolderBar = viewSettings.viewMode == ViewMode.ALL_FOLDERS
                     && selectedFolder == null
                     && selectedFolders.isNotEmpty()
@@ -493,7 +532,7 @@ fun ImageListScreen(
                         ViewMode.ALL_FOLDERS -> {
                             if (selectedFolder == null) {
                                 FolderListContent(
-                                    folders = imagesByFolder,
+                                    folders = sortedImagesByFolder,
                                     settings = viewSettings,
                                     selectedFolders = selectedFolders,
                                     onFolderClick = { folder ->
@@ -514,18 +553,15 @@ fun ImageListScreen(
                                 )
                             } else {
                                 val images = imagesByFolder[selectedFolder] ?: emptyList()
-                                val sortedImages = remember(images, viewSettings.sortField, viewSettings.sortDirection) {
-                                    images.applySort(viewSettings.sortField, viewSettings.sortDirection)
-                                }
                                 ImageListContent(
-                                    images = sortedImages,
+                                    images = images,
                                     settings = viewSettings,
                                     selectedImages = selectedImages,
                                     onImageClick = { image ->
                                         if (isSelectionActive) {
                                             selectedImages = if (image in selectedImages) selectedImages - image else selectedImages + image
                                         } else {
-                                            onImageSelected(selectedFolder?.id ?: "", sortedImages.indexOf(image))
+                                            onImageSelected(selectedFolder?.id ?: "", images.indexOf(image))
                                         }
                                     },
                                     onImageLongClick = { image ->
@@ -538,9 +574,20 @@ fun ImageListScreen(
                             }
                         }
                         ViewMode.FILES -> {
-                            val allImages = remember(imagesByFolder) { imagesByFolder.values.flatten() }
-                            val sortedImages = remember(allImages, viewSettings.sortField, viewSettings.sortDirection) {
-                                allImages.applySort(viewSettings.sortField, viewSettings.sortDirection)
+                            val allEntities = remember(imagesByFolderRaw) { imagesByFolderRaw.values.flatten() }
+                            val sortedEntities = remember(allEntities, viewSettings.sortField, viewSettings.sortDirection) {
+                                allEntities.applySort(viewSettings.sortField, viewSettings.sortDirection)
+                            }
+                            val sortedImages = remember(sortedEntities) {
+                                sortedEntities.map {
+                                    Image(
+                                        uri = "file://${it.path}",
+                                        title = it.name,
+                                        path = it.path,
+                                        folderId = it.parentFolderPath ?: "",
+                                        folderName = it.parentFolderName ?: ""
+                                    )
+                                }
                             }
                             ImageListContent(
                                 images = sortedImages,
@@ -564,9 +611,6 @@ fun ImageListScreen(
                         }
                         ViewMode.FOLDERS -> {
                             val (expFolders, expImages) = explorerNodes
-                            val sortedExpImages = remember(expImages, viewSettings.sortField, viewSettings.sortDirection) {
-                                expImages.applySort(viewSettings.sortField, viewSettings.sortDirection)
-                            }
                             // Need a map to resolve explorer nodes content
                             val mappedImagesByFolder = remember(imagesByFolder, expFolders) {
                                 val allImages = imagesByFolder.values.flatten()
@@ -581,7 +625,7 @@ fun ImageListScreen(
 
                             ExplorerListContent(
                                 folders = sortedExpFolders,
-                                images = sortedExpImages,
+                                images = expImages,
                                 allImagesForSize = allImagesForSize,
                                 settings = viewSettings,
                                 selectedFolders = selectedFolders,
@@ -601,7 +645,7 @@ fun ImageListScreen(
                                         selectedImages = if (image in selectedImages) selectedImages - image else selectedImages + image
                                     } else {
                                         val folderId = image.path.substringBeforeLast("/")
-                                        onImageSelected(folderId, sortedExpImages.indexOf(image))
+                                        onImageSelected(folderId, expImages.indexOf(image))
                                     }
                                 },
                                 onImageLongClick = { image ->

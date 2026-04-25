@@ -23,7 +23,7 @@
     <string name="settings_Modern_controls_active">Inline settings panel active</string>
     <string name="settings_Modern_controls_inactive">Bottom sheet settings active</string>
     <string name="settings_app">App</string>
-    <string name="settings_about">About Nosved Player</string>
+    <string name="settings_about">About PixChive Player</string>
     <string name="settings_about_desc">Version, credits &amp; open-source libraries</string>
     <string name="settings_privacy">Privacy Policy</string>
     <string name="settings_privacy_desc">How we handle permissions &amp; your data</string>
@@ -110,7 +110,6 @@
 
     <!-- App Shortcuts -->
     <string name="shortcut_short_label">Image Player</string>
-    <string name="shortcut_long_label">Nosved Image Player Anime</string>
     <!-- Home Screen -->
     <string name="home_video_library">Your Image Library</string>
     <string name="home_video_library_desc">Explore all your local videos and folders in one place.</string>
@@ -167,35 +166,21 @@
     <!-- Metadata Labels -->
     <string name="info_label_title">Title</string>
     <string name="info_label_resolution">Resolution</string>
-    <string name="info_label_frame_rate">Frame Rate</string>
-    <string name="info_label_sample_rate">Sample Rate</string>
-    <string name="info_label_channels">Channels</string>
-    <string name="info_label_bitrate">Bitrate</string>
     <string name="info_label_type">Type</string>
-    <string name="info_label_mime">MIME</string>
     <string name="info_label_source">Source</string>
     <string name="info_label_external">External</string>
     <string name="info_value_forced">Forced</string>
     <string name="info_value_external_file">External File</string>
 
-    <!-- Watch States -->
-    <string name="watch_state_new">NEW</string>
-    <string name="watch_state_running">RUNNING</string>
-    <string name="watch_state_ended">ENDED</string>
-
     <!-- Sort Fields -->
     <string name="sort_field_title">Title</string>
     <string name="sort_field_date">Date Added</string>
-    <string name="sort_field_played_time">Played Time</string>
-    <string name="sort_field_status">Status</string>
-    <string name="sort_field_length">Length</string>
     <string name="sort_field_size">Size</string>
     <string name="sort_field_path">Path</string>
     <string name="sort_field_resolution">Resolution</string>
     <string name="sort_field_type">Type</string>
 
     <!-- Selection Actions -->
-    <string name="action_play_all">Play All</string>
     <string name="action_move">Move</string>
     <string name="action_copy">Copy</string>
     <string name="action_rename">Rename</string>
@@ -209,14 +194,6 @@
     <string name="resize_mode_fill">Wide (Stretch)</string>
     <string name="resize_mode_zoom">Zoom (Cropped)</string>
     <string name="resize_mode_original">Original</string>
-
-    <!-- Relative Time -->
-    <string name="relative_time_just_now">Played Just Now</string>
-    <string name="relative_time_m_ago">Played %1$d m Ago</string>
-    <string name="relative_time_h_ago">Played %1$d h Ago</string>
-    <string name="relative_time_days_ago">Played %1$d Days Ago</string>
-    <string name="relative_time_months_ago">Played %1$d Months Ago</string>
-    <string name="relative_time_years_ago">Played %1$d Years Ago</string>
 
     <!-- Dialogs -->
     <string name="dialog_update_status">Update Status</string>
@@ -287,14 +264,9 @@
 
     <!-- Information Bottom Sheet Additional -->
     <string name="info_location">Location</string>
-    <string name="info_subtitle">Subtitle</string>
     <string name="none">None</string>
     <string name="embedded">Embedded</string>
-    <string name="info_encoding_sw">Encoding SW</string>
-    <string name="info_playback_in_progress">In Progress</string>
-    <string name="info_streams">Streams</string>
-    <string name="info_stream_label">Stream %d</string>
-    <string name="info_aggregated_total_videos">Total Images</string>
+    <string name="info_aggregated_total_images">Total Images</string>
 
     <!-- Recycle Bin -->
     <string name="recycle_bin_title">Recycle Bin</string>

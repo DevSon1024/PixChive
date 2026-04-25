@@ -91,10 +91,13 @@ fun ReaderScreen(
     val mangaMode by viewModel.mangaMode.collectAsState()
     val volumeKeysNavigation by viewModel.volumeKeysNavigation.collectAsState()
 
+    val isPathBased = folderId.startsWith("path:")
+    val isFlatView = chapterPath == "flat_view" || chapterPath == "favorites_view"
+
     // --- FLAT VIEW: use true DB total instead of paging snapshot ---
     val flatImageCount by viewModel.flatImageCount.collectAsState()
     val favoriteImageCount by viewModel.favoriteImageCount.collectAsState()
-    val isFlatView = chapterPath == "flat_view" || chapterPath == "favorites_view"
+    val pathBasedImageCount by viewModel.pathBasedImageCount.collectAsState()
 
     // For chapter view, image list comes from chapters as before
     val chapterImages = remember(chapters, chapterPath) {
@@ -102,11 +105,19 @@ fun ReaderScreen(
         else chapters.find { urisMatch(it.path, chapterPath) }?.images ?: emptyList()
     }
 
-    val pageCount = if (folderId == "favorites") favoriteImageCount else if (isFlatView) flatImageCount else chapterImages.size
+    val pageCount = when {
+        folderId == "favorites" -> favoriteImageCount
+        isPathBased -> pathBasedImageCount
+        isFlatView -> flatImageCount
+        else -> chapterImages.size
+    }
 
-    val chapterName = remember(chapterPath, currentFolder) {
-        if (isFlatView) currentFolder?.name ?: "Flat View"
-        else chapterPath.substringAfterLast("/").substringAfterLast(":")
+    val chapterName = remember(chapterPath, currentFolder, folderId) {
+        when {
+            isPathBased -> folderId.removePrefix("path:").substringAfterLast('/')
+            isFlatView -> currentFolder?.name ?: "Flat View"
+            else -> chapterPath.substringAfterLast("/").substringAfterLast(":")
+        }
     }
 
     var showUI by remember { mutableStateOf(true) }
@@ -115,15 +126,10 @@ fun ReaderScreen(
 
     val rotationStates = remember { mutableStateMapOf<Int, Float>() }
 
-    //  AUTO-RESUME: resolved initial page 
-    // IMPORTANT: do NOT coerce against pageCount here - for flat view, flatImageCount
-    // is 0 at first composition (the StateFlow hasn't emitted yet), so coerceIn(0,0)
-    // would silently clamp ANY clicked index to 0. Pass initialIndex raw instead;
-    // the pageCount lambda in rememberPagerState keeps the pager bounded live.
     var resolvedInitialPage by remember { mutableStateOf(initialIndex) }
 
     val pagerState = rememberPagerState(
-        initialPage = initialIndex,          // raw - never clamp against stale pageCount
+        initialPage = initialIndex,
         pageCount = { pageCount }
     )
 

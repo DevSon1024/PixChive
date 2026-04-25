@@ -47,8 +47,6 @@ import com.devson.pixchive.model.Image
 import com.devson.pixchive.model.ImageFolder
 import com.devson.pixchive.model.ViewSettings
 import com.devson.pixchive.ui.components.FolderShape
-import com.devson.pixchive.ui.screens.imagelist.components.common.ImageWatchState
-import com.devson.pixchive.ui.screens.imagelist.components.common.getWatchState
 import com.devson.pixchive.ui.screens.imagelist.components.list.ImageThumbnail
 import com.devson.pixchive.ui.screens.imagelist.components.selection.SelectionCheckmarkOverlay
 import com.devson.pixchive.utils.formatDate

@@ -64,7 +64,8 @@ fun HomeScreen(
     onFolderClick: (String) -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onFavoritesClick: () -> Unit = {},
-    onResumeChapter: (folderId: String, chapterPath: String, initialPage: Int) -> Unit = { _, _, _ -> }
+    onResumeChapter: (folderId: String, chapterPath: String, initialPage: Int) -> Unit = { _, _, _ -> },
+    onBrowseNowClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val activity = context as? Activity
@@ -195,7 +196,7 @@ fun HomeScreen(
                 folders.isEmpty() -> {
                     // Apply top padding to empty state
                     Box(modifier = Modifier.padding(top = paddingValues.calculateTopPadding())) {
-                        EmptyStateContent()
+                        EmptyStateContent(onBrowseNowClick = onBrowseNowClick)
                     }
                 }
                 else -> {
@@ -248,6 +249,11 @@ fun HomeScreen(
                                 item(span = { GridItemSpan(maxLineSpan) }) {
                                     Spacer(modifier = Modifier.height(8.dp))
                                 }
+                            }
+
+                            // BROWSE NOW SECTION
+                            item(span = { GridItemSpan(maxLineSpan) }) {
+                                BrowseNowSection(onClick = onBrowseNowClick)
                             }
 
                             // FOLDERS SECTION
@@ -362,6 +368,48 @@ fun HomeScreen(
                     }
                 },
                 onDismiss = { showSettingsDialog = false }
+            )
+        }
+    }
+}
+
+// Browse Now Section
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BrowseNowSection(onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        ),
+        onClick = onClick
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Explore All Images",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Text(
+                    text = "Browse your entire collection in one place",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                )
+            }
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer
             )
         }
     }
@@ -589,7 +637,7 @@ fun FolderGridItem(folder: ComicFolder, onDelete: () -> Unit, onClick: () -> Uni
 }
 
 @Composable
-fun EmptyStateContent() {
+fun EmptyStateContent(onBrowseNowClick: () -> Unit = {}) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -600,5 +648,14 @@ fun EmptyStateContent() {
         Text("No Folders Added", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
         Spacer(modifier = Modifier.height(8.dp))
         Text("Tap the + button to add your comic folders", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(
+            onClick = onBrowseNowClick,
+            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+        ) {
+            Icon(Icons.Default.Image, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Browse All Images")
+        }
     }
 }

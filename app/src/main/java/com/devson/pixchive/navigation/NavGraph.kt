@@ -20,6 +20,7 @@ import com.devson.pixchive.ui.reader.ReaderScreen
 import com.devson.pixchive.ui.screens.DeveloperOptionsScreen
 import com.devson.pixchive.ui.screens.LogsScreen
 import com.devson.pixchive.ui.screens.AppearanceSettingsScreen
+import com.devson.pixchive.ui.screens.imagelist.ImageListScreen
 import com.devson.pixchive.viewmodel.FolderViewModel
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
@@ -82,6 +83,9 @@ fun NavGraph(
                 },
                 onResumeChapter = { folderId, chapterPath, initialPage ->
                     navController.navigate(Screen.ImageViewer.createRoute(folderId, chapterPath, initialPage))
+                },
+                onBrowseNowClick = {
+                    navController.navigate(Screen.ImageList.route)
                 }
             )
         }
@@ -134,6 +138,18 @@ fun NavGraph(
         composable(Screen.PrivacyPolicy.route) {
             PrivacyPolicyScreen(
                 onNavigateBack = safeNavigateBack // Use safe pop
+            )
+        }
+
+        composable(Screen.ImageList.route) {
+            ImageListScreen(
+                onImageSelected = { folderId, imageIndex ->
+                    navController.navigate(Screen.ImageViewer.createRoute(folderId, "flat_view", imageIndex))
+                },
+                onNavigateToSettings = {
+                    navController.navigate(Screen.Settings.route)
+                },
+                onBack = safeNavigateBack
             )
         }
 

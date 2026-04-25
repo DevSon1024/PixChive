@@ -39,8 +39,6 @@ import com.devson.pixchive.R
 import com.devson.pixchive.model.Image
 import com.devson.pixchive.model.ImageFolder
 import com.devson.pixchive.model.ViewSettings
-import com.devson.pixchive.ui.screens.imagelist.components.common.ImageWatchState
-import com.devson.pixchive.ui.screens.imagelist.components.common.getWatchState
 import com.devson.pixchive.ui.screens.imagelist.components.selection.SelectionCheckmarkOverlay
 
 @OptIn(ExperimentalFoundationApi::class)

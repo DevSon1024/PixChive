@@ -163,6 +163,36 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    // All-images count for FILES view mode (folderId = "all_files:<sort>")
+    val allFilesImageCount: StateFlow<Int> = imageDao.getAllImagesCountFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    // All-images Pager for FILES view mode - responds to sort option
+    val allFilesImages: Flow<PagingData<ImageEntity>> = _sortOption
+        .flatMapLatest { sort ->
+            Pager(
+                config = PagingConfig(
+                    pageSize = 40,
+                    enablePlaceholders = true,
+                    maxSize = 500,
+                    prefetchDistance = 20,
+                    initialLoadSize = 40
+                ),
+                pagingSourceFactory = {
+                    when (sort) {
+                        "name_desc", "type_desc" -> imageDao.getAllImagesPagedNameDesc()
+                        "date_newest"            -> imageDao.getAllImagesPagedDateNewest()
+                        "date_oldest"            -> imageDao.getAllImagesPagedDateOldest()
+                        "size_asc", "resolution_asc" -> imageDao.getAllImagesPagedSizeAsc()
+                        "size_desc", "resolution_desc" -> imageDao.getAllImagesPagedSizeDesc()
+                        "path_asc"               -> imageDao.getAllImagesPagedPathAsc()
+                        "path_desc"              -> imageDao.getAllImagesPagedPathDesc()
+                        else                     -> imageDao.getAllImagesPagedNameAsc() // name_asc + default
+                    }
+                }
+            ).flow
+        }.cachedIn(viewModelScope)
+
     /**
      * Loads a single image by its sorted position.
      * Supports two modes:
@@ -173,6 +203,14 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
         if (folderId == "favorites") {
             val orderBy = favoriteOrderBy(_favoritesSortOption.value)
             val sql = "SELECT images.* FROM images INNER JOIN favorite_images ON images.uri = favorite_images.uri ORDER BY $orderBy LIMIT 1 OFFSET ?"
+            return imageDao.getImageByIndexRaw(SimpleSQLiteQuery(sql, arrayOf(index)))
+        }
+
+        // All-files lookup (from ImageListScreen FILES mode: folderId = "all_files:<sort>")
+        if (folderId != null && folderId.startsWith("all_files:")) {
+            val sort = folderId.removePrefix("all_files:")
+            val orderBy = flatOrderBy(sort)
+            val sql = "SELECT * FROM images ORDER BY $orderBy LIMIT 1 OFFSET ?"
             return imageDao.getImageByIndexRaw(SimpleSQLiteQuery(sql, arrayOf(index)))
         }
 
@@ -316,10 +354,15 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
 
     fun loadFolder(folderId: String, forceRescan: Boolean = false) {
         // Path-based IDs from ImageListScreen don't map to a ComicFolder UUID
-        if (folderId == "favorites" || folderId.startsWith("path:")) {
+        if (folderId == "favorites" || folderId.startsWith("path:") || folderId.startsWith("all_files:")) {
             // For path-based navigation, expose the count via the path-based flow
             if (folderId.startsWith("path:")) {
                 _pathBasedFolderPath.value = folderId.removePrefix("path:")
+                _isLoading.value = false
+            } else if (folderId.startsWith("all_files:")) {
+                // All-files mode: sort is embedded in folderId; no per-folder loading needed
+                val sort = folderId.removePrefix("all_files:")
+                if (_sortOption.value != sort) _sortOption.value = sort
                 _isLoading.value = false
             }
             return

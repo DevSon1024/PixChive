@@ -92,12 +92,14 @@ fun ReaderScreen(
     val volumeKeysNavigation by viewModel.volumeKeysNavigation.collectAsState()
 
     val isPathBased = folderId.startsWith("path:")
+    val isAllFiles = folderId.startsWith("all_files:")
     val isFlatView = chapterPath == "flat_view" || chapterPath == "favorites_view"
 
     // --- FLAT VIEW: use true DB total instead of paging snapshot ---
     val flatImageCount by viewModel.flatImageCount.collectAsState()
     val favoriteImageCount by viewModel.favoriteImageCount.collectAsState()
     val pathBasedImageCount by viewModel.pathBasedImageCount.collectAsState()
+    val allFilesImageCount by viewModel.allFilesImageCount.collectAsState()
 
     // For chapter view, image list comes from chapters as before
     val chapterImages = remember(chapters, chapterPath) {
@@ -107,16 +109,18 @@ fun ReaderScreen(
 
     val pageCount = when {
         folderId == "favorites" -> favoriteImageCount
-        isPathBased -> pathBasedImageCount
-        isFlatView -> flatImageCount
-        else -> chapterImages.size
+        isAllFiles              -> allFilesImageCount
+        isPathBased             -> pathBasedImageCount
+        isFlatView              -> flatImageCount
+        else                    -> chapterImages.size
     }
 
     val chapterName = remember(chapterPath, currentFolder, folderId) {
         when {
+            isAllFiles  -> "All Files"
             isPathBased -> folderId.removePrefix("path:").substringAfterLast('/')
-            isFlatView -> currentFolder?.name ?: "Flat View"
-            else -> chapterPath.substringAfterLast("/").substringAfterLast(":")
+            isFlatView  -> currentFolder?.name ?: "Flat View"
+            else        -> chapterPath.substringAfterLast("/").substringAfterLast(":")
         }
     }
 
@@ -352,8 +356,14 @@ fun ReaderScreen(
                                 flatImageCache[page] = viewModel.getFlatImageAt(page, folderId)
                             }
                         }
+                        // all_files mode also uses on-demand loading
+                        if (isAllFiles && !flatImageCache.containsKey(page)) {
+                            LaunchedEffect(page) {
+                                flatImageCache[page] = viewModel.getFlatImageAt(page, folderId)
+                            }
+                        }
 
-                        val pageImage: Any? = if (isFlatView) {
+                        val pageImage: Any? = if (isFlatView || isAllFiles) {
                             flatImageCache[page]
                         } else {
                             chapterImages.getOrNull(page)

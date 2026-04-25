@@ -605,8 +605,16 @@ fun ImageListScreen(
                                     if (isSelectionActive) {
                                         selectedImages = if (image in selectedImages) selectedImages - image else selectedImages + image
                                     } else {
-                                        val folderId = image.path.substringBeforeLast("/")
-                                        onImageSelected(folderId, sortedImages.indexOf(image))
+                                        // Build sort key matching FolderViewModel.flatOrderBy format
+                                        val sortKey = when (viewSettings.sortField) {
+                                            com.devson.pixchive.model.SortField.NAME       -> if (viewSettings.sortDirection == com.devson.pixchive.model.SortDirection.ASCENDING) "name_asc" else "name_desc"
+                                            com.devson.pixchive.model.SortField.DATE       -> if (viewSettings.sortDirection == com.devson.pixchive.model.SortDirection.ASCENDING) "date_oldest" else "date_newest"
+                                            com.devson.pixchive.model.SortField.SIZE       -> if (viewSettings.sortDirection == com.devson.pixchive.model.SortDirection.ASCENDING) "size_asc" else "size_desc"
+                                            com.devson.pixchive.model.SortField.RESOLUTION -> if (viewSettings.sortDirection == com.devson.pixchive.model.SortDirection.ASCENDING) "resolution_asc" else "resolution_desc"
+                                            com.devson.pixchive.model.SortField.PATH       -> if (viewSettings.sortDirection == com.devson.pixchive.model.SortDirection.ASCENDING) "path_asc" else "path_desc"
+                                            com.devson.pixchive.model.SortField.TYPE       -> if (viewSettings.sortDirection == com.devson.pixchive.model.SortDirection.ASCENDING) "name_asc" else "name_desc"
+                                        }
+                                        onImageSelected("all_files:$sortKey", sortedImages.indexOf(image))
                                     }
                                 },
                                 onImageLongClick = { image ->

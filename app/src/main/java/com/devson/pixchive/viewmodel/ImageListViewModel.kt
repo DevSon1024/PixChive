@@ -28,7 +28,7 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
         } else {
             allImages.filter { !it.path.split('/').any { segment -> segment.startsWith(".") && segment.isNotEmpty() } }
         }
-        filtered.groupBy { it.parentFolderName }
+        filtered.groupBy { it.parentFolderPath ?: it.parentFolderName }
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
 
     private val _isLoading = MutableStateFlow(true)

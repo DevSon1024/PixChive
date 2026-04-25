@@ -101,6 +101,35 @@ interface ImageDao {
     @Query("SELECT * FROM images")
     fun getAllImagesFlow(): Flow<List<ImageEntity>>
 
+    // --- All-images queries for FILES view mode (no folderId filter) ---
+
+    @Query("SELECT COUNT(*) FROM images")
+    fun getAllImagesCountFlow(): Flow<Int>
+
+    @Query("SELECT * FROM images ORDER BY parentFolderPath ASC, name ASC")
+    fun getAllImagesPagedNameAsc(): PagingSource<Int, ImageEntity>
+
+    @Query("SELECT * FROM images ORDER BY parentFolderPath DESC, name DESC")
+    fun getAllImagesPagedNameDesc(): PagingSource<Int, ImageEntity>
+
+    @Query("SELECT * FROM images ORDER BY dateModified DESC")
+    fun getAllImagesPagedDateNewest(): PagingSource<Int, ImageEntity>
+
+    @Query("SELECT * FROM images ORDER BY dateModified ASC")
+    fun getAllImagesPagedDateOldest(): PagingSource<Int, ImageEntity>
+
+    @Query("SELECT * FROM images ORDER BY size ASC")
+    fun getAllImagesPagedSizeAsc(): PagingSource<Int, ImageEntity>
+
+    @Query("SELECT * FROM images ORDER BY size DESC")
+    fun getAllImagesPagedSizeDesc(): PagingSource<Int, ImageEntity>
+
+    @Query("SELECT * FROM images ORDER BY path ASC")
+    fun getAllImagesPagedPathAsc(): PagingSource<Int, ImageEntity>
+
+    @Query("SELECT * FROM images ORDER BY path DESC")
+    fun getAllImagesPagedPathDesc(): PagingSource<Int, ImageEntity>
+
     @androidx.room.Query("SELECT path FROM images WHERE folderId = :folderId")
     suspend fun getAllPathsForFolder(folderId: String): List<String>
 

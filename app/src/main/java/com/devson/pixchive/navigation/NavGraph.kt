@@ -144,8 +144,14 @@ fun NavGraph(
         composable(Screen.ImageList.route) {
             ImageListScreen(
                 onImageSelected = { folderId, imageIndex ->
-                    val pathPrefixed = "path:$folderId"
-                    val encodedFolderId = java.net.URLEncoder.encode(pathPrefixed, java.nio.charset.StandardCharsets.UTF_8.toString())
+                    // FILES mode passes "all_files:<sort>"; ALL_FOLDERS passes bare folder paths.
+                    // Only wrap bare paths with "path:" prefix; already-prefixed IDs pass through.
+                    val effectiveFolderId = when {
+                        folderId.startsWith("all_files:") -> folderId
+                        folderId.startsWith("path:")      -> folderId
+                        else                             -> "path:$folderId"
+                    }
+                    val encodedFolderId = java.net.URLEncoder.encode(effectiveFolderId, java.nio.charset.StandardCharsets.UTF_8.toString())
                     navController.navigate(Screen.ImageViewer.createRoute(encodedFolderId, "flat_view", imageIndex))
                 },
                 onNavigateToSettings = {

@@ -9,8 +9,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
@@ -18,19 +16,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.devson.pixchive.model.LayoutMode
-import com.devson.pixchive.model.Video
+import com.devson.pixchive.model.Image
 import com.devson.pixchive.model.ViewSettings
-import com.devson.pixchive.model.WatchHistory
 import com.devson.pixchive.ui.components.CustomEmptyStateView
 
 @Composable
-fun VideoListContent(
-    images: List<Video>,
+fun ImageListContent(
+    images: List<Image>,
     settings: ViewSettings,
-    selectedImages: Set<Video>,
-    historyMap: Map<String, WatchHistory> = emptyMap(),
-    onVideoClick: (Video) -> Unit,
-    onVideoLongClick: (Video) -> Unit,
+    selectedImages: Set<Image>,
+    onImageClick: (Image) -> Unit,
+    onImageLongClick: (Image) -> Unit,
     listState: LazyListState = rememberLazyListState(),
     gridState: LazyGridState = rememberLazyGridState(),
     contentPadding: PaddingValues = PaddingValues(0.dp)
@@ -60,13 +56,12 @@ fun VideoListContent(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(images) { image ->
-                VideoGridItem(
+                ImageGridItem(
                     image = image,
                     settings = settings,
                     isSelected = image in selectedImages,
-                    lastPositionMs = historyMap[image.uri]?.lastPositionMs ?: 0L,
-                    onClick = { onVideoClick(image) },
-                    onLongClick = { onVideoLongClick(image) }
+                    onClick = { onImageClick(image) },
+                    onLongClick = { onImageLongClick(image) }
                 )
             }
         }
@@ -80,13 +75,12 @@ fun VideoListContent(
             )
         ) {
             items(images) { image ->
-                VideoListItem(
+                ImageListItem(
                     image = image,
                     settings = settings,
                     isSelected = image in selectedImages,
-                    lastPositionMs = historyMap[image.uri]?.lastPositionMs ?: 0L,
-                    onClick = { onVideoClick(image) },
-                    onLongClick = { onVideoLongClick(image) }
+                    onClick = { onImageClick(image) },
+                    onLongClick = { onImageLongClick(image) }
                 )
             }
         }

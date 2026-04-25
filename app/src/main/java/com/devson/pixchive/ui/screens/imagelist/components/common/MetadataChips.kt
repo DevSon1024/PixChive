@@ -12,31 +12,28 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.devson.pixchive.model.Video
+import com.devson.pixchive.model.Image
 import com.devson.pixchive.model.ViewSettings
-import com.devson.pixchive.util.formatDate
-import com.devson.pixchive.util.formatDuration
-import com.devson.pixchive.util.formatRelativeTime
-import com.devson.pixchive.util.formatResolutionCompact
-import com.devson.pixchive.util.formatSize
+import com.devson.pixchive.utils.formatDate
+import com.devson.pixchive.utils.formatResolutionCompact
+import com.devson.pixchive.utils.formatSize
 
 @Composable
-fun VideoMetadataRow(
-    image: Video,
+fun ImageMetadataRow(
+    image: Image,
     settings: ViewSettings,
     isGrid: Boolean = false,
     lastPositionMs: Long = 0L
 ) {
-    VideoMetadataChips(image, settings, lastPositionMs, isGrid)
+    ImageMetadataChips(image, settings, lastPositionMs, isGrid)
 }
  
 @Composable
-fun VideoMetadataChips(
-    image: Video,
+fun ImageMetadataChips(
+    image: Image,
     settings: ViewSettings,
     lastPositionMs: Long = 0L,
     isGrid: Boolean = false
@@ -44,14 +41,8 @@ fun VideoMetadataChips(
     data class MetaToken(val text: String, val isPrimary: Boolean = false)
  
     val tokens = buildList {
-        if (settings.showLength && !settings.displayLengthOverThumbnail)
-            add(MetaToken(formatDuration(image.duration), isPrimary = true))
-        if (settings.showPlayedTime && image.lastPlayedAt != null && image.lastPlayedAt > 0)
-            add(MetaToken(formatRelativeTime(LocalContext.current, image.lastPlayedAt)))
         if (settings.showResolution && !image.resolution.isNullOrEmpty())
             add(MetaToken(formatResolutionCompact(image.resolution) ?: image.resolution))
-        if (settings.showFrameRate && image.frameRate != null && image.frameRate > 0f)
-            add(MetaToken("${image.frameRate.toInt()} fps"))
         if (settings.showFileExtension)
             add(MetaToken(image.title.substringAfterLast('.', image.uri.substringAfterLast('.', "")).uppercase()))
         if (settings.showSize)

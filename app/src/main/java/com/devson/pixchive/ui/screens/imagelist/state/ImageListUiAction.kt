@@ -1,25 +1,25 @@
 package com.devson.pixchive.ui.screens.imagelist.state
 
-import com.devson.pixchive.model.Video
-import com.devson.pixchive.model.VideoFolder
+import com.devson.pixchive.model.Image
+import com.devson.pixchive.model.ImageFolder
 
-sealed class VideoListUiAction {
-    data class OnVideoClick(val image: Video) : VideoListUiAction()
-    data class OnVideoLongClick(val image: Video) : VideoListUiAction()
-    data class OnFolderClick(val folder: VideoFolder) : VideoListUiAction()
-    data class OnFolderLongClick(val folder: VideoFolder) : VideoListUiAction()
-    object OnSelectAll : VideoListUiAction()
-    object OnClearSelection : VideoListUiAction()
-    data class OnSearch(val query: String) : VideoListUiAction()
-    data class OnSearchActiveChange(val active: Boolean) : VideoListUiAction()
-    object OnBack : VideoListUiAction()
-    data class OnMarkStatus(val status: String) : VideoListUiAction()
-    object OnPlayAll : VideoListUiAction()
-    object OnMove : VideoListUiAction()
-    object OnCopy : VideoListUiAction()
-    object OnDelete : VideoListUiAction()
-    object OnRename : VideoListUiAction()
-    object OnShare : VideoListUiAction()
-    object OnShowInfo : VideoListUiAction()
-    object OnShowSettings : VideoListUiAction()
+sealed class ImageListUiAction {
+    data class OnImageClick(val image: Image) : ImageListUiAction()
+    data class OnImageLongClick(val image: Image) : ImageListUiAction()
+    data class OnFolderClick(val folder: ImageFolder) : ImageListUiAction()
+    data class OnFolderLongClick(val folder: ImageFolder) : ImageListUiAction()
+    object OnSelectAll : ImageListUiAction()
+    object OnClearSelection : ImageListUiAction()
+    data class OnSearch(val query: String) : ImageListUiAction()
+    data class OnSearchActiveChange(val active: Boolean) : ImageListUiAction()
+    object OnBack : ImageListUiAction()
+    data class OnMarkStatus(val status: String) : ImageListUiAction()
+    object OnPlayAll : ImageListUiAction()
+    object OnMove : ImageListUiAction()
+    object OnCopy : ImageListUiAction()
+    object OnDelete : ImageListUiAction()
+    object OnRename : ImageListUiAction()
+    object OnShare : ImageListUiAction()
+    object OnShowInfo : ImageListUiAction()
+    object OnShowSettings : ImageListUiAction()
 }

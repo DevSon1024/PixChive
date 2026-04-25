@@ -23,23 +23,23 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.devson.pixchive.model.Video
+import com.devson.pixchive.model.Image
 import com.devson.pixchive.model.ViewSettings
-import com.devson.pixchive.ui.screens.imagelist.components.common.VideoMetadataChips
-import com.devson.pixchive.ui.screens.imagelist.components.common.VideoWatchState
+import com.devson.pixchive.ui.screens.imagelist.components.common.ImageMetadataChips
+import com.devson.pixchive.ui.screens.imagelist.components.common.ImageWatchState
 import com.devson.pixchive.ui.screens.imagelist.components.common.WatchProgressBar
 import com.devson.pixchive.ui.screens.imagelist.components.common.WatchStateBadge
 import com.devson.pixchive.ui.screens.imagelist.components.common.getWatchState
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun VideoListItem(
-    image: Video,
+fun ImageListItem(
+    image: Image,
     settings: ViewSettings,
     isSelected: Boolean = false,
     lastPositionMs: Long = 0L,
-    onClick: (Video) -> Unit,
-    onLongClick: (Video) -> Unit
+    onClick: (Image) -> Unit,
+    onLongClick: (Image) -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
  
@@ -89,18 +89,13 @@ fun VideoListItem(
                 .padding(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            //  Thumbnail 
-            val watchState = getWatchState(lastPositionMs, image.duration)
+            //  Thumbnail
             Card(
                 modifier = Modifier
                     .size(width = 100.dp, height = 60.dp)
-                    .then(if (settings.selectByThumbnail) Modifier.clickable { onLongClick(image) } else Modifier)
-                    .then(if (watchState is VideoWatchState.Completed) Modifier.alpha(0.6f) else Modifier),
+                    .then(if (settings.selectByThumbnail) Modifier.clickable { onLongClick(image) } else Modifier),
                 shape = RoundedCornerShape(10.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (watchState is VideoWatchState.InProgress)
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
-                    else
                         Color.Transparent
                 ),
                 elevation = CardDefaults.cardElevation(0.dp)
@@ -111,7 +106,7 @@ fun VideoListItem(
                     .clip(RoundedCornerShape(10.dp))
             ) {
                 if (settings.showThumbnail) {
-                    VideoThumbnail(
+                    ImageThumbnail(
                         uri         = image.uri,
                         modifier    = Modifier.fillMaxSize(),
                         showPlayIcon = !isSelected
@@ -131,19 +126,6 @@ fun VideoListItem(
                         )
                     }
                 }
-
-                // Watch state badge (top-left): NEW / Running / Ended
-                if (!isSelected) {
-                    WatchStateBadge(watchState, isLarge = false)
-                }
-
-                // Duration badge (shown only when displayLengthOverThumbnail is true)
-                if (settings.showLength && settings.displayLengthOverThumbnail && !isSelected) {
-                    DurationBadge(image.duration, isGrid = false)
-                }
- 
-                // Watch-progress bar
-                WatchProgressBar(lastPositionMs, image.duration)
  
                 // Selection overlay (animated)
                 ThumbnailSelectionOverlay(isSelected, isDense = true)
@@ -163,15 +145,13 @@ fun VideoListItem(
                     overflow  = TextOverflow.Ellipsis,
                     color     = if (isSelected)
                         MaterialTheme.colorScheme.onPrimaryContainer
-                    else if (watchState is VideoWatchState.Completed)
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     else
                         MaterialTheme.colorScheme.onSurface
                 )
  
                 Spacer(modifier = Modifier.height(5.dp))
  
-                VideoMetadataChips(image, settings, lastPositionMs)
+                ImageMetadataChips(image, settings, lastPositionMs)
             }
         }
     }

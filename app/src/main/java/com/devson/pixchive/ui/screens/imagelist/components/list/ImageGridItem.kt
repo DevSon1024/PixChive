@@ -22,23 +22,23 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.devson.pixchive.model.Video
+import com.devson.pixchive.model.Image
 import com.devson.pixchive.model.ViewSettings
-import com.devson.pixchive.ui.screens.imagelist.components.common.VideoMetadataChips
-import com.devson.pixchive.ui.screens.imagelist.components.common.VideoWatchState
+import com.devson.pixchive.ui.screens.imagelist.components.common.ImageMetadataChips
+import com.devson.pixchive.ui.screens.imagelist.components.common.ImageWatchState
 import com.devson.pixchive.ui.screens.imagelist.components.common.WatchProgressBar
 import com.devson.pixchive.ui.screens.imagelist.components.common.WatchStateBadge
 import com.devson.pixchive.ui.screens.imagelist.components.common.getWatchState
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun VideoGridItem(
-    image: Video,
+fun ImageGridItem(
+    image: Image,
     settings: ViewSettings,
     isSelected: Boolean = false,
     lastPositionMs: Long = 0L,
-    onClick: (Video) -> Unit,
-    onLongClick: (Video) -> Unit
+    onClick: (Image) -> Unit,
+    onLongClick: (Image) -> Unit
 ) {
     val haptic  = LocalHapticFeedback.current
     val isDense = settings.gridColumns >= 3
@@ -61,7 +61,6 @@ fun VideoGridItem(
     )
  
     // Single-column (full-width cinema card) 
-    val watchState = getWatchState(lastPositionMs, image.duration)
     if (settings.gridColumns == 1) {
         Card(
             modifier = Modifier
@@ -86,16 +85,12 @@ fun VideoGridItem(
                         .fillMaxWidth()
                         .aspectRatio(16f / 9f)
                         .then(if (settings.selectByThumbnail) Modifier.clickable { onLongClick(image) } else Modifier)
-                        .then(if (watchState is VideoWatchState.Completed) Modifier.alpha(0.6f) else Modifier)
                 ) {
                     if (settings.showThumbnail) {
-                        VideoThumbnail(uri = image.uri, modifier = Modifier.fillMaxSize(), showPlayIcon = !isSelected)
+                        ImageThumbnail(uri = image.uri, modifier = Modifier.fillMaxSize(), showPlayIcon = !isSelected)
                     } else {
                         Box(
                             Modifier.fillMaxSize().background(
-                                if (watchState is VideoWatchState.InProgress)
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
-                                else
                                     MaterialTheme.colorScheme.surfaceVariant
                             ),
                             contentAlignment = Alignment.Center
@@ -104,10 +99,6 @@ fun VideoGridItem(
                                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
                         }
                     }
-                    if (!isSelected) WatchStateBadge(watchState, isLarge = true)
-                    if (settings.showLength && settings.displayLengthOverThumbnail && !isSelected)
-                        DurationBadge(image.duration, isGrid = true)
-                    WatchProgressBar(lastPositionMs, image.duration)
                     ThumbnailSelectionOverlay(isSelected)
                 }
  
@@ -128,13 +119,11 @@ fun VideoGridItem(
                             overflow   = TextOverflow.Ellipsis,
                             color      = if (isSelected)
                                 MaterialTheme.colorScheme.onPrimaryContainer
-                            else if (watchState is VideoWatchState.Completed)
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                             else
                                 MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(4.dp))
-                        VideoMetadataChips(image, settings, lastPositionMs)
+                        ImageMetadataChips(image, settings, lastPositionMs)
                     }
                 }
             }
@@ -166,10 +155,9 @@ fun VideoGridItem(
                     .fillMaxWidth()
                     .weight(1f)
                     .then(if (settings.selectByThumbnail) Modifier.clickable { onLongClick(image) } else Modifier)
-                    .then(if (watchState is VideoWatchState.Completed) Modifier.alpha(0.6f) else Modifier)
             ) {
                 if (settings.showThumbnail) {
-                    VideoThumbnail(
+                    ImageThumbnail(
                         uri          = image.uri,
                         modifier     = Modifier.fillMaxSize(),
                         showPlayIcon = !isSelected && !isDense
@@ -177,9 +165,6 @@ fun VideoGridItem(
                 } else {
                     Box(
                         Modifier.fillMaxSize().background(
-                            if (watchState is VideoWatchState.InProgress)
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
-                            else
                                 MaterialTheme.colorScheme.surfaceVariant
                         ),
                         contentAlignment = Alignment.Center
@@ -189,15 +174,6 @@ fun VideoGridItem(
                     }
                 }
 
-                if (!isSelected) WatchStateBadge(watchState, isLarge = settings.gridColumns <= 2)
-
-                // Duration badge
-                if (settings.showLength && settings.displayLengthOverThumbnail && !isSelected)
-                    DurationBadge(image.duration, isGrid = true)
- 
-                // Watch-progress bar
-                WatchProgressBar(lastPositionMs, image.duration)
- 
                 // Selection overlay
                 ThumbnailSelectionOverlay(isSelected, isDense)
             }
@@ -218,13 +194,11 @@ fun VideoGridItem(
                         overflow   = TextOverflow.Ellipsis,
                         color      = if (isSelected)
                             MaterialTheme.colorScheme.onPrimaryContainer
-                        else if (watchState is VideoWatchState.Completed)
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                         else
                             MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(3.dp))
-                    VideoMetadataChips(image, settings, lastPositionMs, isGrid = true)
+                    ImageMetadataChips(image, settings, lastPositionMs, isGrid = true)
                 }
             }
         }

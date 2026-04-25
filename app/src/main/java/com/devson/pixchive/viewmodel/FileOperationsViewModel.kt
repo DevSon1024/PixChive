@@ -59,7 +59,7 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
 
     //  DELETE 
 
-    fun deleteVideos(context: Context, uris: List<Uri>, trash: Boolean = false) {
+    fun deleteImages(context: Context, uris: List<Uri>, trash: Boolean = false) {
         if (uris.isEmpty()) return
         viewModelScope.launch {
             _operationInProgress.value = true
@@ -93,7 +93,7 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
-    fun restoreVideos(context: Context, uris: List<Uri>) {
+    fun restoreImages(context: Context, uris: List<Uri>) {
         if (uris.isEmpty() || Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
         viewModelScope.launch {
             _operationInProgress.value = true
@@ -151,7 +151,7 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
     }
 
     //  RENAME 
-    fun renameVideo(context: Context, uri: Uri, newName: String) {
+    fun renameImage(context: Context, uri: Uri, newName: String) {
         viewModelScope.launch {
             _operationInProgress.value = true
             try {
@@ -242,7 +242,7 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
      * Copies all [uris] into the [targetTreeUri] directory chosen via OpenDocumentTree.
      * Uses SAF DocumentFile API which works across all API levels without permission dialogs.
      */
-    fun copyVideos(context: Context, uris: List<Uri>, targetTreeUri: Uri) {
+    fun copyImages(context: Context, uris: List<Uri>, targetTreeUri: Uri) {
         if (uris.isEmpty()) return
         viewModelScope.launch {
             _operationInProgress.value = true
@@ -285,7 +285,7 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
     /**
      * Moves all [uris] into the [targetTreeUri] directory: copy first, then delete originals.
      */
-    fun moveVideos(context: Context, uris: List<Uri>, targetTreeUri: Uri) {
+    fun moveImages(context: Context, uris: List<Uri>, targetTreeUri: Uri) {
         if (uris.isEmpty()) return
         viewModelScope.launch {
             _operationInProgress.value = true

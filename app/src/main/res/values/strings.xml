@@ -100,19 +100,19 @@
     <string name="folder_selection_count">%1$d folders selected</string>
     <string name="folder_no_folders_found">No Folders Found</string>
     <string name="folder_no_folders_desc">No video folders were detected on your device. Tap below to trigger a fresh scan.</string>
-    <string name="folder_scan_cta">Scan Device for Videos</string>
+    <string name="folder_scan_cta">Scan Device for Images</string>
     <string name="folder_selection_title">Selected Folders</string>
-    <string name="folder_info_total_videos">Total Videos</string>
+    <string name="folder_info_total_videos">Total Images</string>
     <string name="folder_info_total_size">Total Size</string>
     <string name="folder_info_location">Location</string>
     <string name="folder_info_multiple_locations">Multiple Locations</string>
     <string name="folder_info_creation_date">Creation Date</string>
 
     <!-- App Shortcuts -->
-    <string name="shortcut_short_label">Video Player</string>
-    <string name="shortcut_long_label">Nosved Video Player Anime</string>
+    <string name="shortcut_short_label">Image Player</string>
+    <string name="shortcut_long_label">Nosved Image Player Anime</string>
     <!-- Home Screen -->
-    <string name="home_video_library">Your Video Library</string>
+    <string name="home_video_library">Your Image Library</string>
     <string name="home_video_library_desc">Explore all your local videos and folders in one place.</string>
     <string name="home_browse_now">Browse Now</string>
     <string name="home_continue_watching">Continue Watching</string>
@@ -133,10 +133,10 @@
 
     <!-- Content Descriptions -->
     <string name="cd_settings">Settings</string>
-    <string name="cd_browse_videos">Browse Videos</string>
+    <string name="cd_browse_videos">Browse Images</string>
     <string name="cd_play">Play</string>
     <string name="cd_delete">Delete</string>
-    <string name="cd_video_thumbnail">Video Thumbnail</string>
+    <string name="cd_video_thumbnail">Image Thumbnail</string>
     <!-- Information Bottom Sheet -->
     <string name="info_general">General</string>
     <string name="info_selected">Selected</string>
@@ -156,7 +156,7 @@
     <string name="info_playback_state">State</string>
     <string name="info_playback_last_played">Last Played</string>
     <string name="info_playback_position">Position</string>
-    <string name="info_track_video">Video Track %1$d</string>
+    <string name="info_track_video">Image Track %1$d</string>
     <string name="info_track_audio">Audio Track %1$d</string>
     <string name="info_track_subtitle">Subtitle Track %1$d</string>
     <string name="info_track_other">Other Track %1$d</string>
@@ -292,7 +292,7 @@
     <string name="info_playback_in_progress">In Progress</string>
     <string name="info_streams">Streams</string>
     <string name="info_stream_label">Stream %d</string>
-    <string name="info_aggregated_total_videos">Total Videos</string>
+    <string name="info_aggregated_total_videos">Total Images</string>
 
     <!-- Recycle Bin -->
     <string name="recycle_bin_title">Recycle Bin</string>

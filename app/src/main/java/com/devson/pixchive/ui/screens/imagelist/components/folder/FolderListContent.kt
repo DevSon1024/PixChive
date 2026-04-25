@@ -10,8 +10,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.Icons
@@ -26,21 +24,19 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.devson.pixchive.R
 import com.devson.pixchive.model.LayoutMode
-import com.devson.pixchive.model.Video
-import com.devson.pixchive.model.VideoFolder
+import com.devson.pixchive.model.Image
+import com.devson.pixchive.model.ImageFolder
 import com.devson.pixchive.model.ViewSettings
-import com.devson.pixchive.model.WatchHistory
 import com.devson.pixchive.ui.components.CustomEmptyStateView
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FolderListContent(
-    folders: Map<VideoFolder, List<Video>>,
+    folders: Map<ImageFolder, List<Image>>,
     settings: ViewSettings,
-    selectedFolders: Set<VideoFolder>,
-    historyMap: Map<String, WatchHistory> = emptyMap(),
-    onFolderClick: (VideoFolder) -> Unit,
-    onFolderLongClick: (VideoFolder) -> Unit,
+    selectedFolders: Set<ImageFolder>,
+    onFolderClick: (ImageFolder) -> Unit,
+    onFolderLongClick: (ImageFolder) -> Unit,
     listState: LazyListState = rememberLazyListState(),
     gridState: LazyGridState = rememberLazyGridState(),
     contentPadding: PaddingValues = PaddingValues(0.dp)
@@ -51,7 +47,7 @@ fun FolderListContent(
     if (sortedFolders.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CustomEmptyStateView(
-                icon    = Icons.Filled.VideoLibrary,
+                icon    = Icons.Filled. VideoLibrary,
                 heading = stringResource(R.string.folder_no_folders_found),
                 subtext = stringResource(R.string.folder_no_folders_desc),
                 ctaLabel = stringResource(R.string.folder_scan_cta)
@@ -80,7 +76,6 @@ fun FolderListContent(
                     images = folders[folder] ?: emptyList(),
                     settings = settings,
                     isSelected = folder in selectedFolders,
-                    historyMap = historyMap,
                     onClick = { onFolderClick(folder) },
                     onLongClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -104,7 +99,6 @@ fun FolderListContent(
                     images = folders[folder] ?: emptyList(),
                     settings = settings,
                     isSelected = folder in selectedFolders,
-                    historyMap = historyMap,
                     onClick = { onFolderClick(folder) },
                     onLongClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)

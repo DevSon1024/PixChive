@@ -43,17 +43,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.devson.pixchive.R
-import com.devson.pixchive.model.Video
-import com.devson.pixchive.model.VideoFolder
+import com.devson.pixchive.model.Image
+import com.devson.pixchive.model.ImageFolder
 import com.devson.pixchive.model.ViewSettings
-import com.devson.pixchive.model.WatchHistory
 import com.devson.pixchive.ui.components.FolderShape
-import com.devson.pixchive.ui.screens.imagelist.components.common.VideoWatchState
+import com.devson.pixchive.ui.screens.imagelist.components.common.ImageWatchState
 import com.devson.pixchive.ui.screens.imagelist.components.common.getWatchState
-import com.devson.pixchive.ui.screens.imagelist.components.list.VideoThumbnail
+import com.devson.pixchive.ui.screens.imagelist.components.list.ImageThumbnail
 import com.devson.pixchive.ui.screens.imagelist.components.selection.SelectionCheckmarkOverlay
-import com.devson.pixchive.util.formatDate
-import com.devson.pixchive.util.formatSize
+import com.devson.pixchive.utils.formatDate
+import com.devson.pixchive.utils.formatSize
 
 @Composable
 fun BoxScope.NewCountBadge(count: Int) {
@@ -79,7 +78,7 @@ fun BoxScope.NewCountBadge(count: Int) {
 
 @Composable
 fun FolderMediaPreview(
-    images: List<Video>,
+    images: List<Image>,
     isSelected: Boolean,
     settings: ViewSettings,
     modifier: Modifier = Modifier
@@ -93,7 +92,7 @@ fun FolderMediaPreview(
         contentAlignment = Alignment.Center
     ) {
         if (images.isNotEmpty() && settings.showThumbnail) {
-            VideoThumbnail(
+            ImageThumbnail(
                 uri = images.first().uri,
                 modifier = Modifier.fillMaxSize(),
                 showPlayIcon = false
@@ -124,20 +123,13 @@ fun FolderMediaPreview(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FolderListItem(
-    folder: VideoFolder,
-    images: List<Video>,
+    folder: ImageFolder,
+    images: List<Image>,
     settings: ViewSettings,
     isSelected: Boolean = false,
-    historyMap: Map<String, WatchHistory> = emptyMap(),
     onClick: () -> Unit,
     onLongClick: () -> Unit = {}
 ) {
-    val newCount = remember(images, historyMap) {
-        images.count { v -> getWatchState(
-            historyMap[v.uri]?.lastPositionMs ?: 0L,
-            v.duration
-        ) is VideoWatchState.Unplayed }
-    }
     val bgColor by animateColorAsState(
         targetValue  = if (isSelected)
             MaterialTheme.colorScheme.primaryContainer
@@ -183,7 +175,6 @@ fun FolderListItem(
                         settings = settings,
                         modifier = Modifier.size(width = 72.dp, height = 54.dp)
                     )
-                    NewCountBadge(newCount)
                 }
  
                 Spacer(modifier = Modifier.width(14.dp))
@@ -213,14 +204,14 @@ fun FolderListItem(
 }
 
 @Composable
-fun FolderMetadataRow(images: List<Video>, settings: ViewSettings, isGrid: Boolean = false) {
+fun FolderMetadataRow(images: List<Image>, settings: ViewSettings, isGrid: Boolean = false) {
     FolderMetadataChips(images, settings, isGrid)
 }
  
 @Composable
-fun FolderMetadataChips(images: List<Video>, settings: ViewSettings, isGrid: Boolean = false) {
+fun FolderMetadataChips(images: List<Image>, settings: ViewSettings, isGrid: Boolean = false) {
     val tokens = buildList {
-        add(Pair(stringResource(R.string.folder_images_count, images.size), true))   // count → primary chip
+        add(Pair(stringResource(R.string.folder_videos_count, images.size), true))   // count → primary chip
         if (settings.showSize) {
             val totalSize = images.sumOf { it.size }
             add(Pair(formatSize(totalSize), false))
@@ -273,17 +264,17 @@ private fun FolderMetaChip(text: String, isPrimary: Boolean) {
 
 @Composable
 fun FolderInfoDialog(
-    selectedFolders: Set<VideoFolder>,
-    imagesByFolder: Map<VideoFolder, List<Video>>,
+    selectedFolders: Set<ImageFolder>,
+    imagesByFolder: Map<ImageFolder, List<Image>>,
     onDismiss: () -> Unit
 ) {
     val allImages = selectedFolders.flatMap { folder -> imagesByFolder[folder] ?: emptyList() }
     val totalImages = allImages.size
     val totalSize = allImages.sumOf { it.size }
     val location = if (selectedFolders.size == 1) {
-        val firstVideo = allImages.firstOrNull()
-        if (firstVideo != null && firstVideo.path.contains("/")) {
-            firstVideo.path.substringBeforeLast("/")
+        val firstImage = allImages.firstOrNull()
+        if (firstImage != null && firstImage.path.contains("/")) {
+            firstImage.path.substringBeforeLast("/")
         } else {
             selectedFolders.first().name
         }

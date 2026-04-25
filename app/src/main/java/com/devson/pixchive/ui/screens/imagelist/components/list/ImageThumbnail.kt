@@ -31,10 +31,10 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
-import com.devson.pixchive.util.formatDuration
+import com.devson.pixchive.utils.formatDuration
 
 @Composable
-fun VideoThumbnail(
+fun ImageThumbnail(
     uri: String,
     modifier: Modifier = Modifier,
     showPlayIcon: Boolean = true
@@ -52,7 +52,7 @@ fun VideoThumbnail(
                 .build(),
             placeholder = ColorPainter(MaterialTheme.colorScheme.surfaceVariant),
             error       = ColorPainter(MaterialTheme.colorScheme.surfaceVariant),
-            contentDescription = "Video Thumbnail",
+            contentDescription = "Image Thumbnail",
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
         )

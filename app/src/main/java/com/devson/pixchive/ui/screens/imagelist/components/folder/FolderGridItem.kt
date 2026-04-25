@@ -36,32 +36,24 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.devson.pixchive.R
-import com.devson.pixchive.model.Video
-import com.devson.pixchive.model.VideoFolder
+import com.devson.pixchive.model.Image
+import com.devson.pixchive.model.ImageFolder
 import com.devson.pixchive.model.ViewSettings
-import com.devson.pixchive.model.WatchHistory
-import com.devson.pixchive.ui.screens.imagelist.components.common.VideoWatchState
+import com.devson.pixchive.ui.screens.imagelist.components.common.ImageWatchState
 import com.devson.pixchive.ui.screens.imagelist.components.common.getWatchState
 import com.devson.pixchive.ui.screens.imagelist.components.selection.SelectionCheckmarkOverlay
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FolderGridItem(
-    folder: VideoFolder,
-    images: List<Video>,
+    folder: ImageFolder,
+    images: List<Image>,
     settings: ViewSettings,
     isSelected: Boolean = false,
-    historyMap: Map<String, WatchHistory> = emptyMap(),
     onClick: () -> Unit,
     onLongClick: () -> Unit = {}
 ) {
     val isDense = settings.gridColumns >= 3
-    val newCount = remember(images, historyMap) {
-        images.count { v -> getWatchState(
-            historyMap[v.uri]?.lastPositionMs ?: 0L,
-            v.duration
-        ) is VideoWatchState.Unplayed }
-    }
  
     val bgColor by animateColorAsState(
         targetValue  = if (isSelected)
@@ -106,7 +98,6 @@ fun FolderGridItem(
                             settings = settings,
                             modifier = Modifier.fillMaxSize()
                         )
-                        NewCountBadge(newCount)
                     }
                     Spacer(modifier = Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
@@ -158,7 +149,6 @@ fun FolderGridItem(
                             .fillMaxWidth()
                             .fillMaxSize()
                     )
-                    NewCountBadge(newCount)
                     }
                     Column(
                         modifier = Modifier
@@ -204,8 +194,6 @@ fun FolderGridItem(
                 settings = settings,
                 modifier = Modifier.fillMaxSize()
             )
-            NewCountBadge(newCount)
- 
             // Gradient scrim for label legibility
             Box(
                 modifier = Modifier
@@ -243,7 +231,7 @@ fun FolderGridItem(
                     overflow   = TextOverflow.Ellipsis
                 )
                 Text(
-                    text  = stringResource(R.string.folder_images_count, images.size),
+                    text  = stringResource(R.string.folder_videos_count, images.size),
                     color = Color.White.copy(alpha = 0.75f),
                     style = MaterialTheme.typography.labelSmall,
                     fontSize = 9.5.sp

@@ -9,8 +9,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
@@ -20,29 +18,27 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import com.devson.pixchive.model.LayoutMode
-import com.devson.pixchive.model.Video
-import com.devson.pixchive.model.VideoFolder
+import com.devson.pixchive.model.Image
+import com.devson.pixchive.model.ImageFolder
 import com.devson.pixchive.model.ViewSettings
-import com.devson.pixchive.model.WatchHistory
-import com.devson.pixchive.ui.screens.imagelist.components.list.VideoGridItem
-import com.devson.pixchive.ui.screens.imagelist.components.list.VideoListItem
+import com.devson.pixchive.ui.screens.imagelist.components.list.ImageGridItem
+import com.devson.pixchive.ui.screens.imagelist.components.list.ImageListItem
 import com.devson.pixchive.ui.screens.imagelist.components.folder.FolderGridItem
 import com.devson.pixchive.ui.screens.imagelist.components.folder.FolderListItem
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ExplorerListContent(
-    folders: List<VideoFolder>,
-    images: List<Video>,
-    allImagesForSize: List<Video>,
+    folders: List<ImageFolder>,
+    images: List<Image>,
+    allImagesForSize: List<Image>,
     settings: ViewSettings,
-    selectedFolders: Set<VideoFolder>,
-    selectedImages: Set<Video>,
-    historyMap: Map<String, WatchHistory> = emptyMap(),
-    onFolderClick: (VideoFolder) -> Unit,
-    onFolderLongClick: (VideoFolder) -> Unit,
-    onVideoClick: (Video) -> Unit,
-    onVideoLongClick: (Video) -> Unit,
+    selectedFolders: Set<ImageFolder>,
+    selectedImages: Set<Image>,
+    onFolderClick: (ImageFolder) -> Unit,
+    onFolderLongClick: (ImageFolder) -> Unit,
+    onImageClick: (Image) -> Unit,
+    onImageLongClick: (Image) -> Unit,
     listState: LazyListState = rememberLazyListState(),
     gridState: LazyGridState = rememberLazyGridState(),
     contentPadding: PaddingValues = PaddingValues(0.dp)
@@ -78,15 +74,14 @@ fun ExplorerListContent(
                 )
             }
             items(images) { image ->
-                VideoGridItem(
+                ImageGridItem(
                     image = image,
                     settings = settings,
                     isSelected = image in selectedImages,
-                    lastPositionMs = historyMap[image.uri]?.lastPositionMs ?: 0L,
-                    onClick = { onVideoClick(image) },
+                    onClick = { onImageClick(image) },
                     onLongClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onVideoLongClick(image)
+                        onImageLongClick(image)
                     }
                 )
             }
@@ -115,15 +110,14 @@ fun ExplorerListContent(
                 )
             }
             items(images) { image ->
-                VideoListItem(
+                ImageListItem(
                     image = image,
                     settings = settings,
                     isSelected = image in selectedImages,
-                    lastPositionMs = historyMap[image.uri]?.lastPositionMs ?: 0L,
-                    onClick = { onVideoClick(image) },
+                    onClick = { onImageClick(image) },
                     onLongClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onVideoLongClick(image)
+                        onImageLongClick(image)
                     }
                 )
             }

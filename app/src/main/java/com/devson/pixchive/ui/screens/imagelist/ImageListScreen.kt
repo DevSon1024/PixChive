@@ -28,24 +28,22 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.devson.pixchive.model.Video
-import com.devson.pixchive.model.VideoFolder
+import com.devson.pixchive.model.Image
+import com.devson.pixchive.model.ImageFolder
 import com.devson.pixchive.model.ViewMode
-import com.devson.pixchive.model.WatchHistory
 import com.devson.pixchive.model.applySort
 import com.devson.pixchive.ui.components.CustomRenameDialog
-import com.devson.pixchive.ui.components.PreviewFloatingActionButton
 import com.devson.pixchive.ui.components.ViewSettingsBottomSheet
 import com.devson.pixchive.ui.screens.imagelist.components.folder.FolderListContent
 import com.devson.pixchive.ui.screens.InformationBottomSheet
 import com.devson.pixchive.ui.screens.StorageExplorerScreen
-import com.devson.pixchive.ui.screens.imagelist.components.topbar.VideoListTopAppBar
-import com.devson.pixchive.ui.screens.imagelist.components.list.VideoListContent
+import com.devson.pixchive.ui.screens.imagelist.components.topbar.ImageListTopAppBar
+import com.devson.pixchive.ui.screens.imagelist.components.list.ImageListContent
 import com.devson.pixchive.ui.screens.imagelist.components.explorer.ExplorerListContent
-import com.devson.pixchive.ui.screens.imagelist.components.selection.VideoSelectionBottomBar
+import com.devson.pixchive.ui.screens.imagelist.components.selection.ImageSelectionBottomBar
 import com.devson.pixchive.ui.screens.imagelist.utils.applyFolderSort
 import com.devson.pixchive.ui.screens.imagelist.utils.shareImages
-import com.devson.pixchive.util.SelectionBottomAppBar
+import com.devson.pixchive.utils.SelectionBottomAppBar
 import com.devson.pixchive.viewmodel.FileOperationsViewModel
 import com.devson.pixchive.viewmodel.HomeViewModel
 import com.devson.pixchive.viewmodel.ImageListViewModel
@@ -53,7 +51,7 @@ import com.devson.pixchive.viewmodel.ImageListViewModel
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun ImageListScreen(
-    onVideoSelected: (Video, List<Video>, Long) -> Unit,
+    onVideoSelected: (Image, List<Image>, Long) -> Unit,
     onNavigateToSettings: () -> Unit,
     onBack: () -> Unit = {},
     onNavigateToSearch: (String) -> Unit = {},
@@ -113,8 +111,8 @@ fun ImageListScreen(
     var showSettingsSheet by remember { mutableStateOf(false) }
 
     //  SELECTION STATE 
-    var selectedFolders by remember { mutableStateOf(emptySet<VideoFolder>()) }
-    var selectedImages by remember { mutableStateOf(emptySet<Video>()) }
+    var selectedFolders by remember { mutableStateOf(emptySet<ImageFolder>()) }
+    var selectedImages by remember { mutableStateOf(emptySet<Image>()) }
     var showInfoBottomSheet by remember { mutableStateOf(false) }
 
     val sortedFolderKeys = remember(imagesByFolder, viewSettings.sortField, viewSettings.sortDirection) {
@@ -141,8 +139,6 @@ fun ImageListScreen(
 
     //  Watch History 
     val homeViewModel: HomeViewModel = viewModel()
-    val history by homeViewModel.history.collectAsState()
-    val historyMap = remember(history) { history.associateBy { it.uri } }
 
     //  File Operations 
     val fileOpsViewModel: FileOperationsViewModel = viewModel()
@@ -231,7 +227,7 @@ fun ImageListScreen(
                 ViewMode.FILES -> "All Files"
                 ViewMode.FOLDERS -> currentExplorerPath?.substringBeforeLast('/')?.substringAfterLast('/') ?: "Folders"
             }
-            VideoListTopAppBar(
+            ImageListTopAppBar(
                 isSelectionActive = isSelectionActive,
                 titleText = titleText,
                 selectedCount = selectedImages.size + selectedFolders.size,
@@ -342,9 +338,6 @@ fun ImageListScreen(
                         selectedFolders = selectedFolders,
                         imagesByFolder = imagesByFolder,
                         viewSettings = viewSettings,
-                        onVideoSelected = { image, playlist ->
-                            onVideoSelected(image, playlist, historyMap[image.uri]?.lastPositionMs ?: 0L)
-                        },
                         onClearSelection = { selectedFolders = emptySet() },
                         onMove = {
                             if (selectedUris.isNotEmpty()) {
@@ -374,38 +367,13 @@ fun ImageListScreen(
                             selectedFolders = emptySet()
                             selectedImages = emptySet()
                         },
-                        onShowInfo = { showInfoBottomSheet = true },
-                        onMarkStatus = { status ->
-                            selectedFolders.flatMap { imagesByFolder[it] ?: emptyList() }.forEach { image ->
-                                val position = when(status) {
-                                    "NEW" -> 0L
-                                    "RUNNING" -> image.duration / 2
-                                    "ENDED" -> image.duration
-                                    else -> 0L
-                                }
-                                homeViewModel.setWatchStatus(image, position)
-                            }
-                            selectedFolders = emptySet()
-                            selectedImages = emptySet()
-                        }
+                        onShowInfo = { showInfoBottomSheet = true }
                     )
                 } else {
                     // FILES, FOLDERS mode, or ALL_FOLDERS inside a specific folder:
                     // use the image-centric bar driven by the unified selectedUris list
-                    VideoSelectionBottomBar(
+                    ImageSelectionBottomBar(
                         selectedImages = selectedImages,
-                        onPlayAll = {
-                            val playVideo = selectedImages.firstOrNull()
-                            if (playVideo != null) {
-                                val playlist = when (viewSettings.viewMode) {
-                                    ViewMode.FILES -> imagesByFolder.values.flatten().applySort(viewSettings.sortField, viewSettings.sortDirection)
-                                    ViewMode.ALL_FOLDERS -> (imagesByFolder[selectedFolder] ?: emptyList()).applySort(viewSettings.sortField, viewSettings.sortDirection)
-                                    ViewMode.FOLDERS -> explorerNodes.second.applySort(viewSettings.sortField, viewSettings.sortDirection)
-                                }
-                                onVideoSelected(playVideo, playlist, historyMap[playVideo.uri]?.lastPositionMs ?: 0L)
-                                selectedImages = emptySet()
-                            }
-                        },
                         onMove = {
                             if (selectedUris.isNotEmpty()) {
                                 storageExplorerUris = selectedUris
@@ -436,72 +404,10 @@ fun ImageListScreen(
                             selectedFolders = emptySet()
                         },
                         onShowInfo = { showInfoBottomSheet = true },
-                        onMarkStatus = { status ->
-                            selectedImages.forEach { image ->
-                                val position = when(status) {
-                                    "NEW" -> 0L
-                                    "RUNNING" -> image.duration / 2
-                                    "ENDED" -> image.duration
-                                    else -> 0L
-                                }
-                                homeViewModel.setWatchStatus(image, position)
-                            }
-                            selectedImages = emptySet()
-                            selectedFolders = emptySet()
-                        }
                     )
                 }
             }
         },
-        floatingActionButton = {
-            if (viewSettings.showFloatingButton && !isSelectionActive) {
-                val allImagesFlat = remember(imagesByFolder) { imagesByFolder.values.flatten() }
-
-                val lastPlayedVideo = remember(history, selectedFolder, viewSettings.viewMode, currentExplorerPath, allImagesFlat) {
-                    if (viewSettings.viewMode == ViewMode.ALL_FOLDERS && selectedFolder != null) {
-                        val folderImages = imagesByFolder[selectedFolder] ?: emptyList()
-                        val folderUris = folderImages.map { it.uri }.toSet()
-                        val lastHistory = history.firstOrNull { it.uri in folderUris }
-                        if (lastHistory != null) folderImages.find { it.uri == lastHistory.uri } else null
-                    } else if (viewSettings.viewMode == ViewMode.FOLDERS && currentExplorerPath != null) {
-                        val pathImages = allImagesFlat.filter { it.path.startsWith(currentExplorerPath!!) }
-                        val pathUris = pathImages.map { it.uri }.toSet()
-                        val lastHistory = history.firstOrNull { it.uri in pathUris }
-                        if (lastHistory != null) pathImages.find { it.uri == lastHistory.uri } else null
-                    } else {
-                        val lastHistory = history.firstOrNull()
-                        if (lastHistory != null) allImagesFlat.find { it.uri == lastHistory.uri } else null
-                    }
-                }
-
-                if (lastPlayedVideo != null) {
-                    val lastHistoryEntry = remember(lastPlayedVideo, historyMap) { historyMap[lastPlayedVideo.uri] }
-                    PreviewFloatingActionButton(
-                        enablePreview = viewSettings.enableFabPreview,
-                        previewUri = lastPlayedVideo.uri,
-                        previewTitle = lastPlayedVideo.title,
-                        previewDurationMs = lastPlayedVideo.duration,
-                        previewLastPositionMs = lastHistoryEntry?.lastPositionMs ?: 0L,
-                        onPlay = {
-                            val playlist = when (viewSettings.viewMode) {
-                                ViewMode.FILES -> allImagesFlat.applySort(viewSettings.sortField, viewSettings.sortDirection)
-                                ViewMode.ALL_FOLDERS -> if (selectedFolder != null) {
-                                    (imagesByFolder[selectedFolder] ?: emptyList()).applySort(viewSettings.sortField, viewSettings.sortDirection)
-                                } else {
-                                    allImagesFlat.applySort(viewSettings.sortField, viewSettings.sortDirection)
-                                }
-                                ViewMode.FOLDERS -> if (currentExplorerPath != null) {
-                                    allImagesFlat.filter { it.path.startsWith(currentExplorerPath!!) }.applySort(viewSettings.sortField, viewSettings.sortDirection)
-                                } else {
-                                    allImagesFlat.applySort(viewSettings.sortField, viewSettings.sortDirection)
-                                }
-                            }
-                            onVideoSelected(lastPlayedVideo, playlist, lastHistoryEntry?.lastPositionMs ?: 0L)
-                        }
-                    )
-                }
-            }
-        }
     ) { padding ->
         Box(
             modifier = Modifier
@@ -552,7 +458,6 @@ fun ImageListScreen(
                                     folders = imagesByFolder,
                                     settings = viewSettings,
                                     selectedFolders = selectedFolders,
-                                    historyMap = historyMap,
                                     onFolderClick = { folder ->
                                         if (isSelectionActive) {
                                             selectedFolders =
@@ -574,23 +479,18 @@ fun ImageListScreen(
                                 val sortedImages = remember(images, viewSettings.sortField, viewSettings.sortDirection) {
                                     images.applySort(viewSettings.sortField, viewSettings.sortDirection)
                                 }
-                                VideoListContent(
+                                ImageListContent(
                                     images = sortedImages,
                                     settings = viewSettings,
                                     selectedImages = selectedImages,
-                                    onVideoClick = { image ->
-                                        if (isSelectionActive) {
+                                    onImageClick = { image ->
                                             selectedImages = if (image in selectedImages) selectedImages - image else selectedImages + image
-                                        } else {
-                                            onVideoSelected(image, sortedImages, historyMap[image.uri]?.lastPositionMs ?: 0L)
-                                        }
                                     },
-                                    onVideoLongClick = { image ->
+                                    onImageLongClick = { image ->
                                         selectedImages = if (image in selectedImages) selectedImages - image else selectedImages + image
                                     },
                                     listState = imageListState,
                                     gridState = imageGridState,
-                                    historyMap = historyMap,
                                     contentPadding = padding
                                 )
                             }
@@ -600,23 +500,18 @@ fun ImageListScreen(
                             val sortedImages = remember(allImages, viewSettings.sortField, viewSettings.sortDirection) {
                                 allImages.applySort(viewSettings.sortField, viewSettings.sortDirection)
                             }
-                            VideoListContent(
+                            ImageListContent(
                                 images = sortedImages,
                                 settings = viewSettings,
                                 selectedImages = selectedImages,
-                                onVideoClick = { image ->
-                                    if (isSelectionActive) {
+                                onImageClick = { image ->
                                         selectedImages = if (image in selectedImages) selectedImages - image else selectedImages + image
-                                    } else {
-                                        onVideoSelected(image, sortedImages, historyMap[image.uri]?.lastPositionMs ?: 0L)
-                                    }
                                 },
-                                onVideoLongClick = { image ->
+                                onImageLongClick = { image ->
                                     selectedImages = if (image in selectedImages) selectedImages - image else selectedImages + image
                                 },
                                 listState = imageListState,
                                 gridState = imageGridState,
-                                historyMap = historyMap,
                                 contentPadding = padding
                             )
                         }
@@ -644,7 +539,6 @@ fun ImageListScreen(
                                 settings = viewSettings,
                                 selectedFolders = selectedFolders,
                                 selectedImages = selectedImages,
-                                historyMap = historyMap,
                                 onFolderClick = { folder ->
                                     if (isSelectionActive) {
                                         selectedFolders = if (folder in selectedFolders) selectedFolders - folder else selectedFolders + folder
@@ -655,14 +549,10 @@ fun ImageListScreen(
                                 onFolderLongClick = { folder ->
                                     selectedFolders = if (folder in selectedFolders) selectedFolders - folder else selectedFolders + folder
                                 },
-                                onVideoClick = { image ->
-                                    if (isSelectionActive) {
+                                onImageClick = { image ->
                                         selectedImages = if (image in selectedImages) selectedImages - image else selectedImages + image
-                                    } else {
-                                        onVideoSelected(image, sortedExpImages, historyMap[image.uri]?.lastPositionMs ?: 0L)
-                                    }
                                 },
-                                onVideoLongClick = { image ->
+                                onImageLongClick = { image ->
                                     selectedImages = if (image in selectedImages) selectedImages - image else selectedImages + image
                                 },
                                 listState = folderListState,
@@ -726,7 +616,7 @@ fun ImageListScreen(
                     val image = if (selectedFolder != null) selectedImages.firstOrNull() 
                                else (imagesByFolder[selectedFolders.first()] ?: emptyList()).firstOrNull()
                     if (image != null) {
-                        fileOpsViewModel.renameVideo(context, Uri.parse(image.uri), newName)
+                        fileOpsViewModel.renameImage(context, Uri.parse(image.uri), newName)
                     }
                 }
                 showRenameDialog = false

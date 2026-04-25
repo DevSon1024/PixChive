@@ -3,10 +3,10 @@ package com.devson.pixchive.ui.screens.imagelist.utils
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import com.devson.pixchive.model.Video
+import com.devson.pixchive.model.Image
 import java.util.ArrayList
 
-fun shareImages(context: Context, images: List<Video>) {
+fun shareImages(context: Context, images: List<Image>) {
     if (images.isEmpty()) return
     val uris = images.map { Uri.parse(it.uri) }
     
@@ -24,5 +24,5 @@ fun shareImages(context: Context, images: List<Video>) {
         }
     }
     
-    context.startActivity(Intent.createChooser(intent, "Share Video"))
+    context.startActivity(Intent.createChooser(intent, "Share Image"))
 }

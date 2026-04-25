@@ -31,32 +31,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.devson.pixchive.model.Video
-import com.devson.pixchive.util.TagStatusDialog
+import com.devson.pixchive.model.Image
+import com.devson.pixchive.utils.TagStatusDialog
 
 @Composable
-fun VideoSelectionBottomBar(
-    selectedImages: Set<Video>,
-    onPlayAll: () -> Unit,
+fun ImageSelectionBottomBar(
+    selectedImages: Set<Image>,
     onMove: () -> Unit,
     onCopy: () -> Unit,
     onDelete: () -> Unit,
     onRename: () -> Unit,
     onShowInfo: () -> Unit,
-    onShare: () -> Unit,
-    onMarkStatus: (String) -> Unit
+    onShare: () -> Unit
 ) {
-    var showTagDialog by remember { mutableStateOf(false) }
-
-    if (showTagDialog) {
-        TagStatusDialog(
-            onDismiss = { showTagDialog = false },
-            onConfirm = { status ->
-                showTagDialog = false
-                onMarkStatus(status)
-            }
-        )
-    }
 
     BottomAppBar(
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -70,12 +57,6 @@ fun VideoSelectionBottomBar(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Play All
-            ActionColumn(
-                icon = Icons.Filled.PlayCircle,
-                label = "Play All",
-                onClick = onPlayAll
-            )
             // Move
             ActionColumn(icon = Icons.AutoMirrored.Filled.DriveFileMove, label = "Move", onClick = onMove)
             // Copy
@@ -95,7 +76,6 @@ fun VideoSelectionBottomBar(
             // Info
             ActionColumn(icon = Icons.Filled.Info, label = "Info", onClick = onShowInfo)
             // Tagging
-            ActionColumn(icon = Icons.AutoMirrored.Filled.Label, label = "Tag", onClick = { showTagDialog = true })
         }
     }
 }

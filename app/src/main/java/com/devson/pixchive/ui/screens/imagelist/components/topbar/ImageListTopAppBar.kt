@@ -29,12 +29,12 @@ import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
-import com.devson.pixchive.model.Video
+import com.devson.pixchive.model.Image
 import com.devson.pixchive.ui.components.SearchSuggestionsPopup
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VideoListTopAppBar(
+fun ImageListTopAppBar(
     isSelectionActive: Boolean,
     titleText: String?,
     selectedCount: Int,
@@ -51,7 +51,7 @@ fun VideoListTopAppBar(
     searchText: String = "",
     onSearchActiveChange: (Boolean) -> Unit = {},
     onSearchTextChange: (String) -> Unit = {},
-    searchSuggestions: List<Video> = emptyList(),
+    searchSuggestions: List<Image> = emptyList(),
     searchFocusRequester: FocusRequester = remember { FocusRequester() },
     keyboard: SoftwareKeyboardController? = null
 ) {

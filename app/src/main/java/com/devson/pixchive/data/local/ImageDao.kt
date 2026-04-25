@@ -92,6 +92,9 @@ interface ImageDao {
     @Query("SELECT COUNT(DISTINCT parentFolderPath) FROM images WHERE folderId = :folderId")
     suspend fun getChapterCount(folderId: String): Int
 
+    @Query("SELECT * FROM images")
+    fun getAllImagesFlow(): Flow<List<ImageEntity>>
+
     @androidx.room.Query("SELECT path FROM images WHERE folderId = :folderId")
     suspend fun getAllPathsForFolder(folderId: String): List<String>
 

@@ -3,22 +3,22 @@ package com.devson.pixchive.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.devson.pixchive.data.local.AppDatabase
+import com.devson.pixchive.data.local.ImageDao
 import com.devson.pixchive.data.local.ImageEntity
-// import com.devson.pixchive.repository.ImageRepository // Ensure you have this
 import com.devson.pixchive.model.ViewSettings
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class ImageListViewModel(application: Application) : AndroidViewModel(application) {
 
-    // private val repository = ImageRepository(application) // Replace with your actual repository
+    private val imageDao: ImageDao = AppDatabase.getDatabase(application).imageDao()
 
     private val _viewSettings = MutableStateFlow(ViewSettings())
     val viewSettings: StateFlow<ViewSettings> = _viewSettings.asStateFlow()
 
     private val _allImagesCache = MutableStateFlow<List<ImageEntity>>(emptyList())
 
-    // Group images by their parentFolderPath or parentFolderName
     val imagesByFolder: StateFlow<Map<String, List<ImageEntity>>> = combine(
         _allImagesCache,
         _viewSettings
@@ -49,15 +49,20 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
     private val _searchSuggestions = MutableStateFlow<List<ImageEntity>>(emptyList())
     val searchSuggestions: StateFlow<List<ImageEntity>> = _searchSuggestions.asStateFlow()
 
-    fun loadImages(forceRefresh: Boolean = false) {
+    init {
         viewModelScope.launch {
-            if (forceRefresh) _isRefreshing.value = true else _isLoading.value = true
-            try {
-                // Fetch from Room DB or SAF repository
-                // val images = repository.getAllImages()
-                // _allImagesCache.value = images
-            } finally {
+            imageDao.getAllImagesFlow().collect { images ->
+                _allImagesCache.value = images
                 _isLoading.value = false
+            }
+        }
+    }
+
+    fun loadImages(forceRefresh: Boolean = false) {
+        if (forceRefresh) {
+            viewModelScope.launch {
+                _isRefreshing.value = true
+                _allImagesCache.value = imageDao.getAllImagesFlow().first()
                 _isRefreshing.value = false
             }
         }

@@ -231,7 +231,7 @@ fun FolderGridItem(
                     overflow   = TextOverflow.Ellipsis
                 )
                 Text(
-                    text  = stringResource(R.string.folder_videos_count, images.size),
+                    text  = stringResource(R.string.folder_images_count, images.size),
                     color = Color.White.copy(alpha = 0.75f),
                     style = MaterialTheme.typography.labelSmall,
                     fontSize = 9.5.sp

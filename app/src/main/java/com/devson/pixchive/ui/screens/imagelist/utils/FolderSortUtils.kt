@@ -11,11 +11,9 @@ fun List<ImageFolder>.applyFolderSort(
     direction: SortDirection
 ): List<ImageFolder> {
     val sorted = when (field) {
-        SortField.TITLE -> sortedBy { it.name.lowercase() }
+        SortField.NAME -> sortedBy { it.name.lowercase() }
         SortField.DATE -> sortedBy { folder -> folderMap[folder]?.maxOfOrNull { it.dateAdded } ?: 0L }
         SortField.SIZE -> sortedBy { folder -> folderMap[folder]?.sumOf { it.size } ?: 0L }
-        SortField.RESOLUTION -> sortedBy { it.name.lowercase() }
-        SortField.PATH -> sortedBy { it.id.lowercase() }
     }
     return if (direction == SortDirection.DESCENDING) sorted.reversed() else sorted
 }

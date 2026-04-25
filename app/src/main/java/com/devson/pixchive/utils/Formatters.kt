@@ -73,11 +73,9 @@ fun formatDate(epochMs: Long): String {
 
 fun getSortFieldStringRes(field: SortField): Int {
     return when (field) {
-        SortField.TITLE -> R.string.sort_field_title
+        SortField.NAME -> R.string.sort_field_title
         SortField.DATE -> R.string.sort_field_date
         SortField.SIZE -> R.string.sort_field_size
-        SortField.RESOLUTION -> R.string.info_label_resolution
-        SortField.PATH -> R.string.sort_field_path
     }
 }
 

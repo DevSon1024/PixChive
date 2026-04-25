@@ -55,7 +55,11 @@ fun ImageListContent(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(images) { image ->
+            items(
+                count = images.size,
+                key = { images[it].uri.toString() }
+            ) { index ->
+                val image = images[index]
                 ImageGridItem(
                     image = image,
                     settings = settings,
@@ -74,7 +78,11 @@ fun ImageListContent(
                 bottom = contentPadding.calculateBottomPadding() + 16.dp
             )
         ) {
-            items(images) { image ->
+            items(
+                count = images.size,
+                key = { images[it].uri.toString() }
+            ) { index ->
+                val image = images[index]
                 ImageListItem(
                     image = image,
                     settings = settings,

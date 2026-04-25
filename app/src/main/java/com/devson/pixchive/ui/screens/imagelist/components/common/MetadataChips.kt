@@ -18,33 +18,30 @@ import androidx.compose.ui.unit.sp
 import com.devson.pixchive.model.Image
 import com.devson.pixchive.model.ViewSettings
 import com.devson.pixchive.utils.formatDate
-import com.devson.pixchive.utils.formatResolutionCompact
 import com.devson.pixchive.utils.formatSize
 
 @Composable
 fun ImageMetadataRow(
     image: Image,
     settings: ViewSettings,
-    isGrid: Boolean = false,
-    lastPositionMs: Long = 0L
+    isGrid: Boolean = false
 ) {
-    ImageMetadataChips(image, settings, lastPositionMs, isGrid)
+    ImageMetadataChips(image, settings, isGrid)
 }
- 
+
 @Composable
 fun ImageMetadataChips(
     image: Image,
     settings: ViewSettings,
-    lastPositionMs: Long = 0L,
     isGrid: Boolean = false
 ) {
     data class MetaToken(val text: String, val isPrimary: Boolean = false)
- 
+
     val tokens = buildList {
         if (settings.showResolution && !image.resolution.isNullOrEmpty())
-            add(MetaToken(formatResolutionCompact(image.resolution) ?: image.resolution))
+            add(MetaToken(image.resolution))
         if (settings.showFileExtension)
-            add(MetaToken(image.title.substringAfterLast('.', image.uri.substringAfterLast('.', "")).uppercase()))
+            add(MetaToken(image.title.substringAfterLast('.', "").uppercase()))
         if (settings.showSize)
             add(MetaToken(formatSize(image.size)))
         if (settings.showDate && image.dateAdded > 0)
@@ -52,11 +49,11 @@ fun ImageMetadataChips(
         if (settings.showPath)
             add(MetaToken(image.path))
     }.filter { it.text.isNotBlank() }
- 
+
     if (tokens.isEmpty()) return
- 
+
     Row(
-        modifier          = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -65,33 +62,33 @@ fun ImageMetadataChips(
         }
     }
 }
- 
+
 @Composable
 fun MetadataChip(text: String, isPrimary: Boolean, isGrid: Boolean = false) {
-    val bgColor   = if (isPrimary)
+    val bgColor = if (isPrimary)
         MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
     else
         MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
- 
+
     val textColor = if (isPrimary)
         MaterialTheme.colorScheme.onPrimaryContainer
     else
         MaterialTheme.colorScheme.onSurfaceVariant
- 
+
     val fontSize = if (isGrid) 9.5.sp else 10.5.sp
- 
+
     Box(
         modifier = Modifier
             .background(bgColor, RoundedCornerShape(5.dp))
             .padding(horizontal = 5.dp, vertical = 2.dp)
     ) {
         Text(
-            text       = text,
-            style      = MaterialTheme.typography.labelSmall,
-            fontSize   = fontSize,
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            fontSize = fontSize,
             fontWeight = if (isPrimary) FontWeight.SemiBold else FontWeight.Normal,
-            color      = textColor,
-            maxLines   = 1
+            color = textColor,
+            maxLines = 1
         )
     }
 }

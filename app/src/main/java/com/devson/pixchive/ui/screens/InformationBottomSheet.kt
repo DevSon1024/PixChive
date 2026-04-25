@@ -12,12 +12,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.devson.pixchive.R
-import com.devson.pixchive.data.local.AppDatabase
 import com.devson.pixchive.model.Image
 import com.devson.pixchive.utils.DetailedImageMetadata
-import com.devson.pixchive.utils.TrackType
 import com.devson.pixchive.utils.formatDate
-import com.devson.pixchive.utils.formatDuration
 import com.devson.pixchive.utils.formatSize
 import com.devson.pixchive.utils.getImageMetadata
 
@@ -37,7 +34,7 @@ fun InformationBottomSheet(
     LaunchedEffect(selectedImages) {
         if (selectedImages.size == 1) {
             isLoading = true
-            val meta = getImageMetadata(context, selectedImages.first(), watchHistoryDao, videoMetadataDao)
+            val meta = getImageMetadata(context, selectedImages.first())
             metadataList = listOf(meta)
             isLoading = false
         }
@@ -84,7 +81,7 @@ private fun MultiSelectionInfo(videos: Set<Image>) {
     val totalSize = videos.sumOf { it.size }
     
     InfoSection(title = stringResource(R.string.info_general)) {
-        InfoRow(label = stringResource(R.string.info_selected), value = stringResource(R.string.folder_videos_count, videos.size))
+        InfoRow(label = stringResource(R.string.info_selected), value = stringResource(R.string.folder_images_count, videos.size))
         InfoRow(label = stringResource(R.string.folder_info_total_size), value = formatSize(totalSize))
     }
 }

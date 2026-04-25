@@ -32,7 +32,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.devson.pixchive.model.Image
-import com.devson.pixchive.utils.TagStatusDialog
 
 @Composable
 fun ImageSelectionBottomBar(

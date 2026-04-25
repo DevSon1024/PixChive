@@ -94,8 +94,7 @@ fun FolderMediaPreview(
         if (images.isNotEmpty() && settings.showThumbnail) {
             ImageThumbnail(
                 uri = images.first().uri,
-                modifier = Modifier.fillMaxSize(),
-                showPlayIcon = false
+                modifier = Modifier.fillMaxSize()
             )
             // Subtle bottom scrim so folder looks layered
             Box(
@@ -211,7 +210,7 @@ fun FolderMetadataRow(images: List<Image>, settings: ViewSettings, isGrid: Boole
 @Composable
 fun FolderMetadataChips(images: List<Image>, settings: ViewSettings, isGrid: Boolean = false) {
     val tokens = buildList {
-        add(Pair(stringResource(R.string.folder_videos_count, images.size), true))   // count → primary chip
+        add(Pair(stringResource(R.string.folder_images_count, images.size), true))   // count → primary chip
         if (settings.showSize) {
             val totalSize = images.sumOf { it.size }
             add(Pair(formatSize(totalSize), false))
@@ -298,7 +297,7 @@ fun FolderInfoDialog(
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                InfoRow(label = stringResource(R.string.folder_info_total_images), value = "$totalImages")
+                InfoRow(label = stringResource(R.string.folder_info_total_videos), value = "$totalImages")
                 InfoRow(label = stringResource(R.string.folder_info_total_size), value = formatSize(totalSize))
                 InfoRow(label = stringResource(R.string.folder_info_location), value = location)
                 if (oldestDate != null && oldestDate > 0L) {

@@ -13,7 +13,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -47,7 +47,7 @@ fun FolderListContent(
     if (sortedFolders.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CustomEmptyStateView(
-                icon    = Icons.Filled. VideoLibrary,
+                icon    = Icons.Filled.PhotoLibrary,
                 heading = stringResource(R.string.folder_no_folders_found),
                 subtext = stringResource(R.string.folder_no_folders_desc),
                 ctaLabel = stringResource(R.string.folder_scan_cta)

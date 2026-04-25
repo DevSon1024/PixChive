@@ -9,7 +9,7 @@ import com.devson.pixchive.model.Image
  */
 sealed interface ImageListUiEvent {
     data class ShowToast(val message: String) : ImageListUiEvent
-    data class NavigateToPlayer(val image: Image, val playlist: List<Image>, val startPosition: Long) : ImageListUiEvent
+    data class NavigateToReader(val folderId: String, val imageIndex: Int) : ImageListUiEvent
     data class ShareImages(val uris: List<Uri>) : ImageListUiEvent
     object NavigateUp : ImageListUiEvent
 }

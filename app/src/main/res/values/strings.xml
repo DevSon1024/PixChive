@@ -96,7 +96,7 @@
 
     <!-- Folder Screen -->
     <string name="folder_new_badge">%1$d New</string>
-    <string name="folder_videos_count">%1$d videos</string>
+    <string name="folder_images_count">%1$d images</string>
     <string name="folder_selection_count">%1$d folders selected</string>
     <string name="folder_no_folders_found">No Folders Found</string>
     <string name="folder_no_folders_desc">No video folders were detected on your device. Tap below to trigger a fresh scan.</string>

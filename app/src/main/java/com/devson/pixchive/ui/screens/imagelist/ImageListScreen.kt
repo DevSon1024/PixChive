@@ -51,7 +51,7 @@ import com.devson.pixchive.viewmodel.ImageListViewModel
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun ImageListScreen(
-    onVideoSelected: (Image, List<Image>, Long) -> Unit,
+    onImageSelected: (folderId: String, imageIndex: Int) -> Unit,
     onNavigateToSettings: () -> Unit,
     onBack: () -> Unit = {},
     onNavigateToSearch: (String) -> Unit = {},
@@ -61,7 +61,7 @@ fun ImageListScreen(
     var hasPermission by remember {
         mutableStateOf(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_IMAGE) == PackageManager.PERMISSION_GRANTED
+                ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED
             } else {
                 ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
             }
@@ -80,7 +80,7 @@ fun ImageListScreen(
     LaunchedEffect(hasPermission) {
         if (!hasPermission) {
             val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                Manifest.permission.READ_MEDIA_IMAGE
+                Manifest.permission.READ_MEDIA_IMAGES
             } else {
                 Manifest.permission.READ_EXTERNAL_STORAGE
             }
@@ -137,8 +137,7 @@ fun ImageListScreen(
         }
     }
 
-    //  Watch History 
-    val homeViewModel: HomeViewModel = viewModel()
+    // Removed HomeViewModel and Watch History
 
     //  File Operations 
     val fileOpsViewModel: FileOperationsViewModel = viewModel()
@@ -434,7 +433,7 @@ fun ImageListScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(onClick = {
                         val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            Manifest.permission.READ_MEDIA_VIDEO
+                            Manifest.permission.READ_MEDIA_IMAGE
                         } else {
                             Manifest.permission.READ_EXTERNAL_STORAGE
                         }
@@ -484,7 +483,11 @@ fun ImageListScreen(
                                     settings = viewSettings,
                                     selectedImages = selectedImages,
                                     onImageClick = { image ->
+                                        if (isSelectionActive) {
                                             selectedImages = if (image in selectedImages) selectedImages - image else selectedImages + image
+                                        } else {
+                                            onImageSelected(selectedFolder ?: "", sortedImages.indexOf(image))
+                                        }
                                     },
                                     onImageLongClick = { image ->
                                         selectedImages = if (image in selectedImages) selectedImages - image else selectedImages + image
@@ -505,7 +508,12 @@ fun ImageListScreen(
                                 settings = viewSettings,
                                 selectedImages = selectedImages,
                                 onImageClick = { image ->
+                                    if (isSelectionActive) {
                                         selectedImages = if (image in selectedImages) selectedImages - image else selectedImages + image
+                                    } else {
+                                        val folderId = image.path.substringBeforeLast("/")
+                                        onImageSelected(folderId, sortedImages.indexOf(image))
+                                    }
                                 },
                                 onImageLongClick = { image ->
                                     selectedImages = if (image in selectedImages) selectedImages - image else selectedImages + image
@@ -550,7 +558,12 @@ fun ImageListScreen(
                                     selectedFolders = if (folder in selectedFolders) selectedFolders - folder else selectedFolders + folder
                                 },
                                 onImageClick = { image ->
+                                    if (isSelectionActive) {
                                         selectedImages = if (image in selectedImages) selectedImages - image else selectedImages + image
+                                    } else {
+                                        val folderId = image.path.substringBeforeLast("/")
+                                        onImageSelected(folderId, sortedExpImages.indexOf(image))
+                                    }
                                 },
                                 onImageLongClick = { image ->
                                     selectedImages = if (image in selectedImages) selectedImages - image else selectedImages + image
@@ -594,7 +607,7 @@ fun ImageListScreen(
     // ---- RENAME DIALOG ----
     if (showRenameDialog && (selectedFolders.size == 1 || selectedImages.size == 1)) {
         val isFolder = selectedFolders.size == 1 && selectedFolder == null
-        val title = if (isFolder) "Rename Folder" else "Rename Video"
+        val title = if (isFolder) "Rename Folder" else "Rename Image"
         
         CustomRenameDialog(
             initialName = renameInputText,
@@ -657,7 +670,7 @@ fun ImageListScreen(
         }
         AlertDialog(
             onDismissRequest = { showDeleteConfirmation = false },
-            title = { Text("Delete Video(s)") },
+            title = { Text("Delete Image(s)") },
             text = { Text("Choose how you want to delete the selected image(s).") },
             confirmButton = {
                 TextButton(

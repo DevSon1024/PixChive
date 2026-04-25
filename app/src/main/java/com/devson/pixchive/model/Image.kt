@@ -29,12 +29,18 @@ fun List<Image>.applySort(field: SortField, direction: SortDirection): List<Imag
             SortField.NAME -> sortedBy { it.title.lowercase() }
             SortField.DATE -> sortedBy { it.dateAdded }
             SortField.SIZE -> sortedBy { it.size }
+            SortField.RESOLUTION -> sortedBy { it.resolution }
+            SortField.PATH -> sortedBy { it.path }
+            SortField.TYPE -> sortedBy { it.title.substringAfterLast('.', "").lowercase() }
         }
     } else {
         when (field) {
             SortField.NAME -> sortedByDescending { it.title.lowercase() }
             SortField.DATE -> sortedByDescending { it.dateAdded }
             SortField.SIZE -> sortedByDescending { it.size }
+            SortField.RESOLUTION -> sortedByDescending { it.resolution }
+            SortField.PATH -> sortedByDescending { it.path }
+            SortField.TYPE -> sortedByDescending { it.title.substringAfterLast('.', "").lowercase() }
         }
     }
 }

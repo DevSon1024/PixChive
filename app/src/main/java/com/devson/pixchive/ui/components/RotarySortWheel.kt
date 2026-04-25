@@ -37,12 +37,12 @@ import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
 
-enum class SortField { TITLE, DATE, SIZE, RESOLUTION, PATH, TYPE }
-enum class SortDirection { ASCENDING, DESCENDING }
+import com.devson.pixchive.model.SortField
+import com.devson.pixchive.model.SortDirection
 
 fun formatSortField(field: SortField): String {
     return when (field) {
-        SortField.TITLE -> "Title"
+        SortField.NAME -> "Title"
         SortField.DATE -> "Date"
         SortField.SIZE -> "Size"
         SortField.RESOLUTION -> "Res."
@@ -53,7 +53,7 @@ fun formatSortField(field: SortField): String {
 
 fun getSortDirectionLabels(field: SortField): Pair<String, String> {
     return when (field) {
-        SortField.TITLE -> "A → Z" to "Z → A"
+        SortField.NAME -> "A → Z" to "Z → A"
         SortField.DATE -> "Oldest" to "Newest"
         SortField.SIZE -> "Smallest" to "Largest"
         SortField.RESOLUTION -> "Lowest" to "Highest"
@@ -64,8 +64,8 @@ fun getSortDirectionLabels(field: SortField): Pair<String, String> {
 
 fun parseSortOption(option: String): Pair<SortField, SortDirection> {
     return when (option) {
-        "name_asc" -> SortField.TITLE to SortDirection.ASCENDING
-        "name_desc" -> SortField.TITLE to SortDirection.DESCENDING
+        "name_asc" -> SortField.NAME to SortDirection.ASCENDING
+        "name_desc" -> SortField.NAME to SortDirection.DESCENDING
         "date_newest" -> SortField.DATE to SortDirection.DESCENDING
         "date_oldest" -> SortField.DATE to SortDirection.ASCENDING
         "size_asc" -> SortField.SIZE to SortDirection.ASCENDING
@@ -76,13 +76,13 @@ fun parseSortOption(option: String): Pair<SortField, SortDirection> {
         "path_desc" -> SortField.PATH to SortDirection.DESCENDING
         "type_asc" -> SortField.TYPE to SortDirection.ASCENDING
         "type_desc" -> SortField.TYPE to SortDirection.DESCENDING
-        else -> SortField.TITLE to SortDirection.ASCENDING
+        else -> SortField.NAME to SortDirection.ASCENDING
     }
 }
 
 fun formatSortOption(field: SortField, direction: SortDirection): String {
     return when (field) {
-        SortField.TITLE -> if (direction == SortDirection.ASCENDING) "name_asc" else "name_desc"
+        SortField.NAME -> if (direction == SortDirection.ASCENDING) "name_asc" else "name_desc"
         SortField.DATE -> if (direction == SortDirection.DESCENDING) "date_newest" else "date_oldest"
         SortField.SIZE -> if (direction == SortDirection.ASCENDING) "size_asc" else "size_desc"
         SortField.RESOLUTION -> if (direction == SortDirection.ASCENDING) "resolution_asc" else "resolution_desc"

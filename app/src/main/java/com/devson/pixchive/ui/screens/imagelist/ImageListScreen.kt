@@ -681,16 +681,10 @@ fun ImageListScreen(
 
     if (showSettingsSheet) {
         ViewSettingsBottomSheet(
-            layoutMode = if (viewSettings.layoutMode == LayoutMode.GRID) "grid" else "list",
-            gridColumns = viewSettings.gridColumns,
-            onLayoutModeChange = { modeStr ->
-                val newMode = if (modeStr == "grid") LayoutMode.GRID else LayoutMode.LIST
-                viewModel.updateViewSettings(viewSettings.copy(layoutMode = newMode))
-            },
-            onGridColumnsChange = { cols ->
-                viewModel.updateViewSettings(viewSettings.copy(gridColumns = cols))
-            },
-            onDismiss = { showSettingsSheet = false }
+            settings = viewSettings,
+            isFolderView = selectedFolder == null && viewSettings.viewMode == ViewMode.ALL_FOLDERS,
+            onDismiss = { showSettingsSheet = false },
+            onSettingsChange = { viewModel.updateViewSettings(it) }
         )
     }
 

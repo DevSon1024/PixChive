@@ -1,235 +1,380 @@
 package com.devson.pixchive.ui.components
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.devson.pixchive.model.LayoutMode
+import com.devson.pixchive.model.SortDirection
+import com.devson.pixchive.model.ViewMode
+import com.devson.pixchive.model.ViewSettings
+import com.devson.pixchive.utils.formatSortField
+import com.devson.pixchive.viewmodel.ImageListViewModel
+
+// VIEW SETTINGS BOTTOM SHEET
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ViewSettingsBottomSheet(
     onDismiss: () -> Unit,
-    // State
-    viewMode: String? = null, // "all_folders", "flat" (null to hide)
-    layoutMode: String, // "grid", "list"
+    viewMode: ViewMode? = null,
+    layoutMode: String,
     gridColumns: Int,
-    sortOption: String? = null, // null to hide sort section
-    // Callbacks
-    onViewModeChange: ((String) -> Unit)? = null,
-    onLayoutModeChange: (String) -> Unit,
-    onGridColumnsChange: (Int) -> Unit,
+    sortOption: String? = null,
+    onViewModeChange: ((ViewMode) -> Unit)? = null,
+    onLayoutModeChange: ((String) -> Unit)? = null,
+    onGridColumnsChange: ((Int) -> Unit)? = null,
     onSortOptionChange: ((String) -> Unit)? = null
 ) {
-    var showSortWheel by remember { mutableStateOf(false) }
+    val dummySettings = ViewSettings(
+        viewMode = viewMode ?: ViewMode.ALL_FOLDERS,
+        layoutMode = if (layoutMode == "grid") LayoutMode.GRID else LayoutMode.LIST,
+        gridColumns = gridColumns
+    )
+
+    ViewSettingsBottomSheet(
+        settings = dummySettings,
+        isFolderView = false,
+        onDismiss = onDismiss,
+        onSettingsChange = { newSettings ->
+            if (newSettings.viewMode != dummySettings.viewMode) {
+                onViewModeChange?.invoke(newSettings.viewMode)
+            }
+            if (newSettings.layoutMode != dummySettings.layoutMode) {
+                val newModeStr = if (newSettings.layoutMode == LayoutMode.GRID) "grid" else "list"
+                onLayoutModeChange?.invoke(newModeStr)
+            }
+            if (newSettings.gridColumns != dummySettings.gridColumns) {
+                onGridColumnsChange?.invoke(newSettings.gridColumns)
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ViewSettingsBottomSheet(
+    settings: ViewSettings,
+    isFolderView: Boolean,
+    onDismiss: () -> Unit,
+    onSettingsChange: (ViewSettings) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
-        containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 0.dp
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 8.dp)
-                .padding(bottom = 32.dp)
+                .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState())
+                .padding(vertical = 16.dp)
         ) {
             Text(
-                text = "Display Options",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
+                "View Settings",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 12.dp)
             )
-            Spacer(modifier = Modifier.height(24.dp))
 
-            // 1. View Mode (Only if enabled)
-            if (viewMode != null && onViewModeChange != null) {
-                Text(
-                    text = "View Mode",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    SelectionCard(
-                        selected = viewMode == "all_folders",
-                        title = "All Folders",
-                        icon = Icons.Default.FolderCopy,
-                        onClick = { onViewModeChange("all_folders") },
-                        modifier = Modifier.weight(1f)
-                    )
-                    SelectionCard(
-                        selected = viewMode == "flat" || viewMode == "files",
-                        title = "Flat View",
-                        icon = Icons.Default.Collections,
-                        onClick = { onViewModeChange("flat") },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                Spacer(modifier = Modifier.height(24.dp))
-            }
-
-            // 2. Layout
-            Text(
-                text = "Layout",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(12.dp))
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                verticalAlignment = Alignment.Top
             ) {
-                SelectionCard(
-                    selected = layoutMode == "grid",
-                    title = "Grid",
-                    icon = Icons.Default.GridView,
-                    onClick = { onLayoutModeChange("grid") },
-                    modifier = Modifier.weight(1f)
+                // View Mode
+                Column(modifier = Modifier.weight(1.5f)) {
+                    SettingsSectionLabel("View Mode")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        IconToggleButton(
+                            label = "All folders",
+                            selected = settings.viewMode == ViewMode.ALL_FOLDERS,
+                            selectedIcon = Icons.Filled.FolderCopy,
+                            unselectedIcon = Icons.Outlined.FolderCopy,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onSettingsChange(settings.copy(viewMode = ViewMode.ALL_FOLDERS)) }
+                        )
+                        IconToggleButton(
+                            label = "Files",
+                            selected = settings.viewMode == ViewMode.FILES,
+                            selectedIcon = Icons.Filled.Description,
+                            unselectedIcon = Icons.Outlined.Description,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onSettingsChange(settings.copy(viewMode = ViewMode.FILES)) }
+                        )
+                        IconToggleButton(
+                            label = "Explorer",
+                            selected = settings.viewMode == ViewMode.FOLDERS,
+                            selectedIcon = Icons.Filled.Folder,
+                            unselectedIcon = Icons.Outlined.Folder,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onSettingsChange(settings.copy(viewMode = ViewMode.FOLDERS)) }
+                        )
+                    }
+                }
+                
+                VerticalDivider(
+                    modifier = Modifier
+                        .padding(horizontal = 4.dp)
+                        .padding(top = 36.dp, bottom = 8.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
                 )
-                SelectionCard(
-                    selected = layoutMode == "list",
-                    title = "List",
-                    icon = Icons.AutoMirrored.Filled.ViewList,
-                    onClick = { onLayoutModeChange("list") },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-            Spacer(modifier = Modifier.height(24.dp))
 
-            // 3. Grid Columns Slider (Only visible in Grid mode)
-            if (layoutMode == "grid") {
+                // Layout
+                Column(modifier = Modifier.weight(1f)) {
+                    SettingsSectionLabel("Layout")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        IconToggleButton(
+                            label = "List",
+                            selected = settings.layoutMode == LayoutMode.LIST,
+                            selectedIcon = Icons.Filled.ViewAgenda,
+                            unselectedIcon = Icons.Outlined.ViewAgenda,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onSettingsChange(settings.copy(layoutMode = LayoutMode.LIST)) }
+                        )
+                        IconToggleButton(
+                            label = "Grid",
+                            selected = settings.layoutMode == LayoutMode.GRID,
+                            selectedIcon = Icons.Filled.GridView,
+                            unselectedIcon = Icons.Outlined.GridView,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onSettingsChange(settings.copy(layoutMode = LayoutMode.GRID)) }
+                        )
+                    }
+                }
+            }
+
+            if (settings.layoutMode == LayoutMode.GRID) {
+                Spacer(modifier = Modifier.height(10.dp))
+                SettingsSectionLabel("Grid Columns")
+                Spacer(modifier = Modifier.height(6.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalArrangement = Arrangement.Center
                 ) {
-                    Text(
-                        text = "Grid Columns",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "$gridColumns",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Slider(
-                    value = gridColumns.toFloat(),
-                    onValueChange = { onGridColumnsChange(it.toInt()) },
-                    valueRange = 1f..6f,
-                    steps = 4,
-                    colors = SliderDefaults.colors(
-                        thumbColor = MaterialTheme.colorScheme.primary,
-                        activeTrackColor = MaterialTheme.colorScheme.primary,
-                        inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-            }
-
-            // 4. Sort By
-            if (sortOption != null && onSortOptionChange != null) {
-                Text(
-                    text = "Sort By",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                val fieldAndDir = parseSortOption(sortOption)
-
-                OutlinedButton(
-                    onClick = { showSortWheel = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    val dirText = if (fieldAndDir.second == SortDirection.ASCENDING) {
-                        if (fieldAndDir.first == SortField.DATE) "Oldest" else "A to Z"
-                    } else {
-                        if (fieldAndDir.first == SortField.DATE) "Newest" else "Z to A"
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        (1..4).forEach { columns ->
+                            val isSelected = settings.gridColumns == columns
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .background(
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                        shape = RoundedCornerShape(10.dp)
+                                    )
+                                    .border(
+                                        width = 1.dp,
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                        shape = RoundedCornerShape(10.dp)
+                                    )
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .clickable { onSettingsChange(settings.copy(gridColumns = columns)) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = columns.toString(),
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        }
                     }
-                    Text(
-                        text = "${formatSortField(fieldAndDir.first)} · $dirText",
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                }
-
-                if (showSortWheel) {
-                    RotarySortWheelDialog(
-                        currentSortField = fieldAndDir.first,
-                        sortDirection = fieldAndDir.second,
-                        onSortFieldSelected = { newField ->
-                            val newOption = formatSortOption(newField, fieldAndDir.second)
-                            onSortOptionChange(newOption)
-                        },
-                        onSortOrderToggled = { newDir ->
-                            val newOption = formatSortOption(fieldAndDir.first, newDir)
-                            onSortOptionChange(newOption)
-                        },
-                        onDismissRequest = { showSortWheel = false }
-                    )
                 }
             }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
+
+            //  Sort 
+            SettingsSectionLabel("Sort By")
+            var showSortWheel by remember { mutableStateOf(false) }
+            OutlinedButton(
+                onClick = { showSortWheel = true },
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                val dirText = if (settings.sortDirection == SortDirection.ASCENDING) "↑ Ascending" else "↓ Descending"
+                Text(
+                    "${formatSortField(settings.sortField)}  $dirText",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+
+            if (showSortWheel) {
+                RotarySortWheelDialog(
+                    currentSortField = settings.sortField,
+                    sortDirection = settings.sortDirection,
+                    onSortFieldSelected = { onSettingsChange(settings.copy(sortField = it)) },
+                    onSortOrderToggled = { onSettingsChange(settings.copy(sortDirection = it)) },
+                    onDismissRequest = { showSortWheel = false }
+                )
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
+
+            //  Fields (3 × 3 grid) 
+            SettingsSectionLabel("Fields")
+            Spacer(modifier = Modifier.height(4.dp))
+
+            val fieldItems: List<Triple<String, Boolean, (Boolean) -> Unit>> = listOf(
+                Triple("Thumbnail", settings.showThumbnail) { onSettingsChange(settings.copy(showThumbnail = it)) },
+                Triple("File Ext.", settings.showFileExtension) { onSettingsChange(settings.copy(showFileExtension = it)) },
+                Triple("Resolution", settings.showResolution) { onSettingsChange(settings.copy(showResolution = it)) },
+                Triple("Path", settings.showPath) { onSettingsChange(settings.copy(showPath = it)) },
+                Triple("Size", settings.showSize) { onSettingsChange(settings.copy(showSize = it)) },
+                Triple("Date", settings.showDate) { onSettingsChange(settings.copy(showDate = it)) },
+            )
+
+            // 3 rows × 3 cols
+            val chunked = fieldItems.chunked(3)
+            Column(modifier = Modifier.fillMaxWidth()) {
+                chunked.forEach { rowItems ->
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        rowItems.forEach { (label, checked, onChange) ->
+                            Box(Modifier.weight(1f)) {
+                                CompactMetadataToggle(
+                                    label = label,
+                                    checked = checked,
+                                    onCheckedChange = onChange
+                                )
+                            }
+                        }
+                        // Pad remaining slots if last row has < 3 items
+                        repeat(3 - rowItems.size) { Box(Modifier.weight(1f)) }
+                    }
+                }
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
+
+            //  Advanced 
+            SettingsSectionLabel("Advanced")
+            Spacer(modifier = Modifier.height(4.dp))
+            AdvancedToggleRow("Show Hidden Files", settings.showHiddenFiles) { onSettingsChange(settings.copy(showHiddenFiles = it)) }
+            AdvancedToggleRow("Recognize .nomedia", settings.recognizeNoMedia) { onSettingsChange(settings.copy(recognizeNoMedia = it)) }
+
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
 
-@Composable
-private fun SelectionCard(
-    selected: Boolean,
-    title: String,
-    icon: ImageVector,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
-    val contentColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-    val borderColor = if (!selected) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null
+//  HELPER COMPONENTS 
 
-    Surface(
-        onClick = onClick,
-        modifier = modifier.height(72.dp),
-        shape = RoundedCornerShape(12.dp),
-        color = containerColor,
-        border = borderColor
+@Composable
+fun SettingsSectionLabel(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.primary
+    )
+}
+
+@Composable
+fun IconToggleButton(
+    label: String,
+    selected: Boolean,
+    selectedIcon: ImageVector,
+    unselectedIcon: ImageVector,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    val icon = if (selected) selectedIcon else unselectedIcon
+    val fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp, horizontal = 2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(horizontal = 4.dp)
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = contentColor,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelSmall,
-                color = contentColor,
-                maxLines = 1,
-                softWrap = false
-            )
-        }
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = color,
+            modifier = Modifier.size(28.dp)
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = fontWeight,
+            color = color,
+            maxLines = 1,
+            softWrap = false
+        )
+    }
+}
+
+// COMPACT METADATA TOGGLE (checkbox + small label)
+@Composable
+fun CompactMetadataToggle(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Checkbox(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            modifier = Modifier.size(32.dp)
+        )
+        Text(label, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+    }
+}
+
+// METADATA TOGGLE ROW (kept for backward compatibility if used elsewhere)
+@Composable
+fun MetadataToggle(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.Start,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Checkbox(checked = checked, onCheckedChange = onCheckedChange)
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(label, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+// ADVANCED TOGGLE ROW
+@Composable
+fun AdvancedToggleRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, style = MaterialTheme.typography.bodySmall)
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }

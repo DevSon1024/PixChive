@@ -15,6 +15,7 @@ import com.devson.pixchive.ui.components.SkeletonList
 import com.devson.pixchive.viewmodel.FolderViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import com.devson.pixchive.model.ViewMode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -134,13 +135,19 @@ fun FolderViewScreen(
         }
 
         if (showDisplayOptions) {
+            val currentMode = try {
+                ViewMode.valueOf(currentViewMode.uppercase())
+            } catch (e: Exception) {
+                ViewMode.ALL_FOLDERS
+            }
+
             ViewSettingsBottomSheet(
                 onDismiss = { showDisplayOptions = false },
-                viewMode = if (hasSubfolders) currentViewMode else null,
+                viewMode = if (hasSubfolders) currentMode else null,
                 layoutMode = layoutMode,
                 gridColumns = gridColumns,
                 sortOption = sortOption,
-                onViewModeChange = { viewModel.setViewMode(it) },
+                onViewModeChange = { viewModel.setViewMode(it.name.lowercase()) },
                 onLayoutModeChange = { viewModel.setLayoutMode(it) },
                 onGridColumnsChange = { viewModel.setGridColumns(it) },
                 onSortOptionChange = { viewModel.setSortOption(it) }

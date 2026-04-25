@@ -191,6 +191,8 @@
     <string name="sort_field_length">Length</string>
     <string name="sort_field_size">Size</string>
     <string name="sort_field_path">Path</string>
+    <string name="sort_field_resolution">Resolution</string>
+    <string name="sort_field_type">Type</string>
 
     <!-- Selection Actions -->
     <string name="action_play_all">Play All</string>

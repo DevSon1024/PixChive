@@ -14,6 +14,7 @@ fun List<ImageFolder>.applyFolderSort(
         SortField.NAME -> sortedBy { it.name.lowercase() }
         SortField.DATE -> sortedBy { folder -> folderMap[folder]?.maxOfOrNull { it.dateAdded } ?: 0L }
         SortField.SIZE -> sortedBy { folder -> folderMap[folder]?.sumOf { it.size } ?: 0L }
+        else -> sortedBy { it.name.lowercase() }
     }
     return if (direction == SortDirection.DESCENDING) sorted.reversed() else sorted
 }

@@ -14,7 +14,10 @@ enum class LayoutMode {
 enum class SortField {
     NAME,
     DATE,
-    SIZE
+    SIZE,
+    RESOLUTION,
+    PATH,
+    TYPE
 }
 
 enum class SortDirection {
@@ -42,8 +45,4 @@ data class ViewSettings(
     val showSize: Boolean = true,
     val showDate: Boolean = true,
     val selectByThumbnail: Boolean = false,
-
-    // Floating Button Settings
-    val showFloatingButton: Boolean = true,
-    val enableFabPreview: Boolean = true
 )

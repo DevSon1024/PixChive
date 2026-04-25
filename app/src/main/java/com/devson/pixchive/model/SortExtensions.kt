@@ -25,5 +25,20 @@ fun List<ImageEntity>.applySort(
         } else {
             this.sortedByDescending { it.size }
         }
+        SortField.PATH -> if (sortDirection == SortDirection.ASCENDING) {
+            this.sortedBy { it.path }
+        } else {
+            this.sortedByDescending { it.path }
+        }
+        SortField.TYPE -> if (sortDirection == SortDirection.ASCENDING) {
+            this.sortedBy { it.name.substringAfterLast('.', "").lowercase() }
+        } else {
+            this.sortedByDescending { it.name.substringAfterLast('.', "").lowercase() }
+        }
+        SortField.RESOLUTION -> if (sortDirection == SortDirection.ASCENDING) {
+            this.sortedBy { it.size } // Entity lacks resolution field, fallback to size
+        } else {
+            this.sortedByDescending { it.size }
+        }
     }
 }

@@ -76,6 +76,9 @@ fun getSortFieldStringRes(field: SortField): Int {
         SortField.NAME -> R.string.sort_field_title
         SortField.DATE -> R.string.sort_field_date
         SortField.SIZE -> R.string.sort_field_size
+        SortField.RESOLUTION -> R.string.sort_field_resolution
+        SortField.PATH -> R.string.sort_field_path
+        SortField.TYPE -> R.string.sort_field_type
     }
 }
 

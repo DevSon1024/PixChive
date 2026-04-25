@@ -73,22 +73,6 @@ fun getSortFieldStringRes(field: SortField): Int {
     }
 }
 
-/**
- * Converts a "WIDTHxHEIGHT" resolution string (e.g. "1280x720") into a compact
- * "Xp" label (e.g. "720p") using the smaller dimension - works for both landscape
- * and portrait videos. Returns null if the string can't be parsed.
- */
-fun formatResolutionCompact(resolution: String?): String? {
-    if (resolution.isNullOrBlank()) return null
-    val parts = resolution.split("x", "X", "×")
-    if (parts.size != 2) return null
-    val w = parts[0].trim().toIntOrNull() ?: return null
-    val h = parts[1].trim().toIntOrNull() ?: return null
-    return "${minOf(w, h)}p"
-}
-
-
-
 fun formatLogTime(timestamp: Long): String {
     val sdf = SimpleDateFormat("MMM dd, HH:mm:ss", Locale.getDefault())
     return sdf.format(Date(timestamp))

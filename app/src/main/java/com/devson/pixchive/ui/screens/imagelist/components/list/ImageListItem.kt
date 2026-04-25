@@ -82,7 +82,7 @@ fun ImageListItem(
                 .padding(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // ── Thumbnail ────────────────────────────────────────────────────
+            //  Thumbnail 
             Card(
                 modifier = Modifier
                     .size(width = 100.dp, height = 60.dp)
@@ -124,7 +124,7 @@ fun ImageListItem(
 
             Spacer(modifier = Modifier.width(14.dp))
 
-            // ── Text section ─────────────────────────────────────────────────
+            //  Text section 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = if (settings.showFileExtension) image.title

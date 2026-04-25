@@ -36,6 +36,7 @@ import com.devson.pixchive.model.applySort
 import com.devson.pixchive.ui.components.CustomRenameDialog
 import com.devson.pixchive.ui.components.ViewSettingsBottomSheet
 import com.devson.pixchive.ui.screens.imagelist.components.folder.FolderListContent
+import com.devson.pixchive.ui.screens.imagelist.components.folder.FolderInfoDialog
 import com.devson.pixchive.ui.screens.InformationBottomSheet
 import com.devson.pixchive.ui.screens.StorageExplorerScreen
 import com.devson.pixchive.ui.screens.imagelist.components.topbar.ImageListTopAppBar
@@ -184,6 +185,7 @@ fun ImageListScreen(
     var selectedFolders by remember { mutableStateOf(emptySet<ImageFolder>()) }
     var selectedImages by remember { mutableStateOf(emptySet<Image>()) }
     var showInfoBottomSheet by remember { mutableStateOf(false) }
+    var showFolderInfoDialog by remember { mutableStateOf(false) }
 
     val sortedFolderKeys = remember(imagesByFolder, viewSettings.sortField, viewSettings.sortDirection) {
         val keys = imagesByFolder.keys.toList()
@@ -444,7 +446,7 @@ fun ImageListScreen(
                             selectedFolders = emptySet()
                             selectedImages = emptySet()
                         },
-                        onShowInfo = { showInfoBottomSheet = true }
+                        onShowInfo = { showFolderInfoDialog = true }
                     )
                 } else {
                     // FILES, FOLDERS mode, or ALL_FOLDERS inside a specific folder:
@@ -480,7 +482,13 @@ fun ImageListScreen(
                             selectedImages = emptySet()
                             selectedFolders = emptySet()
                         },
-                        onShowInfo = { showInfoBottomSheet = true },
+                        onShowInfo = {
+                            if (selectedFolders.isNotEmpty()) {
+                                showFolderInfoDialog = true
+                            } else {
+                                showInfoBottomSheet = true
+                            }
+                        },
                     )
                 }
             }
@@ -684,6 +692,25 @@ fun ImageListScreen(
         InformationBottomSheet(
             selectedImages = imagesToShow,
             onDismiss = { showInfoBottomSheet = false }
+        )
+    }
+
+    // ---- FOLDER INFO DIALOG ----
+    if (showFolderInfoDialog && selectedFolders.isNotEmpty()) {
+        val imagesForDialog = remember(selectedFolders, imagesByFolder, viewSettings.viewMode) {
+            if (viewSettings.viewMode == ViewMode.FOLDERS) {
+                val allImagesFlat = imagesByFolder.values.flatten()
+                selectedFolders.associateWith { folder ->
+                    allImagesFlat.filter { it.path.startsWith(folder.id) }
+                }
+            } else {
+                imagesByFolder
+            }
+        }
+        FolderInfoDialog(
+            selectedFolders = selectedFolders,
+            imagesByFolder = imagesForDialog,
+            onDismiss = { showFolderInfoDialog = false }
         )
     }
 

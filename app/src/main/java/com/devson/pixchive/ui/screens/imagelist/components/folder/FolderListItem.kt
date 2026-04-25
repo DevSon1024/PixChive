@@ -53,28 +53,6 @@ import com.devson.pixchive.utils.formatDate
 import com.devson.pixchive.utils.formatSize
 
 @Composable
-fun BoxScope.NewCountBadge(count: Int) {
-    if (count <= 0) return
-    Box(
-        modifier = Modifier
-            .align(Alignment.TopStart)
-            .background(
-                color = MaterialTheme.colorScheme.primary,
-                shape = RoundedCornerShape(20.dp)
-            )
-            .padding(horizontal = 6.dp, vertical = 2.dp)
-    ) {
-        Text(
-            text       = stringResource(R.string.folder_new_badge, count),
-            color      = MaterialTheme.colorScheme.onPrimary,
-            style      = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.ExtraBold,
-            fontSize   = 9.sp
-        )
-    }
-}
-
-@Composable
 fun FolderMediaPreview(
     images: List<Image>,
     isSelected: Boolean,
@@ -199,16 +177,11 @@ fun FolderListItem(
         }
     }
 }
-
-@Composable
-fun FolderMetadataRow(images: List<Image>, settings: ViewSettings, isGrid: Boolean = false) {
-    FolderMetadataChips(images, settings, isGrid)
-}
  
 @Composable
 fun FolderMetadataChips(images: List<Image>, settings: ViewSettings, isGrid: Boolean = false) {
     val tokens = buildList {
-        add(Pair(stringResource(R.string.folder_images_count, images.size), true))   // count → primary chip
+        add(Pair(stringResource(R.string.folder_images_count, images.size), true))
         if (settings.showSize) {
             val totalSize = images.sumOf { it.size }
             add(Pair(formatSize(totalSize), false))

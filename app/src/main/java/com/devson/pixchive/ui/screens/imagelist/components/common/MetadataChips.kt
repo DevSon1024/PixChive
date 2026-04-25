@@ -19,16 +19,6 @@ import com.devson.pixchive.model.Image
 import com.devson.pixchive.model.ViewSettings
 import com.devson.pixchive.utils.formatDate
 import com.devson.pixchive.utils.formatSize
-
-@Composable
-fun ImageMetadataRow(
-    image: Image,
-    settings: ViewSettings,
-    isGrid: Boolean = false
-) {
-    ImageMetadataChips(image, settings, isGrid)
-}
-
 @Composable
 fun ImageMetadataChips(
     image: Image,

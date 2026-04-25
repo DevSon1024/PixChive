@@ -54,7 +54,7 @@ fun ImageGridItem(
         label = "gridItemBorder"
     )
 
-    // ── Single-column: full-width cinema card ─────────────────────────────────
+    //  Single-column: full-width cinema card 
     if (settings.gridColumns == 1) {
         Card(
             modifier = Modifier
@@ -127,7 +127,7 @@ fun ImageGridItem(
         return
     }
 
-    // ── Multi-column compact card ─────────────────────────────────────────────
+    // Multi-column compact card
     Card(
         modifier = Modifier
             .fillMaxWidth()

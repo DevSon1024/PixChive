@@ -28,8 +28,8 @@ android {
         applicationId = "com.devson.pixchive"
         minSdk = 24
         targetSdk = 36
-        versionCode = 13
-        versionName = "1.3"
+        versionCode = 140
+        versionName = "1.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

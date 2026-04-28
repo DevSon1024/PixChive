@@ -6,7 +6,6 @@ import java.nio.charset.StandardCharsets
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")
-    object ImageList : Screen("image_list")
     object Settings : Screen("settings")
     object About : Screen("about")
     object PrivacyPolicy : Screen("privacy")
@@ -33,5 +32,10 @@ sealed class Screen(val route: String) {
             val encodedPath = URLEncoder.encode(chapterPath, StandardCharsets.UTF_8.toString())
             return "image/$folderId/$encodedPath/$imageIndex"
         }
+    }
+
+    object ImageList : Screen("image_list")
+    object GalleryViewer : Screen("gallery_viewer/{bucketId}") {
+        fun createRoute(bucketId: String) = "gallery_viewer/$bucketId"
     }
 }

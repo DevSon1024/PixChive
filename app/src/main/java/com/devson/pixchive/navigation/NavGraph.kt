@@ -24,6 +24,7 @@ import com.devson.pixchive.viewmodel.FolderViewModel
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import com.devson.pixchive.gallery.ImageListScreen
+import com.devson.pixchive.gallery.ui.GalleryViewerScreen
 
 @Composable
 fun NavGraph(
@@ -93,8 +94,19 @@ fun NavGraph(
             ImageListScreen(
                 onNavigateBack = safeNavigateBack,
                 onFolderClick = { bucketId ->
-                    // navController.navigate(Screen.GalleryViewer.createRoute(bucketId))
+                    navController.navigate(Screen.GalleryViewer.createRoute(bucketId))
                 }
+            )
+        }
+
+        composable(
+            route = Screen.GalleryViewer.route,
+            arguments = listOf(navArgument("bucketId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val bucketId = backStackEntry.arguments?.getString("bucketId") ?: ""
+            GalleryViewerScreen(
+                bucketId = bucketId,
+                onNavigateBack = safeNavigateBack
             )
         }
 

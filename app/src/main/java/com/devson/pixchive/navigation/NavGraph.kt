@@ -23,6 +23,7 @@ import com.devson.pixchive.ui.screens.AppearanceSettingsScreen
 import com.devson.pixchive.viewmodel.FolderViewModel
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
+import com.devson.pixchive.ui.gallery.ImageListScreen
 
 @Composable
 fun NavGraph(
@@ -82,7 +83,15 @@ fun NavGraph(
                 },
                 onResumeChapter = { folderId, chapterPath, initialPage ->
                     navController.navigate(Screen.ImageViewer.createRoute(folderId, chapterPath, initialPage))
+                },
+                onBrowseGalleryClick = {
+                    navController.navigate(Screen.ImageList.route)
                 }
+            )
+        }
+        composable(Screen.ImageList.route) {
+            ImageListScreen(
+                onNavigateBack = safeNavigateBack
             )
         }
 

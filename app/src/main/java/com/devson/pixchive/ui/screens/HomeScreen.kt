@@ -64,7 +64,8 @@ fun HomeScreen(
     onFolderClick: (String) -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onFavoritesClick: () -> Unit = {},
-    onResumeChapter: (folderId: String, chapterPath: String, initialPage: Int) -> Unit = { _, _, _ -> }
+    onResumeChapter: (folderId: String, chapterPath: String, initialPage: Int) -> Unit = { _, _, _ -> },
+    onBrowseGalleryClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val activity = context as? Activity
@@ -195,7 +196,7 @@ fun HomeScreen(
                 folders.isEmpty() -> {
                     // Apply top padding to empty state
                     Box(modifier = Modifier.padding(top = paddingValues.calculateTopPadding())) {
-                        EmptyStateContent()
+                        EmptyStateContent(onBrowseGalleryClick = onBrowseGalleryClick)
                     }
                 }
                 else -> {
@@ -216,6 +217,24 @@ fun HomeScreen(
                             ),
                             modifier = Modifier.fillMaxSize()
                         ) {
+                            // NEW BROWSE GALLERY BUTTON
+                            item(span = { GridItemSpan(maxLineSpan) }) {
+                                Button(
+                                    onClick = onBrowseGalleryClick,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                ) {
+                                    Icon(imageVector = Icons.Default.PhotoLibrary, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Browse Now (Device Gallery)", fontWeight = FontWeight.SemiBold)
+                                }
+                            }
                             // HISTORY SECTION 
                             if (recentHistory.isNotEmpty()) {
                                 item(span = { GridItemSpan(maxLineSpan) }) {
@@ -589,7 +608,7 @@ fun FolderGridItem(folder: ComicFolder, onDelete: () -> Unit, onClick: () -> Uni
 }
 
 @Composable
-fun EmptyStateContent() {
+fun EmptyStateContent(onBrowseGalleryClick: () -> Unit) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -600,5 +619,12 @@ fun EmptyStateContent() {
         Text("No Folders Added", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
         Spacer(modifier = Modifier.height(8.dp))
         Text("Tap the + button to add your comic folders", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(onClick = onBrowseGalleryClick) {
+            Icon(imageVector = Icons.Default.PhotoLibrary, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Browse Device Gallery")
+        }
     }
 }

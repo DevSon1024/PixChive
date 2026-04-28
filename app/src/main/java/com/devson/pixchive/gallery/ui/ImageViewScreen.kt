@@ -5,9 +5,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -19,24 +16,21 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
 import com.devson.pixchive.gallery.data.models.GalleryImage
-import com.devson.pixchive.gallery.viewmodel.GalleryViewerViewModel
+import com.devson.pixchive.gallery.viewmodel.GalleryFolderViewModel
+import me.saket.telephoto.zoomable.coil.ZoomableAsyncImage
+import me.saket.telephoto.zoomable.rememberZoomableImageState
 import java.text.SimpleDateFormat
 import java.util.*
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun GalleryViewerScreen(
+fun ImageViewScreen(
     bucketId: String,
+    initialIndex: Int,
     onNavigateBack: () -> Unit,
-    viewModel: GalleryViewerViewModel = viewModel()
+    viewModel: GalleryFolderViewModel = viewModel()
 ) {
     val images by viewModel.images.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -45,36 +39,37 @@ fun GalleryViewerScreen(
     var showInfoDialog by remember { mutableStateOf<GalleryImage?>(null) }
 
     LaunchedEffect(bucketId) {
-        viewModel.loadImages(bucketId)
+        // If coming from the grid, it might already be cached in a shared VM setup, 
+        // but calling it ensures we have data.
+        if (images.isEmpty()) viewModel.loadImages(bucketId)
     }
 
-    if (isLoading) {
-        Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = Color.White)
-        }
+    if (isLoading || images.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black))
         return
     }
 
-    if (images.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-            Text("No images found.", color = Color.White)
-        }
-        return
-    }
-
-    val pagerState = rememberPagerState(pageCount = { images.size })
+    // Set initial page from the grid click
+    val pagerState = rememberPagerState(
+        initialPage = initialIndex.coerceIn(0, images.lastIndex),
+        pageCount = { images.size }
+    )
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier
-                .fillMaxSize()
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null
-                ) { showOverlays = !showOverlays }
+            modifier = Modifier.fillMaxSize(),
+            key = { images[it].id }
         ) { page ->
-            ZoomableImage(image = images[page])
+            val zoomableState = rememberZoomableImageState()
+
+            ZoomableAsyncImage(
+                model = images[page].uri,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                state = zoomableState,
+                onClick = { showOverlays = !showOverlays }
+            )
         }
 
         // Overlay App Bar
@@ -108,7 +103,7 @@ fun GalleryViewerScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Black.copy(alpha = 0.6f)
+                    containerColor = Color.Black.copy(alpha = 0.5f)
                 )
             )
         }
@@ -124,43 +119,7 @@ fun GalleryViewerScreen(
                     Text(image.realPath, style = MaterialTheme.typography.bodySmall)
                 }
             },
-            confirmButton = {
-                TextButton(onClick = { showInfoDialog = null }) { Text("Close") }
-            }
-        )
-    }
-}
-
-@Composable
-fun ZoomableImage(image: GalleryImage) {
-    var scale by remember { mutableFloatStateOf(1f) }
-    var offsetX by remember { mutableFloatStateOf(0f) }
-    var offsetY by remember { mutableFloatStateOf(0f) }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .pointerInput(Unit) {
-                detectTransformGestures { _, pan, zoom, _ ->
-                    scale = (scale * zoom).coerceIn(1f, 5f)
-                    val maxOffset = (scale - 1) * 1000f // Rough boundary
-                    offsetX = (offsetX + pan.x).coerceIn(-maxOffset, maxOffset)
-                    offsetY = (offsetY + pan.y).coerceIn(-maxOffset, maxOffset)
-                }
-            }
-    ) {
-        AsyncImage(
-            model = image.uri,
-            contentDescription = null,
-            contentScale = ContentScale.Fit,
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer(
-                    scaleX = scale,
-                    scaleY = scale,
-                    translationX = if (scale > 1f) offsetX else 0f,
-                    translationY = if (scale > 1f) offsetY else 0f
-                )
+            confirmButton = { TextButton(onClick = { showInfoDialog = null }) { Text("Close") } }
         )
     }
 }

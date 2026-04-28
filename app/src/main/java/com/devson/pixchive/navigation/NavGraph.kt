@@ -24,7 +24,8 @@ import com.devson.pixchive.viewmodel.FolderViewModel
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import com.devson.pixchive.gallery.ImageListScreen
-import com.devson.pixchive.gallery.ui.GalleryViewerScreen
+import com.devson.pixchive.gallery.ui.ImageViewScreen
+import com.devson.pixchive.gallery.ui.ImageFolderScreen
 
 @Composable
 fun NavGraph(
@@ -94,18 +95,38 @@ fun NavGraph(
             ImageListScreen(
                 onNavigateBack = safeNavigateBack,
                 onFolderClick = { bucketId ->
-                    navController.navigate(Screen.GalleryViewer.createRoute(bucketId))
+                    navController.navigate(Screen.ImageFolder.createRoute(bucketId))
                 }
             )
         }
 
         composable(
-            route = Screen.GalleryViewer.route,
+            route = Screen.ImageFolder.route,
             arguments = listOf(navArgument("bucketId") { type = NavType.StringType })
         ) { backStackEntry ->
             val bucketId = backStackEntry.arguments?.getString("bucketId") ?: ""
-            GalleryViewerScreen(
+            ImageFolderScreen(
                 bucketId = bucketId,
+                onNavigateBack = safeNavigateBack,
+                onImageClick = { index ->
+                    navController.navigate(Screen.GalleryImageViewer.createRoute(bucketId, index))
+                }
+            )
+        }
+
+        composable(
+            route = Screen.GalleryImageViewer.route,
+            arguments = listOf(
+                navArgument("bucketId") { type = NavType.StringType },
+                navArgument("initialIndex") { type = NavType.IntType }
+            )
+        ) { backStackEntry ->
+            val bucketId = backStackEntry.arguments?.getString("bucketId") ?: ""
+            val initialIndex = backStackEntry.arguments?.getInt("initialIndex") ?: 0
+
+            ImageViewScreen(
+                bucketId = bucketId,
+                initialIndex = initialIndex,
                 onNavigateBack = safeNavigateBack
             )
         }

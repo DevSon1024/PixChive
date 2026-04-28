@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class GalleryViewerViewModel(application: Application) : AndroidViewModel(application) {
+class GalleryFolderViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = MediaStoreRepository(application)
 
     private val _images = MutableStateFlow<List<GalleryImage>>(emptyList())

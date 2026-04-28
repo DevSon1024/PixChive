@@ -16,13 +16,18 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.devson.pixchive.gallery.viewmodel.GalleryFolderViewModel
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun ImageFolderScreen(
     bucketId: String,
     onNavigateBack: () -> Unit,
-    onImageClick: (Int) -> Unit, // Passes the clicked image index
+    onImageClick: (Int) -> Unit,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     viewModel: GalleryFolderViewModel = viewModel()
 ) {
     val images by viewModel.images.collectAsState()
@@ -58,14 +63,20 @@ fun ImageFolderScreen(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     itemsIndexed(images, key = { _, img -> img.id }) { index, image ->
-                        AsyncImage(
-                            model = image.uri,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .aspectRatio(1f)
-                                .clickable { onImageClick(index) }
-                        )
+                        with(sharedTransitionScope) {
+                            AsyncImage(
+                                model = image.uri,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .aspectRatio(1f)
+                                    .sharedElement(
+                                        sharedContentState = rememberSharedContentState(key = "image_${image.id}"),
+                                        animatedVisibilityScope = animatedVisibilityScope
+                                    )
+                                    .clickable { onImageClick(index) }
+                            )
+                        }
                     }
                 }
             }

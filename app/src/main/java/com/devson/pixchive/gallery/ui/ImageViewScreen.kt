@@ -15,6 +15,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import android.app.Activity
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.pixchive.gallery.data.models.GalleryImage
@@ -23,13 +29,18 @@ import me.saket.telephoto.zoomable.coil.ZoomableAsyncImage
 import me.saket.telephoto.zoomable.rememberZoomableImageState
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun ImageViewScreen(
     bucketId: String,
     initialIndex: Int,
     onNavigateBack: () -> Unit,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     viewModel: GalleryFolderViewModel = viewModel()
 ) {
     val images by viewModel.images.collectAsState()
@@ -37,6 +48,29 @@ fun ImageViewScreen(
 
     var showOverlays by remember { mutableStateOf(true) }
     var showInfoDialog by remember { mutableStateOf<GalleryImage?>(null) }
+
+    // --- IMMERSIVE MODE LOGIC ---
+    val context = LocalContext.current
+    val view = LocalView.current
+    val window = (context as Activity).window
+    val insetsController = remember { WindowCompat.getInsetsController(window, view) }
+
+    LaunchedEffect(showOverlays) {
+        if (showOverlays) {
+            insetsController.show(WindowInsetsCompat.Type.systemBars())
+            insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
+        } else {
+            insetsController.hide(WindowInsetsCompat.Type.systemBars())
+            insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            // Guarantee system bars are restored when leaving this screen
+            insetsController.show(WindowInsetsCompat.Type.systemBars())
+        }
+    }
 
     LaunchedEffect(bucketId) {
         // If coming from the grid, it might already be cached in a shared VM setup, 
@@ -63,13 +97,21 @@ fun ImageViewScreen(
         ) { page ->
             val zoomableState = rememberZoomableImageState()
 
-            ZoomableAsyncImage(
-                model = images[page].uri,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                state = zoomableState,
-                onClick = { showOverlays = !showOverlays }
-            )
+            // Replace your ZoomableAsyncImage modifier with this:
+            with(sharedTransitionScope) {
+                ZoomableAsyncImage(
+                    model = images[page].uri,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .sharedElement(
+                            sharedContentState = rememberSharedContentState(key = "image_${images[page].id}"), // <-- FIXED HERE
+                            animatedVisibilityScope = animatedVisibilityScope
+                        ),
+                    state = zoomableState,
+                    onClick = { showOverlays = !showOverlays }
+                )
+            }
         }
 
         // Overlay App Bar

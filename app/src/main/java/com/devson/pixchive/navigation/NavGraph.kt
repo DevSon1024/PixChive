@@ -23,7 +23,7 @@ import com.devson.pixchive.ui.screens.AppearanceSettingsScreen
 import com.devson.pixchive.viewmodel.FolderViewModel
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
-import com.devson.pixchive.ui.gallery.ImageListScreen
+import com.devson.pixchive.gallery.ImageListScreen
 
 @Composable
 fun NavGraph(
@@ -91,7 +91,10 @@ fun NavGraph(
         }
         composable(Screen.ImageList.route) {
             ImageListScreen(
-                onNavigateBack = safeNavigateBack
+                onNavigateBack = safeNavigateBack,
+                onFolderClick = { bucketId ->
+                    // navController.navigate(Screen.GalleryViewer.createRoute(bucketId))
+                }
             )
         }
 

@@ -14,12 +14,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -31,7 +29,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.pixchive.gallery.data.models.GalleryFolder
 import com.devson.pixchive.gallery.ui.components.DetailsDialog
-import com.devson.pixchive.gallery.ui.components.GalleryBottomOptionSheet
+import com.devson.pixchive.gallery.ui.components.GallerySelectionBottomBar
 import com.devson.pixchive.gallery.ui.components.GalleryFolderItem
 import com.devson.pixchive.gallery.ui.components.GalleryViewSettingsBottomSheet
 import com.devson.pixchive.gallery.viewmodel.GalleryState
@@ -57,7 +55,6 @@ fun ImageListScreen(
     var hasPermission by remember { mutableStateOf(PermissionHelper.hasStoragePermission(context)) }
 
     val selectedFolderIds = remember { mutableStateListOf<String>() }
-    var showOptionsSheet by remember { mutableStateOf(false) }
     var showSettingsSheet by remember { mutableStateOf(false) }
     var showDetailsDialog by remember { mutableStateOf(false) }
 
@@ -124,11 +121,7 @@ fun ImageListScreen(
                             Icon(Icons.Default.Close, contentDescription = "Clear selection")
                         }
                     },
-                    actions = {
-                        IconButton(onClick = { showOptionsSheet = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "Options")
-                        }
-                    },
+
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant
                     )
@@ -152,6 +145,19 @@ fun ImageListScreen(
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.background
                     )
+                )
+            }
+        },
+        bottomBar = {
+            if (selectedFolderIds.isNotEmpty()) {
+                GallerySelectionBottomBar(
+                    selectedCount = selectedFolderIds.size,
+                    onMove = {},
+                    onCopy = {},
+                    onDelete = {},
+                    onRename = {},
+                    onShare = {},
+                    onInfo = { showDetailsDialog = true }
                 )
             }
         },
@@ -245,7 +251,6 @@ fun ImageListScreen(
                                                 if (folder.bucketId !in selectedFolderIds) {
                                                     selectedFolderIds.add(folder.bucketId)
                                                 }
-                                                showOptionsSheet = true
                                             }
                                         )
                                     }
@@ -288,7 +293,6 @@ fun ImageListScreen(
                                                     if (folder.bucketId !in selectedFolderIds) {
                                                         selectedFolderIds.add(folder.bucketId)
                                                     }
-                                                    showOptionsSheet = true
                                                 }
                                             )
                                         }
@@ -299,22 +303,6 @@ fun ImageListScreen(
                     }
                 }
             }
-        }
-
-        if (showOptionsSheet) {
-            GalleryBottomOptionSheet(
-                selectedCount = selectedFolderIds.size,
-                onDismiss = { showOptionsSheet = false },
-                onMove = {},
-                onCopy = {},
-                onDelete = {},
-                onRename = {},
-                onShare = {},
-                onInfo = {
-                    showOptionsSheet = false
-                    showDetailsDialog = true
-                }
-            )
         }
 
         if (showSettingsSheet) {

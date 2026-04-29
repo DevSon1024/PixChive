@@ -13,7 +13,6 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
@@ -24,7 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.pixchive.gallery.data.models.GalleryImage
 import com.devson.pixchive.gallery.ui.components.DetailsDialog
-import com.devson.pixchive.gallery.ui.components.GalleryBottomOptionSheet
+import com.devson.pixchive.gallery.ui.components.GallerySelectionBottomBar
 import com.devson.pixchive.gallery.ui.components.GalleryImageItem
 import com.devson.pixchive.gallery.ui.components.GalleryViewSettingsBottomSheet
 import com.devson.pixchive.gallery.viewmodel.GalleryFolderViewModel
@@ -48,7 +47,6 @@ fun ImageFolderScreen(
     val layoutMode by viewModel.layoutMode.collectAsState()
 
     val selectedImageIds = remember { mutableStateListOf<Long>() }
-    var showOptionsSheet by remember { mutableStateOf(false) }
     var showSettingsSheet by remember { mutableStateOf(false) }
     var showDetailsDialog by remember { mutableStateOf(false) }
 
@@ -89,11 +87,7 @@ fun ImageFolderScreen(
                             Icon(Icons.Default.Close, contentDescription = "Clear selection")
                         }
                     },
-                    actions = {
-                        IconButton(onClick = { showOptionsSheet = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "Options")
-                        }
-                    },
+
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant
                     )
@@ -114,6 +108,19 @@ fun ImageFolderScreen(
                             Icon(Icons.Default.Settings, contentDescription = "App Settings")
                         }
                     }
+                )
+            }
+        },
+        bottomBar = {
+            if (selectedImageIds.isNotEmpty()) {
+                GallerySelectionBottomBar(
+                    selectedCount = selectedImageIds.size,
+                    onMove = {},
+                    onCopy = {},
+                    onDelete = {},
+                    onRename = {},
+                    onShare = {},
+                    onInfo = { showDetailsDialog = true }
                 )
             }
         }
@@ -149,10 +156,9 @@ fun ImageFolderScreen(
                                         onImageClick(index)
                                     }
                                 },
-                                onLongClick = {
-                                    if (image.id !in selectedImageIds) selectedImageIds.add(image.id)
-                                    showOptionsSheet = true
-                                }
+                                    onLongClick = {
+                                        if (image.id !in selectedImageIds) selectedImageIds.add(image.id)
+                                    }
                             )
                         }
                     }
@@ -193,10 +199,9 @@ fun ImageFolderScreen(
                                             onImageClick(index)
                                         }
                                     },
-                                    onLongClick = {
-                                        if (image.id !in selectedImageIds) selectedImageIds.add(image.id)
-                                        showOptionsSheet = true
-                                    }
+                                        onLongClick = {
+                                            if (image.id !in selectedImageIds) selectedImageIds.add(image.id)
+                                        }
                                 )
                             }
                         }
@@ -205,21 +210,6 @@ fun ImageFolderScreen(
             }
         }
 
-        if (showOptionsSheet) {
-            GalleryBottomOptionSheet(
-                selectedCount = selectedImageIds.size,
-                onDismiss = { showOptionsSheet = false },
-                onMove = {},
-                onCopy = {},
-                onDelete = {},
-                onRename = {},
-                onShare = {},
-                onInfo = {
-                    showOptionsSheet = false
-                    showDetailsDialog = true
-                }
-            )
-        }
 
         if (showSettingsSheet) {
             GalleryViewSettingsBottomSheet(

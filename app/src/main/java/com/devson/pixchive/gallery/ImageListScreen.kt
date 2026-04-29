@@ -5,6 +5,8 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items as listItems
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -49,6 +51,8 @@ fun ImageListScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val uiState by viewModel.uiState.collectAsState()
+    val savedGridCellsIndex by viewModel.gridCellsIndex.collectAsState()
+    val layoutMode by viewModel.layoutMode.collectAsState()
 
     var hasPermission by remember { mutableStateOf(PermissionHelper.hasStoragePermission(context)) }
 
@@ -57,17 +61,18 @@ fun ImageListScreen(
     var showSettingsSheet by remember { mutableStateOf(false) }
     var showDetailsDialog by remember { mutableStateOf(false) }
 
-    // Pinch-zoom grid: 4 cols (zoom out) -> 3 -> 2 (zoom in)
-    val cellsList = remember {
-        listOf(
-            GridCells.Fixed(4),
-            GridCells.Fixed(3),
-            GridCells.Adaptive(minSize = 120.dp)
+    val cellsConfig = remember {
+        mapOf(
+            GridCells.Fixed(4) to 4,
+            GridCells.Fixed(3) to 3,
+            GridCells.Fixed(2) to 2
         )
     }
+    val cellsList = remember { cellsConfig.keys.toList() }
+
     val pinchZoomState = rememberPinchZoomGridState(
         cellsList = cellsList,
-        initialCellsIndex = 2
+        initialCellsIndex = savedGridCellsIndex.coerceIn(0, cellsList.lastIndex)
     )
 
     BackHandler(enabled = selectedFolderIds.isNotEmpty()) {
@@ -214,20 +219,17 @@ fun ImageListScreen(
                                 style = MaterialTheme.typography.bodyLarge
                             )
                         } else {
-                            PinchZoomGridLayout(state = pinchZoomState) {
-                                LazyVerticalGrid(
-                                    columns = gridCells,
-                                    state = gridState,
+                            if (layoutMode == "list") {
+                                LazyColumn(
                                     contentPadding = PaddingValues(12.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(16.dp),
                                     modifier = Modifier.fillMaxSize()
                                 ) {
-                                    items(state.folders, key = { it.bucketId }) { folder ->
+                                    listItems(state.folders, key = { it.bucketId }) { folder ->
                                         GalleryFolderItem(
                                             folder = folder,
                                             isSelected = folder.bucketId in selectedFolderIds,
-                                            modifier = Modifier.pinchItem(key = folder.bucketId),
+                                            modifier = Modifier.fillMaxWidth(),
                                             onClick = {
                                                 if (selectedFolderIds.isNotEmpty()) {
                                                     if (folder.bucketId in selectedFolderIds) {
@@ -246,6 +248,50 @@ fun ImageListScreen(
                                                 showOptionsSheet = true
                                             }
                                         )
+                                    }
+                                }
+                            } else {
+                                PinchZoomGridLayout(state = pinchZoomState) {
+                                    val currentColumnCount = cellsConfig[gridCells] ?: 4
+
+                                    LaunchedEffect(currentColumnCount) {
+                                        val newIndex = 4 - currentColumnCount
+                                        if (newIndex in 0..2 && newIndex != savedGridCellsIndex) {
+                                            viewModel.setGridCellsIndex(newIndex)
+                                        }
+                                    }
+                                    LazyVerticalGrid(
+                                        columns = gridCells,
+                                        state = gridState,
+                                        contentPadding = PaddingValues(12.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier.fillMaxSize()
+                                    ) {
+                                        items(state.folders, key = { it.bucketId }) { folder ->
+                                            GalleryFolderItem(
+                                                folder = folder,
+                                                isSelected = folder.bucketId in selectedFolderIds,
+                                                modifier = Modifier.pinchItem(key = folder.bucketId),
+                                                onClick = {
+                                                    if (selectedFolderIds.isNotEmpty()) {
+                                                        if (folder.bucketId in selectedFolderIds) {
+                                                            selectedFolderIds.remove(folder.bucketId)
+                                                        } else {
+                                                            selectedFolderIds.add(folder.bucketId)
+                                                        }
+                                                    } else {
+                                                        onFolderClick(folder.bucketId)
+                                                    }
+                                                },
+                                                onLongPress = {
+                                                    if (folder.bucketId !in selectedFolderIds) {
+                                                        selectedFolderIds.add(folder.bucketId)
+                                                    }
+                                                    showOptionsSheet = true
+                                                }
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -272,7 +318,13 @@ fun ImageListScreen(
         }
 
         if (showSettingsSheet) {
-            GalleryViewSettingsBottomSheet(onDismiss = { showSettingsSheet = false })
+            GalleryViewSettingsBottomSheet(
+                layoutMode = layoutMode,
+                onLayoutModeChange = { viewModel.setLayoutMode(it) },
+                gridCellsIndex = savedGridCellsIndex,
+                onGridCellsIndexChange = { viewModel.setGridCellsIndex(it) },
+                onDismiss = { showSettingsSheet = false }
+            )
         }
 
         if (showDetailsDialog) {

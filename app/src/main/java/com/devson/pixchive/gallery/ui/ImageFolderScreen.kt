@@ -5,9 +5,11 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed as listItemsIndexed
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
@@ -42,24 +44,27 @@ fun ImageFolderScreen(
 ) {
     val images by viewModel.images.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val savedGridCellsIndex by viewModel.gridCellsIndex.collectAsState()
+    val layoutMode by viewModel.layoutMode.collectAsState()
 
     val selectedImageIds = remember { mutableStateListOf<Long>() }
     var showOptionsSheet by remember { mutableStateOf(false) }
     var showSettingsSheet by remember { mutableStateOf(false) }
     var showDetailsDialog by remember { mutableStateOf(false) }
 
-    // Pinch-zoom grid state: 6 cols (zoom out) -> 4 -> 3 -> 2 (zoom in)
-    val cellsList = remember {
-        listOf(
-            GridCells.Fixed(6),
-            GridCells.Fixed(4),
-            GridCells.Fixed(3),
-            GridCells.Fixed(2)
+    // Pinch-zoom grid state: 4 cols (zoom out) -> 3 -> 2 (zoom in)
+    val cellsConfig = remember {
+        mapOf(
+            GridCells.Fixed(4) to 4,
+            GridCells.Fixed(3) to 3,
+            GridCells.Fixed(2) to 2
         )
     }
-    val pinchZoomState = rememberPinchZoomGridState(
+    val cellsList = remember { cellsConfig.keys.toList() }
+
+    val pinchZoomGridState = rememberPinchZoomGridState(
         cellsList = cellsList,
-        initialCellsIndex = 1
+        initialCellsIndex = savedGridCellsIndex.coerceIn(0, cellsList.lastIndex)
     )
 
     BackHandler(enabled = selectedImageIds.isNotEmpty()) {
@@ -119,16 +124,13 @@ fun ImageFolderScreen(
             } else if (images.isEmpty()) {
                 Text("No images found.", modifier = Modifier.align(Alignment.Center))
             } else {
-                PinchZoomGridLayout(state = pinchZoomState) {
-                    LazyVerticalGrid(
-                        columns = gridCells,
-                        state = gridState,
+                if (layoutMode == "list") {
+                    LazyColumn(
                         contentPadding = PaddingValues(2.dp),
-                        horizontalArrangement = Arrangement.spacedBy(2.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        itemsIndexed(images, key = { _, img -> img.id }) { index, image ->
+                        listItemsIndexed(images, key = { _, img -> img.id }) { index, image ->
                             val sharedModifier = with(sharedTransitionScope) {
                                 Modifier.sharedElement(
                                     sharedContentState = rememberSharedContentState(key = "image_${image.id}"),
@@ -138,7 +140,7 @@ fun ImageFolderScreen(
                             GalleryImageItem(
                                 image = image,
                                 isSelected = image.id in selectedImageIds,
-                                modifier = sharedModifier.pinchItem(key = image.id),
+                                modifier = sharedModifier.fillMaxWidth(),
                                 onClick = {
                                     if (selectedImageIds.isNotEmpty()) {
                                         if (image.id in selectedImageIds) selectedImageIds.remove(image.id)
@@ -152,6 +154,51 @@ fun ImageFolderScreen(
                                     showOptionsSheet = true
                                 }
                             )
+                        }
+                    }
+                } else {
+                    PinchZoomGridLayout(state = pinchZoomGridState) {
+                        val currentColumnCount = cellsConfig[gridCells] ?: 4
+
+                        LaunchedEffect(currentColumnCount) {
+                            val newIndex = 4 - currentColumnCount
+                            if (newIndex in 0..2 && newIndex != savedGridCellsIndex) {
+                                viewModel.setGridCellsIndex(newIndex)
+                            }
+                        }
+                        LazyVerticalGrid(
+                            columns = gridCells,
+                            state = gridState,
+                            contentPadding = PaddingValues(2.dp),
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            gridItemsIndexed(images, key = { _, img -> img.id }) { index, image ->
+                                val sharedModifier = with(sharedTransitionScope) {
+                                    Modifier.sharedElement(
+                                        sharedContentState = rememberSharedContentState(key = "image_${image.id}"),
+                                        animatedVisibilityScope = animatedVisibilityScope
+                                    )
+                                }
+                                GalleryImageItem(
+                                    image = image,
+                                    isSelected = image.id in selectedImageIds,
+                                    modifier = sharedModifier.pinchItem(key = image.id),
+                                    onClick = {
+                                        if (selectedImageIds.isNotEmpty()) {
+                                            if (image.id in selectedImageIds) selectedImageIds.remove(image.id)
+                                            else selectedImageIds.add(image.id)
+                                        } else {
+                                            onImageClick(index)
+                                        }
+                                    },
+                                    onLongClick = {
+                                        if (image.id !in selectedImageIds) selectedImageIds.add(image.id)
+                                        showOptionsSheet = true
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -175,7 +222,13 @@ fun ImageFolderScreen(
         }
 
         if (showSettingsSheet) {
-            GalleryViewSettingsBottomSheet(onDismiss = { showSettingsSheet = false })
+            GalleryViewSettingsBottomSheet(
+                layoutMode = layoutMode,
+                onLayoutModeChange = { viewModel.setLayoutMode(it) },
+                gridCellsIndex = savedGridCellsIndex,
+                onGridCellsIndexChange = { viewModel.setGridCellsIndex(it) },
+                onDismiss = { showSettingsSheet = false }
+            )
         }
 
         if (showDetailsDialog) {

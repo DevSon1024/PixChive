@@ -5,6 +5,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.devson.pixchive.gallery.data.MediaStoreRepository
 import com.devson.pixchive.gallery.data.models.GalleryFolder
+import com.devson.pixchive.data.PreferencesManager
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,6 +26,26 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
 
     private val _uiState = MutableStateFlow<GalleryState>(GalleryState.Loading)
     val uiState: StateFlow<GalleryState> = _uiState.asStateFlow()
+
+    private val preferencesManager = PreferencesManager(application)
+    
+    val gridCellsIndex: StateFlow<Int> = preferencesManager.galleryGridCellsIndex
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 2)
+
+    val layoutMode: StateFlow<String> = preferencesManager.galleryLayoutModeFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "grid")
+
+    fun setLayoutMode(mode: String) {
+        viewModelScope.launch {
+            preferencesManager.setGalleryLayoutMode(mode)
+        }
+    }
+
+    fun setGridCellsIndex(index: Int) {
+        viewModelScope.launch {
+            preferencesManager.setGalleryGridCellsIndex(index)
+        }
+    }
 
     init {
         loadGalleryFolders()

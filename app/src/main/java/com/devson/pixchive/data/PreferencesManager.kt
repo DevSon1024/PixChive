@@ -54,6 +54,31 @@ class PreferencesManager(private val context: Context) {
         private val MANGA_MODE_KEY = booleanPreferencesKey("manga_mode")                 // RTL paging
         private val VOLUME_KEYS_NAVIGATION_KEY = booleanPreferencesKey("volume_keys_navigation")
         private val READ_PROGRESS_KEY = stringPreferencesKey("read_progress")            // JSON: "folderId|chapterPath" → pageIndex
+        private val GALLERY_GRID_CELLS_INDEX_KEY = intPreferencesKey("gallery_grid_cells_index")
+        private val GALLERY_LAYOUT_MODE_KEY = stringPreferencesKey("gallery_layout_mode")
+    }
+
+    // Default to index 2 (which represents 4 columns in our list if index 0 is 2 columns)
+    val galleryGridCellsIndex: Flow<Int> = context.dataStore.data
+        .map { preferences ->
+            preferences[GALLERY_GRID_CELLS_INDEX_KEY] ?: 2
+        }
+
+    suspend fun setGalleryGridCellsIndex(index: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[GALLERY_GRID_CELLS_INDEX_KEY] = index
+        }
+    }
+
+    val galleryLayoutModeFlow: Flow<String> = context.dataStore.data
+        .map { preferences ->
+            preferences[GALLERY_LAYOUT_MODE_KEY] ?: "grid"
+        }.distinctUntilChanged()
+
+    suspend fun setGalleryLayoutMode(mode: String) {
+        context.dataStore.edit { preferences ->
+            preferences[GALLERY_LAYOUT_MODE_KEY] = mode
+        }
     }
 
     // --- Favorites ---

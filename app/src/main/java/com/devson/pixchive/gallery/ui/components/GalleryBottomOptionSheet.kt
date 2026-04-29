@@ -3,6 +3,7 @@ package com.devson.pixchive.gallery.ui.components
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -36,7 +37,7 @@ fun GalleryBottomOptionSheet(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
             HorizontalDivider()
-            OptionRow(icon = Icons.Default.DriveFileMove, label = "Move", onClick = { onDismiss(); onMove() })
+            OptionRow(icon = Icons.AutoMirrored.Filled.DriveFileMove, label = "Move", onClick = { onDismiss(); onMove() })
             OptionRow(icon = Icons.Default.ContentCopy, label = "Copy", onClick = { onDismiss(); onCopy() })
             if (selectedCount == 1) {
                 OptionRow(icon = Icons.Default.Edit, label = "Rename", onClick = { onDismiss(); onRename() })

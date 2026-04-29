@@ -25,8 +25,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.pixchive.gallery.data.models.GalleryImage
 import com.devson.pixchive.gallery.viewmodel.GalleryFolderViewModel
-import me.saket.telephoto.zoomable.coil.ZoomableAsyncImage
-import me.saket.telephoto.zoomable.rememberZoomableImageState
+import com.github.panpf.zoomimage.CoilZoomAsyncImage
+import com.github.panpf.zoomimage.rememberCoilZoomState
 import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.animation.AnimatedVisibilityScope
@@ -49,7 +49,6 @@ fun ImageViewScreen(
     var showOverlays by remember { mutableStateOf(true) }
     var showInfoDialog by remember { mutableStateOf<GalleryImage?>(null) }
 
-    // --- IMMERSIVE MODE LOGIC ---
     val context = LocalContext.current
     val view = LocalView.current
     val window = (context as Activity).window
@@ -67,14 +66,11 @@ fun ImageViewScreen(
 
     DisposableEffect(Unit) {
         onDispose {
-            // Guarantee system bars are restored when leaving this screen
             insetsController.show(WindowInsetsCompat.Type.systemBars())
         }
     }
 
     LaunchedEffect(bucketId) {
-        // If coming from the grid, it might already be cached in a shared VM setup, 
-        // but calling it ensures we have data.
         if (images.isEmpty()) viewModel.loadImages(bucketId)
     }
 
@@ -83,7 +79,6 @@ fun ImageViewScreen(
         return
     }
 
-    // Set initial page from the grid click
     val pagerState = rememberPagerState(
         initialPage = initialIndex.coerceIn(0, images.lastIndex),
         pageCount = { images.size }
@@ -95,26 +90,24 @@ fun ImageViewScreen(
             modifier = Modifier.fillMaxSize(),
             key = { images[it].id }
         ) { page ->
-            val zoomableState = rememberZoomableImageState()
+            val zoomState = rememberCoilZoomState()
 
-            // Replace your ZoomableAsyncImage modifier with this:
             with(sharedTransitionScope) {
-                ZoomableAsyncImage(
+                CoilZoomAsyncImage(
                     model = images[page].uri,
                     contentDescription = null,
+                    zoomState = zoomState,
                     modifier = Modifier
                         .fillMaxSize()
                         .sharedElement(
-                            sharedContentState = rememberSharedContentState(key = "image_${images[page].id}"), // <-- FIXED HERE
+                            sharedContentState = rememberSharedContentState(key = "image_${images[page].id}"),
                             animatedVisibilityScope = animatedVisibilityScope
                         ),
-                    state = zoomableState,
-                    onClick = { showOverlays = !showOverlays }
+                    onTap = { showOverlays = !showOverlays }
                 )
             }
         }
 
-        // Overlay App Bar
         AnimatedVisibility(
             visible = showOverlays,
             enter = fadeIn(),

@@ -25,6 +25,8 @@ import com.devson.pixchive.gallery.ui.components.GalleryBottomOptionSheet
 import com.devson.pixchive.gallery.ui.components.GalleryImageItem
 import com.devson.pixchive.gallery.ui.components.GalleryViewSettingsBottomSheet
 import com.devson.pixchive.gallery.viewmodel.GalleryFolderViewModel
+import com.dokar.pinchzoomgrid.PinchZoomGridLayout
+import com.dokar.pinchzoomgrid.rememberPinchZoomGridState
 
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -43,6 +45,20 @@ fun ImageFolderScreen(
     var showOptionsSheet by remember { mutableStateOf(false) }
     var showSettingsSheet by remember { mutableStateOf(false) }
     var showDetailsDialog by remember { mutableStateOf(false) }
+
+    // Pinch-zoom grid state: 6 cols (zoom out) -> 4 -> 3 -> 2 (zoom in)
+    val cellsList = remember {
+        listOf(
+            GridCells.Fixed(6),
+            GridCells.Fixed(4),
+            GridCells.Fixed(3),
+            GridCells.Fixed(2)
+        )
+    }
+    val pinchZoomState = rememberPinchZoomGridState(
+        cellsList = cellsList,
+        initialCellsIndex = 1
+    )
 
     BackHandler(enabled = selectedImageIds.isNotEmpty()) {
         selectedImageIds.clear()
@@ -98,37 +114,40 @@ fun ImageFolderScreen(
             } else if (images.isEmpty()) {
                 Text("No images found.", modifier = Modifier.align(Alignment.Center))
             } else {
-                LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = 100.dp),
-                    contentPadding = PaddingValues(2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    itemsIndexed(images, key = { _, img -> img.id }) { index, image ->
-                        val sharedModifier = with(sharedTransitionScope) {
-                            Modifier.sharedElement(
-                                sharedContentState = rememberSharedContentState(key = "image_${image.id}"),
-                                animatedVisibilityScope = animatedVisibilityScope
+                PinchZoomGridLayout(state = pinchZoomState) {
+                    LazyVerticalGrid(
+                        columns = gridCells,
+                        state = gridState,
+                        contentPadding = PaddingValues(2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        itemsIndexed(images, key = { _, img -> img.id }) { index, image ->
+                            val sharedModifier = with(sharedTransitionScope) {
+                                Modifier.sharedElement(
+                                    sharedContentState = rememberSharedContentState(key = "image_${image.id}"),
+                                    animatedVisibilityScope = animatedVisibilityScope
+                                )
+                            }
+                            GalleryImageItem(
+                                image = image,
+                                isSelected = image.id in selectedImageIds,
+                                modifier = sharedModifier.pinchItem(key = image.id),
+                                onClick = {
+                                    if (selectedImageIds.isNotEmpty()) {
+                                        if (image.id in selectedImageIds) selectedImageIds.remove(image.id)
+                                        else selectedImageIds.add(image.id)
+                                    } else {
+                                        onImageClick(index)
+                                    }
+                                },
+                                onLongClick = {
+                                    if (image.id !in selectedImageIds) selectedImageIds.add(image.id)
+                                    showOptionsSheet = true
+                                }
                             )
                         }
-                        GalleryImageItem(
-                            image = image,
-                            isSelected = image.id in selectedImageIds,
-                            modifier = sharedModifier,
-                            onClick = {
-                                if (selectedImageIds.isNotEmpty()) {
-                                    if (image.id in selectedImageIds) selectedImageIds.remove(image.id)
-                                    else selectedImageIds.add(image.id)
-                                } else {
-                                    onImageClick(index)
-                                }
-                            },
-                            onLongClick = {
-                                if (image.id !in selectedImageIds) selectedImageIds.add(image.id)
-                                showOptionsSheet = true
-                            }
-                        )
                     }
                 }
             }

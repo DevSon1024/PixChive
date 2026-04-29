@@ -34,6 +34,8 @@ import com.devson.pixchive.gallery.ui.components.GalleryViewSettingsBottomSheet
 import com.devson.pixchive.gallery.viewmodel.GalleryState
 import com.devson.pixchive.gallery.viewmodel.ImageListViewModel
 import com.devson.pixchive.utils.PermissionHelper
+import com.dokar.pinchzoomgrid.PinchZoomGridLayout
+import com.dokar.pinchzoomgrid.rememberPinchZoomGridState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,6 +54,19 @@ fun ImageListScreen(
     var showOptionsSheet by remember { mutableStateOf(false) }
     var showSettingsSheet by remember { mutableStateOf(false) }
     var showDetailsDialog by remember { mutableStateOf(false) }
+
+    // Pinch-zoom grid: 4 cols (zoom out) -> 3 -> 2 (zoom in)
+    val cellsList = remember {
+        listOf(
+            GridCells.Fixed(4),
+            GridCells.Fixed(3),
+            GridCells.Adaptive(minSize = 120.dp)
+        )
+    }
+    val pinchZoomState = rememberPinchZoomGridState(
+        cellsList = cellsList,
+        initialCellsIndex = 2
+    )
 
     BackHandler(enabled = selectedFolderIds.isNotEmpty()) {
         selectedFolderIds.clear()
@@ -194,35 +209,39 @@ fun ImageListScreen(
                                 style = MaterialTheme.typography.bodyLarge
                             )
                         } else {
-                            LazyVerticalGrid(
-                                columns = GridCells.Adaptive(minSize = 120.dp),
-                                contentPadding = PaddingValues(12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.fillMaxSize()
-                            ) {
-                                items(state.folders, key = { it.bucketId }) { folder ->
-                                    GalleryFolderItem(
-                                        folder = folder,
-                                        isSelected = folder.bucketId in selectedFolderIds,
-                                        onClick = {
-                                            if (selectedFolderIds.isNotEmpty()) {
-                                                if (folder.bucketId in selectedFolderIds) {
-                                                    selectedFolderIds.remove(folder.bucketId)
+                            PinchZoomGridLayout(state = pinchZoomState) {
+                                LazyVerticalGrid(
+                                    columns = gridCells,
+                                    state = gridState,
+                                    contentPadding = PaddingValues(12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    items(state.folders, key = { it.bucketId }) { folder ->
+                                        GalleryFolderItem(
+                                            folder = folder,
+                                            isSelected = folder.bucketId in selectedFolderIds,
+                                            modifier = Modifier.pinchItem(key = folder.bucketId),
+                                            onClick = {
+                                                if (selectedFolderIds.isNotEmpty()) {
+                                                    if (folder.bucketId in selectedFolderIds) {
+                                                        selectedFolderIds.remove(folder.bucketId)
+                                                    } else {
+                                                        selectedFolderIds.add(folder.bucketId)
+                                                    }
                                                 } else {
+                                                    onFolderClick(folder.bucketId)
+                                                }
+                                            },
+                                            onLongPress = {
+                                                if (folder.bucketId !in selectedFolderIds) {
                                                     selectedFolderIds.add(folder.bucketId)
                                                 }
-                                            } else {
-                                                onFolderClick(folder.bucketId)
+                                                showOptionsSheet = true
                                             }
-                                        },
-                                        onLongPress = {
-                                            if (folder.bucketId !in selectedFolderIds) {
-                                                selectedFolderIds.add(folder.bucketId)
-                                            }
-                                            showOptionsSheet = true
-                                        }
-                                    )
+                                        )
+                                    }
                                 }
                             }
                         }

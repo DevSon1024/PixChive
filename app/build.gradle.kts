@@ -193,6 +193,11 @@ dependencies {
     implementation("com.anggrayudi:storage:2.0.0")
     // EXIF metadata extraction
     implementation("androidx.exifinterface:exifinterface:1.3.7")
+
+    implementation(libs.pinchzoomgrid)
+    implementation(libs.zoomimage.compose)
+    implementation(libs.zoomimage.compose.coil3)
+
     implementation(libs.telephoto.zoomable.image.coil)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

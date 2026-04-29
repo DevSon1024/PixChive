@@ -1,14 +1,16 @@
 package com.devson.pixchive.gallery.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,6 +30,7 @@ import com.devson.pixchive.gallery.data.models.GalleryFolder
 @Composable
 fun GalleryFolderItem(
     folder: GalleryFolder,
+    isSelected: Boolean,
     onClick: () -> Unit,
     onLongPress: () -> Unit
 ) {
@@ -48,7 +51,6 @@ fun GalleryFolderItem(
             )
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Coil natively resolves the content:// URI from the MediaStore
             AsyncImage(
                 model = folder.thumbnailUri,
                 contentDescription = "Thumbnail for ${folder.folderName}",
@@ -56,7 +58,6 @@ fun GalleryFolderItem(
                 modifier = Modifier.fillMaxSize()
             )
 
-            // Gradient Overlay for Text Readability
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -83,6 +84,33 @@ fun GalleryFolderItem(
                     )
                 }
             }
+
+            SelectionOverlay(isSelected = isSelected)
+        }
+    }
+}
+
+@Composable
+private fun SelectionOverlay(isSelected: Boolean) {
+    AnimatedVisibility(
+        visible = isSelected,
+        enter = fadeIn(),
+        exit = fadeOut()
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.45f))
+        ) {
+            Icon(
+                imageVector = Icons.Default.CheckCircle,
+                contentDescription = "Selected",
+                tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(6.dp)
+                    .size(22.dp)
+            )
         }
     }
 }

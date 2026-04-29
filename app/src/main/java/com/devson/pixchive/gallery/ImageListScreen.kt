@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
@@ -42,6 +43,7 @@ import com.dokar.pinchzoomgrid.rememberPinchZoomGridState
 fun ImageListScreen(
     onNavigateBack: () -> Unit,
     onFolderClick: (String) -> Unit,
+    onSettingsClick: () -> Unit,
     viewModel: ImageListViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -136,7 +138,10 @@ fun ImageListScreen(
                     },
                     actions = {
                         IconButton(onClick = { showSettingsSheet = true }) {
-                            Icon(Icons.Default.Settings, contentDescription = "View Settings")
+                            Icon(Icons.Default.Tune, contentDescription = "View Settings")
+                        }
+                        IconButton(onClick = onSettingsClick) {
+                            Icon(Icons.Default.Settings, contentDescription = "App Settings")
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(

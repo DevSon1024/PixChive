@@ -13,6 +13,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,6 +35,7 @@ fun ImageFolderScreen(
     bucketId: String,
     onNavigateBack: () -> Unit,
     onImageClick: (Int) -> Unit,
+    onSettingsClick: () -> Unit,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
     viewModel: GalleryFolderViewModel = viewModel()
@@ -101,7 +103,10 @@ fun ImageFolderScreen(
                     },
                     actions = {
                         IconButton(onClick = { showSettingsSheet = true }) {
-                            Icon(Icons.Default.Settings, contentDescription = "View Settings")
+                            Icon(Icons.Default.Tune, contentDescription = "View Settings")
+                        }
+                        IconButton(onClick = onSettingsClick) {
+                            Icon(Icons.Default.Settings, contentDescription = "App Settings")
                         }
                     }
                 )

@@ -105,7 +105,8 @@ fun NavGraph(
                     onNavigateBack = safeNavigateBack,
                     onFolderClick = { bucketId ->
                         navController.navigate(Screen.ImageFolder.createRoute(bucketId))
-                    }
+                    },
+                    onSettingsClick = { navController.navigate(Screen.Settings.route) }
                 )
             }
 
@@ -122,6 +123,7 @@ fun NavGraph(
                         // FIX: Use the Gallery specific route here
                         navController.navigate(Screen.GalleryImageViewer.createRoute(bucketId, index))
                     },
+                    onSettingsClick = { navController.navigate(Screen.Settings.route) },
                     sharedTransitionScope = this@SharedTransitionLayout,
                     animatedVisibilityScope = this@composable
                 )

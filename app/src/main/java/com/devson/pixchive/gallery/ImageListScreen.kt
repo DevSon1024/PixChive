@@ -51,6 +51,7 @@ fun ImageListScreen(
     val uiState by viewModel.uiState.collectAsState()
     val savedGridCellsIndex by viewModel.gridCellsIndex.collectAsState()
     val layoutMode by viewModel.layoutMode.collectAsState()
+    val viewSettings by viewModel.viewSettings.collectAsState()
 
     var hasPermission by remember { mutableStateOf(PermissionHelper.hasStoragePermission(context)) }
 
@@ -236,6 +237,7 @@ fun ImageListScreen(
                                             folder = folder,
                                             isSelected = folder.bucketId in selectedFolderIds,
                                             isListMode = true,
+                                            viewSettings = viewSettings,
                                             modifier = Modifier.fillMaxWidth(),
                                             onClick = {
                                                 if (selectedFolderIds.isNotEmpty()) {
@@ -278,6 +280,7 @@ fun ImageListScreen(
                                             GalleryFolderItem(
                                                 folder = folder,
                                                 isSelected = folder.bucketId in selectedFolderIds,
+                                                viewSettings = viewSettings,
                                                 modifier = Modifier.pinchItem(key = folder.bucketId),
                                                 onClick = {
                                                     if (selectedFolderIds.isNotEmpty()) {
@@ -312,6 +315,8 @@ fun ImageListScreen(
                 onLayoutModeChange = { viewModel.setLayoutMode(it) },
                 gridCellsIndex = savedGridCellsIndex,
                 onGridCellsIndexChange = { viewModel.setGridCellsIndex(it) },
+                viewSettings = viewSettings,
+                onViewSettingsChange = { viewModel.updateViewSettings(it) },
                 onDismiss = { showSettingsSheet = false }
             )
         }

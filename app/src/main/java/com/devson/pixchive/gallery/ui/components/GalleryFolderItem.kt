@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.geometry.Size
 import coil.compose.AsyncImage
 import com.devson.pixchive.gallery.data.models.GalleryFolder
+import com.devson.pixchive.gallery.data.models.GalleryViewSettings
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -80,12 +81,29 @@ private fun InfoChip(text: String, bgColor: Color, textColor: Color) {
     }
 }
 
+@Composable
+private fun ThumbnailPlaceholder() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            painter = androidx.compose.ui.res.painterResource(id = android.R.drawable.ic_menu_gallery),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+        )
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GalleryFolderItem(
     folder: GalleryFolder,
     isSelected: Boolean,
     isListMode: Boolean = false,
+    viewSettings: GalleryViewSettings = GalleryViewSettings(),
     onClick: () -> Unit,
     onLongPress: () -> Unit,
     modifier: Modifier = Modifier
@@ -117,12 +135,16 @@ fun GalleryFolderItem(
                         .height(75.dp)
                         .clip(FolderShape())
                 ) {
-                    AsyncImage(
-                        model = folder.thumbnailUri,
-                        contentDescription = "Thumbnail for ${folder.folderName}",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    if (viewSettings.showThumbnail) {
+                        AsyncImage(
+                            model = folder.thumbnailUri,
+                            contentDescription = "Thumbnail for ${folder.folderName}",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        ThumbnailPlaceholder()
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(16.dp))
@@ -137,13 +159,30 @@ fun GalleryFolderItem(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    
+                    if (viewSettings.showPath) {
+                        Text(
+                            text = folder.folderPath,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                    
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         InfoChip(text = "${folder.imageCount} images", bgColor = Color(0xFFFFF9C4), textColor = Color(0xFFF57F17))
-                        InfoChip(text = formatSize(folder.size), bgColor = Color(0xFFF5F5F5), textColor = Color(0xFF757575))
-                        InfoChip(text = formatDate(folder.dateModified), bgColor = Color(0xFFFBE9E7), textColor = Color(0xFFD84315))
+                        if (viewSettings.showSize) {
+                            InfoChip(text = formatSize(folder.size), bgColor = Color(0xFFF5F5F5), textColor = Color(0xFF757575))
+                        }
+                        if (viewSettings.showDate) {
+                            InfoChip(text = formatDate(folder.dateModified), bgColor = Color(0xFFFBE9E7), textColor = Color(0xFFD84315))
+                        }
                     }
                 }
             }
@@ -171,12 +210,16 @@ fun GalleryFolderItem(
                             .aspectRatio(1f)
                             .clip(FolderShape())
                     ) {
-                        AsyncImage(
-                            model = folder.thumbnailUri,
-                            contentDescription = "Thumbnail for ${folder.folderName}",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
+                        if (viewSettings.showThumbnail) {
+                            AsyncImage(
+                                model = folder.thumbnailUri,
+                                contentDescription = "Thumbnail for ${folder.folderName}",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            ThumbnailPlaceholder()
+                        }
                     }
 
                     Column(
@@ -190,6 +233,17 @@ fun GalleryFolderItem(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
+                        
+                        if (viewSettings.showPath) {
+                            Text(
+                                text = folder.folderPath,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        
                         Spacer(modifier = Modifier.height(6.dp))
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -199,11 +253,20 @@ fun GalleryFolderItem(
                                 bgColor = Color(0xFFFFF9C4),
                                 textColor = Color(0xFFF57F17)
                             )
-                            InfoChip(
-                                text = formatSize(folder.size),
-                                bgColor = Color(0xFFF5F5F5),
-                                textColor = Color(0xFF757575)
-                            )
+                            if (viewSettings.showSize) {
+                                InfoChip(
+                                    text = formatSize(folder.size),
+                                    bgColor = Color(0xFFF5F5F5),
+                                    textColor = Color(0xFF757575)
+                                )
+                            }
+                            if (viewSettings.showDate) {
+                                InfoChip(
+                                    text = formatDate(folder.dateModified),
+                                    bgColor = Color(0xFFFBE9E7),
+                                    textColor = Color(0xFFD84315)
+                                )
+                            }
                         }
                     }
                 }

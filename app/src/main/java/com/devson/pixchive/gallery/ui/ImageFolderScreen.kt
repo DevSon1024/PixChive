@@ -45,6 +45,7 @@ fun ImageFolderScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val savedGridCellsIndex by viewModel.gridCellsIndex.collectAsState()
     val layoutMode by viewModel.layoutMode.collectAsState()
+    val viewSettings by viewModel.viewSettings.collectAsState()
 
     val selectedImageIds = remember { mutableStateListOf<Long>() }
     var showSettingsSheet by remember { mutableStateOf(false) }
@@ -148,6 +149,7 @@ fun ImageFolderScreen(
                                 image = image,
                                 isSelected = image.id in selectedImageIds,
                                 isListMode = true,
+                                viewSettings = viewSettings,
                                 modifier = sharedModifier.fillMaxWidth(),
                                 onClick = {
                                     if (selectedImageIds.isNotEmpty()) {
@@ -191,6 +193,7 @@ fun ImageFolderScreen(
                                 GalleryImageItem(
                                     image = image,
                                     isSelected = image.id in selectedImageIds,
+                                    viewSettings = viewSettings,
                                     modifier = sharedModifier.pinchItem(key = image.id),
                                     onClick = {
                                         if (selectedImageIds.isNotEmpty()) {
@@ -218,6 +221,8 @@ fun ImageFolderScreen(
                 onLayoutModeChange = { viewModel.setLayoutMode(it) },
                 gridCellsIndex = savedGridCellsIndex,
                 onGridCellsIndexChange = { viewModel.setGridCellsIndex(it) },
+                viewSettings = viewSettings,
+                onViewSettingsChange = { viewModel.updateViewSettings(it) },
                 onDismiss = { showSettingsSheet = false }
             )
         }

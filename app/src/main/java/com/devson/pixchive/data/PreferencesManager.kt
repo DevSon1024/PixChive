@@ -56,6 +56,14 @@ class PreferencesManager(private val context: Context) {
         private val READ_PROGRESS_KEY = stringPreferencesKey("read_progress")            // JSON: "folderId|chapterPath" → pageIndex
         private val GALLERY_GRID_CELLS_INDEX_KEY = intPreferencesKey("gallery_grid_cells_index")
         private val GALLERY_LAYOUT_MODE_KEY = stringPreferencesKey("gallery_layout_mode")
+        
+        // Gallery Fields
+        private val GALLERY_SHOW_THUMBNAIL_KEY = booleanPreferencesKey("gallery_show_thumbnail")
+        private val GALLERY_SHOW_FILE_EXT_KEY = booleanPreferencesKey("gallery_show_file_ext")
+        private val GALLERY_SHOW_RESOLUTION_KEY = booleanPreferencesKey("gallery_show_resolution")
+        private val GALLERY_SHOW_PATH_KEY = booleanPreferencesKey("gallery_show_path")
+        private val GALLERY_SHOW_SIZE_KEY = booleanPreferencesKey("gallery_show_size")
+        private val GALLERY_SHOW_DATE_KEY = booleanPreferencesKey("gallery_show_date")
     }
 
     // Default to index 2 (which represents 4 columns in our list if index 0 is 2 columns)
@@ -80,6 +88,21 @@ class PreferencesManager(private val context: Context) {
             preferences[GALLERY_LAYOUT_MODE_KEY] = mode
         }
     }
+
+    // --- Gallery Field Settings ---
+    val galleryShowThumbnail: Flow<Boolean> = context.dataStore.data.map { it[GALLERY_SHOW_THUMBNAIL_KEY] ?: true }
+    val galleryShowFileExt: Flow<Boolean> = context.dataStore.data.map { it[GALLERY_SHOW_FILE_EXT_KEY] ?: true }
+    val galleryShowResolution: Flow<Boolean> = context.dataStore.data.map { it[GALLERY_SHOW_RESOLUTION_KEY] ?: true }
+    val galleryShowPath: Flow<Boolean> = context.dataStore.data.map { it[GALLERY_SHOW_PATH_KEY] ?: false }
+    val galleryShowSize: Flow<Boolean> = context.dataStore.data.map { it[GALLERY_SHOW_SIZE_KEY] ?: true }
+    val galleryShowDate: Flow<Boolean> = context.dataStore.data.map { it[GALLERY_SHOW_DATE_KEY] ?: true }
+
+    suspend fun setGalleryShowThumbnail(show: Boolean) = context.dataStore.edit { it[GALLERY_SHOW_THUMBNAIL_KEY] = show }
+    suspend fun setGalleryShowFileExt(show: Boolean) = context.dataStore.edit { it[GALLERY_SHOW_FILE_EXT_KEY] = show }
+    suspend fun setGalleryShowResolution(show: Boolean) = context.dataStore.edit { it[GALLERY_SHOW_RESOLUTION_KEY] = show }
+    suspend fun setGalleryShowPath(show: Boolean) = context.dataStore.edit { it[GALLERY_SHOW_PATH_KEY] = show }
+    suspend fun setGalleryShowSize(show: Boolean) = context.dataStore.edit { it[GALLERY_SHOW_SIZE_KEY] = show }
+    suspend fun setGalleryShowDate(show: Boolean) = context.dataStore.edit { it[GALLERY_SHOW_DATE_KEY] = show }
 
     // --- Favorites ---
     val favoritesFlow: Flow<Set<String>> = context.dataStore.data.map { preferences ->

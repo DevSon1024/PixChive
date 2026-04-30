@@ -11,7 +11,9 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import com.devson.pixchive.gallery.data.models.GalleryViewSettings
 
 class GalleryFolderViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = MediaStoreRepository(application)
@@ -30,6 +32,24 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
     val layoutMode: StateFlow<String> = preferencesManager.galleryLayoutModeFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "grid")
 
+    val viewSettings: StateFlow<GalleryViewSettings> = combine(
+        preferencesManager.galleryShowThumbnail,
+        preferencesManager.galleryShowFileExt,
+        preferencesManager.galleryShowResolution,
+        preferencesManager.galleryShowPath,
+        preferencesManager.galleryShowSize,
+        preferencesManager.galleryShowDate
+    ) { settingsArray ->
+        GalleryViewSettings(
+            showThumbnail = settingsArray[0],
+            showFileExt = settingsArray[1],
+            showResolution = settingsArray[2],
+            showPath = settingsArray[3],
+            showSize = settingsArray[4],
+            showDate = settingsArray[5]
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), GalleryViewSettings())
+
     fun setLayoutMode(mode: String) {
         viewModelScope.launch {
             preferencesManager.setGalleryLayoutMode(mode)
@@ -39,6 +59,17 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
     fun setGridCellsIndex(index: Int) {
         viewModelScope.launch {
             preferencesManager.setGalleryGridCellsIndex(index)
+        }
+    }
+
+    fun updateViewSettings(settings: GalleryViewSettings) {
+        viewModelScope.launch {
+            preferencesManager.setGalleryShowThumbnail(settings.showThumbnail)
+            preferencesManager.setGalleryShowFileExt(settings.showFileExt)
+            preferencesManager.setGalleryShowResolution(settings.showResolution)
+            preferencesManager.setGalleryShowPath(settings.showPath)
+            preferencesManager.setGalleryShowSize(settings.showSize)
+            preferencesManager.setGalleryShowDate(settings.showDate)
         }
     }
 

@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.devson.pixchive.gallery.data.models.GalleryImage
+import com.devson.pixchive.gallery.data.models.GalleryViewSettings
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -47,6 +48,22 @@ private fun InfoChip(text: String, bgColor: Color, textColor: Color) {
     }
 }
 
+@Composable
+private fun ThumbnailPlaceholder() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            painter = androidx.compose.ui.res.painterResource(id = android.R.drawable.ic_menu_gallery),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+        )
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GalleryImageItem(
@@ -55,9 +72,14 @@ fun GalleryImageItem(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
-    isListMode: Boolean = false
+    isListMode: Boolean = false,
+    viewSettings: GalleryViewSettings = GalleryViewSettings()
 ) {
     val haptics = LocalHapticFeedback.current
+
+    val fileName = image.realPath.substringAfterLast('/')
+    val baseName = fileName.substringBeforeLast('.', fileName)
+    val extension = fileName.substringAfterLast('.', "").uppercase()
 
     if (isListMode) {
         Card(
@@ -84,12 +106,16 @@ fun GalleryImageItem(
                         .height(75.dp)
                         .clip(RoundedCornerShape(12.dp))
                 ) {
-                    AsyncImage(
-                        model = image.uri,
-                        contentDescription = "Image thumbnail",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    if (viewSettings.showThumbnail) {
+                        AsyncImage(
+                            model = image.uri,
+                            contentDescription = "Image thumbnail",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        ThumbnailPlaceholder()
+                    }
                     SelectionCheckmarkOverlay(visible = isSelected)
                 }
 
@@ -99,18 +125,41 @@ fun GalleryImageItem(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = image.realPath.substringAfterLast('/'),
+                        text = baseName,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    
+                    if (viewSettings.showPath) {
+                        Text(
+                            text = image.realPath,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                    
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        InfoChip(text = formatSize(image.size), bgColor = Color(0xFFF5F5F5), textColor = Color(0xFF757575))
-                        InfoChip(text = formatDate(image.dateModified), bgColor = Color(0xFFFBE9E7), textColor = Color(0xFFD84315))
+                        if (viewSettings.showFileExt && extension.isNotEmpty()) {
+                            InfoChip(text = extension, bgColor = Color(0xFFE8F5E9), textColor = Color(0xFF2E7D32))
+                        }
+                        if (viewSettings.showResolution && image.width > 0 && image.height > 0) {
+                            InfoChip(text = "${image.width}x${image.height}", bgColor = Color(0xFFE1F5FE), textColor = Color(0xFF0288D1))
+                        }
+                        if (viewSettings.showSize) {
+                            InfoChip(text = formatSize(image.size), bgColor = Color(0xFFF5F5F5), textColor = Color(0xFF757575))
+                        }
+                        if (viewSettings.showDate) {
+                            InfoChip(text = formatDate(image.dateModified), bgColor = Color(0xFFFBE9E7), textColor = Color(0xFFD84315))
+                        }
                     }
                 }
             }
@@ -138,39 +187,65 @@ fun GalleryImageItem(
                             .aspectRatio(1f)
                             .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
                     ) {
-                        AsyncImage(
-                            model = image.uri,
-                            contentDescription = "Image thumbnail",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
+                        if (viewSettings.showThumbnail) {
+                            AsyncImage(
+                                model = image.uri,
+                                contentDescription = "Image thumbnail",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            ThumbnailPlaceholder()
+                        }
                     }
 
                     Column(
                         modifier = Modifier.padding(8.dp)
                     ) {
                         Text(
-                            text = image.realPath.substringAfterLast('/'),
+                            text = baseName,
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
+                        
+                        if (viewSettings.showPath) {
+                            Text(
+                                text = image.realPath,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        
                         Spacer(modifier = Modifier.height(6.dp))
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            InfoChip(
-                                text = formatSize(image.size),
-                                bgColor = Color(0xFFF5F5F5),
-                                textColor = Color(0xFF757575)
-                            )
-                            InfoChip(
-                                text = formatDate(image.dateModified),
-                                bgColor = Color(0xFFFBE9E7),
-                                textColor = Color(0xFFD84315)
-                            )
+                            if (viewSettings.showFileExt && extension.isNotEmpty()) {
+                                InfoChip(text = extension, bgColor = Color(0xFFE8F5E9), textColor = Color(0xFF2E7D32))
+                            }
+                            if (viewSettings.showResolution && image.width > 0 && image.height > 0) {
+                                InfoChip(text = "${image.width}x${image.height}", bgColor = Color(0xFFE1F5FE), textColor = Color(0xFF0288D1))
+                            }
+                            if (viewSettings.showSize) {
+                                InfoChip(
+                                    text = formatSize(image.size),
+                                    bgColor = Color(0xFFF5F5F5),
+                                    textColor = Color(0xFF757575)
+                                )
+                            }
+                            if (viewSettings.showDate) {
+                                InfoChip(
+                                    text = formatDate(image.dateModified),
+                                    bgColor = Color(0xFFFBE9E7),
+                                    textColor = Color(0xFFD84315)
+                                )
+                            }
                         }
                     }
                 }

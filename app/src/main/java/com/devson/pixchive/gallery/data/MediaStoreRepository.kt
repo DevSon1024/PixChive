@@ -20,7 +20,8 @@ class MediaStoreRepository(private val context: Context) {
             MediaStore.Images.Media.BUCKET_ID,
             MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
             MediaStore.Images.Media.SIZE,
-            MediaStore.Images.Media.DATE_MODIFIED
+            MediaStore.Images.Media.DATE_MODIFIED,
+            MediaStore.Images.Media.DATA
         )
 
         val sortOrder = "${MediaStore.Images.Media.DATE_MODIFIED} DESC"
@@ -37,6 +38,7 @@ class MediaStoreRepository(private val context: Context) {
             val bucketNameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
             val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
             val dateModifiedColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)
+            val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idColumn)
@@ -44,6 +46,8 @@ class MediaStoreRepository(private val context: Context) {
                 val bucketName = cursor.getString(bucketNameColumn) ?: "Unknown Folder"
                 val size = cursor.getLong(sizeColumn)
                 val dateModified = cursor.getLong(dateModifiedColumn)
+                val realPath = cursor.getString(dataColumn) ?: ""
+                val folderPath = realPath.substringBeforeLast('/', "")
 
                 val contentUri = ContentUris.withAppendedId(uri, id)
 
@@ -57,6 +61,7 @@ class MediaStoreRepository(private val context: Context) {
                     foldersMap[bucketId] = GalleryFolder(
                         bucketId = bucketId,
                         folderName = bucketName,
+                        folderPath = folderPath,
                         thumbnailUri = contentUri,
                         imageCount = 1,
                         size = size,
@@ -76,7 +81,9 @@ class MediaStoreRepository(private val context: Context) {
             MediaStore.Images.Media._ID,
             MediaStore.Images.Media.DATA,
             MediaStore.Images.Media.DATE_MODIFIED,
-            MediaStore.Images.Media.SIZE
+            MediaStore.Images.Media.SIZE,
+            MediaStore.Images.Media.WIDTH,
+            MediaStore.Images.Media.HEIGHT
         )
 
         val selection = "${MediaStore.Images.Media.BUCKET_ID} = ?"
@@ -88,12 +95,16 @@ class MediaStoreRepository(private val context: Context) {
             val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
             val dateColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)
             val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
+            val widthColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.WIDTH)
+            val heightColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.HEIGHT)
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idColumn)
                 val realPath = cursor.getString(dataColumn) ?: ""
                 val dateModified = cursor.getLong(dateColumn)
                 val size = cursor.getLong(sizeColumn)
+                val width = cursor.getInt(widthColumn)
+                val height = cursor.getInt(heightColumn)
                 val contentUri = ContentUris.withAppendedId(uri, id)
 
                 imageList.add(
@@ -102,7 +113,9 @@ class MediaStoreRepository(private val context: Context) {
                         uri = contentUri,
                         realPath = realPath,
                         dateModified = dateModified,
-                        size = size
+                        size = size,
+                        width = width,
+                        height = height
                     )
                 )
             }

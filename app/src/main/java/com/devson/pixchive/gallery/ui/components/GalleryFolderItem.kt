@@ -150,11 +150,11 @@ fun GalleryFolderItem(
         }
     } else {
         Card(
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             modifier = modifier
-                .aspectRatio(1f)
-                .clip(RoundedCornerShape(12.dp))
+                .fillMaxWidth()
                 .galleryItemClick(
                     onClick = onClick,
                     onLongClick = {
@@ -163,41 +163,50 @@ fun GalleryFolderItem(
                     }
                 )
         ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                AsyncImage(
-                    model = folder.thumbnailUri,
-                    contentDescription = "Thumbnail for ${folder.folderName}",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f))
-                            )
+            Box {
+                Column {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(1f)
+                            .clip(FolderShape())
+                    ) {
+                        AsyncImage(
+                            model = folder.thumbnailUri,
+                            contentDescription = "Thumbnail for ${folder.folderName}",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
                         )
-                        .padding(8.dp)
-                ) {
-                    Column {
+                    }
+
+                    Column(
+                        modifier = Modifier.padding(8.dp)
+                    ) {
                         Text(
                             text = folder.folderName,
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                            color = Color.White,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        Text(
-                            text = "${folder.imageCount} images",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.White.copy(alpha = 0.8f)
-                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            InfoChip(
+                                text = "${folder.imageCount} videos",
+                                bgColor = Color(0xFFFFF9C4),
+                                textColor = Color(0xFFF57F17)
+                            )
+                            InfoChip(
+                                text = formatSize(folder.size),
+                                bgColor = Color(0xFFF5F5F5),
+                                textColor = Color(0xFF757575)
+                            )
+                        }
                     }
                 }
-
                 SelectionCheckmarkOverlay(visible = isSelected)
             }
         }

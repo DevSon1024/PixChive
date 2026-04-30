@@ -116,9 +116,12 @@ fun GalleryImageItem(
             }
         }
     } else {
-        Box(
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             modifier = modifier
-                .aspectRatio(1f)
+                .fillMaxWidth()
                 .galleryItemClick(
                     onClick = onClick,
                     onLongClick = {
@@ -127,13 +130,52 @@ fun GalleryImageItem(
                     }
                 )
         ) {
-            AsyncImage(
-                model = image.uri,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-            SelectionCheckmarkOverlay(visible = isSelected)
+            Box {
+                Column {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(1f)
+                            .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                    ) {
+                        AsyncImage(
+                            model = image.uri,
+                            contentDescription = "Image thumbnail",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier.padding(8.dp)
+                    ) {
+                        Text(
+                            text = image.realPath.substringAfterLast('/'),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            InfoChip(
+                                text = formatSize(image.size),
+                                bgColor = Color(0xFFF5F5F5),
+                                textColor = Color(0xFF757575)
+                            )
+                            InfoChip(
+                                text = formatDate(image.dateModified),
+                                bgColor = Color(0xFFFBE9E7),
+                                textColor = Color(0xFFD84315)
+                            )
+                        }
+                    }
+                }
+                SelectionCheckmarkOverlay(visible = isSelected)
+            }
         }
     }
 }

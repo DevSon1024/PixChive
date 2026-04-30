@@ -5,13 +5,16 @@ import android.net.Uri
 data class GalleryFolder(
     val bucketId: String,
     val folderName: String,
-    val thumbnailUri: Uri, // Points to the most recent image in the folder
-    val imageCount: Int
+    val thumbnailUri: Uri,
+    val imageCount: Int,
+    val size: Long = 0L,
+    val dateModified: Long = 0L
 )
 
 data class GalleryImage(
     val id: Long,
-    val uri: Uri,          // content:// uri for rendering
-    val realPath: String,  // Real storage path for info dialogs
-    val dateModified: Long
+    val uri: Uri,
+    val realPath: String,
+    val dateModified: Long,
+    val size: Long = 0L
 )

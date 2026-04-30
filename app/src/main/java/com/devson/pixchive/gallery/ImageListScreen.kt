@@ -235,6 +235,7 @@ fun ImageListScreen(
                                         GalleryFolderItem(
                                             folder = folder,
                                             isSelected = folder.bucketId in selectedFolderIds,
+                                            isListMode = true,
                                             modifier = Modifier.fillMaxWidth(),
                                             onClick = {
                                                 if (selectedFolderIds.isNotEmpty()) {

@@ -147,6 +147,7 @@ fun ImageFolderScreen(
                             GalleryImageItem(
                                 image = image,
                                 isSelected = image.id in selectedImageIds,
+                                isListMode = true,
                                 modifier = sharedModifier.fillMaxWidth(),
                                 onClick = {
                                     if (selectedImageIds.isNotEmpty()) {

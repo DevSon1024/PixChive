@@ -195,7 +195,7 @@ fun GalleryFolderItem(
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             InfoChip(
-                                text = "${folder.imageCount} videos",
+                                text = "${folder.imageCount} Images",
                                 bgColor = Color(0xFFFFF9C4),
                                 textColor = Color(0xFFF57F17)
                             )

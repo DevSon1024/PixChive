@@ -9,7 +9,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
@@ -104,6 +103,7 @@ fun GalleryFolderItem(
     isSelected: Boolean,
     isListMode: Boolean = false,
     viewSettings: GalleryViewSettings = GalleryViewSettings(),
+    showThumbnail: Boolean = viewSettings.showThumbnail,
     onClick: () -> Unit,
     onLongPress: () -> Unit,
     modifier: Modifier = Modifier
@@ -135,7 +135,7 @@ fun GalleryFolderItem(
                         .height(75.dp)
                         .clip(FolderShape())
                 ) {
-                    if (viewSettings.showThumbnail) {
+                        if (showThumbnail) {
                         AsyncImage(
                             model = folder.thumbnailUri,
                             contentDescription = "Thumbnail for ${folder.folderName}",
@@ -210,7 +210,7 @@ fun GalleryFolderItem(
                             .aspectRatio(1f)
                             .clip(FolderShape())
                     ) {
-                        if (viewSettings.showThumbnail) {
+                            if (showThumbnail) {
                             AsyncImage(
                                 model = folder.thumbnailUri,
                                 contentDescription = "Thumbnail for ${folder.folderName}",

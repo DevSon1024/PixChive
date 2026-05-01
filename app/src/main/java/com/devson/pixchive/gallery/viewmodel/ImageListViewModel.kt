@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import com.devson.pixchive.gallery.data.models.GalleryViewSettings
@@ -33,6 +32,9 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
     
     val sortOption: StateFlow<String> = preferencesManager.gallerySortOptionFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "name_asc")
+
+    val showFolderThumbnail: StateFlow<Boolean> = preferencesManager.galleryShowFolderThumbnail
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     val uiState: StateFlow<GalleryState> = combine(_uiState, sortOption, _folders) { state, sort, folders ->
         if (state is GalleryState.Success) {
@@ -81,6 +83,12 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
     fun setSortOption(option: String) {
         viewModelScope.launch {
             preferencesManager.setGallerySortOption(option)
+        }
+    }
+
+    fun setShowFolderThumbnail(show: Boolean) {
+        viewModelScope.launch {
+            preferencesManager.setGalleryShowFolderThumbnail(show)
         }
     }
 

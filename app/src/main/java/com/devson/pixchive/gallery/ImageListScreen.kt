@@ -53,6 +53,7 @@ fun ImageListScreen(
     val layoutMode by viewModel.layoutMode.collectAsState()
     val viewSettings by viewModel.viewSettings.collectAsState()
     val sortOption by viewModel.sortOption.collectAsState()
+    val showFolderThumbnail by viewModel.showFolderThumbnail.collectAsState()
 
     var hasPermission by remember { mutableStateOf(PermissionHelper.hasStoragePermission(context)) }
 
@@ -239,6 +240,7 @@ fun ImageListScreen(
                                             isSelected = folder.bucketId in selectedFolderIds,
                                             isListMode = true,
                                             viewSettings = viewSettings,
+                                            showThumbnail = showFolderThumbnail,
                                             modifier = Modifier.fillMaxWidth(),
                                             onClick = {
                                                 if (selectedFolderIds.isNotEmpty()) {
@@ -282,6 +284,7 @@ fun ImageListScreen(
                                                 folder = folder,
                                                 isSelected = folder.bucketId in selectedFolderIds,
                                                 viewSettings = viewSettings,
+                                                showThumbnail = showFolderThumbnail,
                                                 modifier = Modifier.pinchItem(key = folder.bucketId),
                                                 onClick = {
                                                     if (selectedFolderIds.isNotEmpty()) {
@@ -320,6 +323,9 @@ fun ImageListScreen(
                 onViewSettingsChange = { viewModel.updateViewSettings(it) },
                 sortOption = sortOption,
                 onSortOptionChange = { viewModel.setSortOption(it) },
+                isRootFolderView = true,
+                showFolderThumbnail = showFolderThumbnail,
+                onShowFolderThumbnailChange = { viewModel.setShowFolderThumbnail(it) },
                 onDismiss = { showSettingsSheet = false }
             )
         }

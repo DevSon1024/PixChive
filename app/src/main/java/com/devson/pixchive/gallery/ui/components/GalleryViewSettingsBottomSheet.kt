@@ -53,6 +53,9 @@ fun GalleryViewSettingsBottomSheet(
     onViewSettingsChange: (GalleryViewSettings) -> Unit,
     sortOption: String = "name_asc",
     onSortOptionChange: (String) -> Unit = {},
+    isRootFolderView: Boolean = false,
+    showFolderThumbnail: Boolean = true,
+    onShowFolderThumbnailChange: (Boolean) -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState()
@@ -177,26 +180,28 @@ fun GalleryViewSettingsBottomSheet(
             GallerySettingsSectionLabel("Fields")
             Spacer(modifier = Modifier.height(4.dp))
 
-            val fieldItems: List<Triple<String, Boolean, (Boolean) -> Unit>> = listOf(
-                Triple("Thumbnail", viewSettings.showThumbnail) {
-                    onViewSettingsChange(viewSettings.copy(showThumbnail = it))
-                },
-                Triple("File Ext.", viewSettings.showFileExt) {
+            val fieldItems: List<Triple<String, Boolean, (Boolean) -> Unit>> = buildList {
+                if (!isRootFolderView) {
+                    add(Triple("Thumbnail", viewSettings.showThumbnail) {
+                        onViewSettingsChange(viewSettings.copy(showThumbnail = it))
+                    })
+                }
+                add(Triple("File Ext.", viewSettings.showFileExt) {
                     onViewSettingsChange(viewSettings.copy(showFileExt = it))
-                },
-                Triple("Resolution", viewSettings.showResolution) {
+                })
+                add(Triple("Resolution", viewSettings.showResolution) {
                     onViewSettingsChange(viewSettings.copy(showResolution = it))
-                },
-                Triple("Path", viewSettings.showPath) {
+                })
+                add(Triple("Path", viewSettings.showPath) {
                     onViewSettingsChange(viewSettings.copy(showPath = it))
-                },
-                Triple("Size", viewSettings.showSize) {
+                })
+                add(Triple("Size", viewSettings.showSize) {
                     onViewSettingsChange(viewSettings.copy(showSize = it))
-                },
-                Triple("Date", viewSettings.showDate) {
+                })
+                add(Triple("Date", viewSettings.showDate) {
                     onViewSettingsChange(viewSettings.copy(showDate = it))
-                },
-            )
+                })
+            }
 
             val chunked = fieldItems.chunked(3)
             Column(modifier = Modifier.fillMaxWidth()) {
@@ -213,6 +218,37 @@ fun GalleryViewSettingsBottomSheet(
                         }
                         repeat(3 - rowItems.size) { Box(Modifier.weight(1f)) }
                     }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (isRootFolderView) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
+                GallerySettingsSectionLabel("Advanced")
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onShowFolderThumbnailChange(!showFolderThumbnail) }
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Show Folder Thumbnail",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = "Display a photo preview on folder icons",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = showFolderThumbnail,
+                        onCheckedChange = onShowFolderThumbnailChange
+                    )
                 }
             }
 

@@ -121,11 +121,14 @@ fun AllImagesScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
         ) {
             when (val state = uiState) {
                 is AllImagesState.Loading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(paddingValues)
+                    )
                 }
                 is AllImagesState.Error -> {
                     Text(
@@ -134,6 +137,7 @@ fun AllImagesScreen(
                         textAlign = TextAlign.Center,
                         modifier = Modifier
                             .align(Alignment.Center)
+                            .padding(paddingValues)
                             .padding(16.dp)
                     )
                 }
@@ -151,7 +155,10 @@ fun AllImagesScreen(
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(1),
                                 state = gridState,
-                                contentPadding = PaddingValues(0.dp),
+                                contentPadding = PaddingValues(
+                                    top = paddingValues.calculateTopPadding(),
+                                    bottom = paddingValues.calculateBottomPadding() + 16.dp
+                                ),
                                 horizontalArrangement = Arrangement.Start,
                                 verticalArrangement = Arrangement.Top,
                                 modifier = Modifier
@@ -215,10 +222,15 @@ fun AllImagesScreen(
                                 label = "columns_anim"
                             )
 
-                            LazyVerticalGrid(
+                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(animatedColumns.coerceIn(2, 4)),
                                 state = gridState,
-                                contentPadding = PaddingValues(8.dp),
+                                contentPadding = PaddingValues(
+                                    top = paddingValues.calculateTopPadding() + 8.dp,
+                                    bottom = paddingValues.calculateBottomPadding() + 16.dp,
+                                    start = 8.dp,
+                                    end = 8.dp
+                                ),
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                                 verticalArrangement = Arrangement.spacedBy(6.dp),
                                 modifier = Modifier

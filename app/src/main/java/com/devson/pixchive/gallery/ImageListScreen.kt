@@ -168,12 +168,12 @@ fun ImageListScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
         ) {
             if (!hasPermission) {
                 Column(
                     modifier = Modifier
                         .align(Alignment.Center)
+                        .padding(paddingValues)
                         .padding(32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -229,7 +229,12 @@ fun ImageListScreen(
                         } else {
                             if (layoutMode == "list") {
                                 LazyColumn(
-                                    contentPadding = PaddingValues(12.dp),
+                                    contentPadding = PaddingValues(
+                                        top = paddingValues.calculateTopPadding() + 12.dp,
+                                        bottom = paddingValues.calculateBottomPadding() + 16.dp,
+                                        start = 12.dp,
+                                        end = 12.dp
+                                    ),
                                     verticalArrangement = Arrangement.spacedBy(16.dp),
                                     modifier = Modifier.fillMaxSize()
                                 ) {
@@ -262,7 +267,12 @@ fun ImageListScreen(
                                 LazyVerticalGrid(
                                     columns = GridCells.Fixed(animatedColumns.coerceIn(2, 4)),
                                     state = gridState,
-                                    contentPadding = PaddingValues(12.dp),
+                                    contentPadding = PaddingValues(
+                                        top = paddingValues.calculateTopPadding() + 12.dp,
+                                        bottom = paddingValues.calculateBottomPadding() + 16.dp,
+                                        start = 12.dp,
+                                        end = 12.dp
+                                    ),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalArrangement = Arrangement.spacedBy(8.dp),
                                     modifier = Modifier

@@ -120,15 +120,18 @@ fun ImageFolderScreen(
             }
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+        Box(modifier = Modifier.fillMaxSize()) {
             if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center).padding(paddingValues))
             } else if (images.isEmpty()) {
-                Text("No images found.", modifier = Modifier.align(Alignment.Center))
+                Text("No images found.", modifier = Modifier.align(Alignment.Center).padding(paddingValues))
             } else {
                 if (layoutMode == "list") {
                     LazyColumn(
-                        contentPadding = PaddingValues(bottom = 16.dp),
+                        contentPadding = PaddingValues(
+                            top = paddingValues.calculateTopPadding(),
+                            bottom = paddingValues.calculateBottomPadding() + 16.dp
+                        ),
                         modifier = Modifier.fillMaxSize()
                     ) {
                         listItemsIndexed(images, key = { _, img -> img.id }) { index, image ->
@@ -166,7 +169,12 @@ fun ImageFolderScreen(
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(animatedColumns.coerceIn(2, 4)),
                         state = gridState,
-                        contentPadding = PaddingValues(2.dp),
+                        contentPadding = PaddingValues(
+                            top = paddingValues.calculateTopPadding() + 2.dp,
+                            bottom = paddingValues.calculateBottomPadding() + 16.dp,
+                            start = 2.dp,
+                            end = 2.dp
+                        ),
                         horizontalArrangement = Arrangement.spacedBy(2.dp),
                         verticalArrangement = Arrangement.spacedBy(2.dp),
                         modifier = Modifier

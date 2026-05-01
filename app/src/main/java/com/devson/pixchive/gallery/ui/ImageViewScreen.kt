@@ -121,6 +121,7 @@ fun ImageViewScreen(
             }
 
             TopAppBar(
+                modifier = Modifier.statusBarsPadding(),
                 title = {
                     Column {
                         Text("${pagerState.currentPage + 1} / ${images.size}", style = MaterialTheme.typography.titleMedium, color = Color.White)

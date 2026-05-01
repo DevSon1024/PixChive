@@ -13,9 +13,14 @@ import java.util.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import com.devson.pixchive.data.ImageFile
 import com.devson.pixchive.ui.reader.components.ImageDetailsDialog
 import java.io.File
+import java.text.SimpleDateFormat
+import androidx.compose.ui.Alignment
 
 @Composable
 fun DetailsDialog(
@@ -53,26 +58,65 @@ fun DetailsDialog(
     when {
         effectiveFolders.size == 1 && selectedImages.isEmpty() -> {
             val f = effectiveFolders[0]
+            val clipboardManager = LocalClipboardManager.current
             title = "Folder Details"
             body = {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     DetailRow("Name:", f.folderName)
                     Spacer(Modifier.height(6.dp))
-                    DetailRow("Images:", "${f.imageCount}")
+                    DetailRow("Total Images:", "${f.imageCount}")
                     Spacer(Modifier.height(6.dp))
-                    DetailRow("Bucket ID:", f.bucketId)
-                    Spacer(modifier = Modifier.height(8.dp))
+                    if (f.dateModified > 0) {
+                        val sdf = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
+                        DetailRow("Modified:", sdf.format(Date(f.dateModified * 1000)))
+                        Spacer(Modifier.height(6.dp))
+                    }
+                    if (f.size > 0) {
+                        DetailRow("Size:", formatSize(f.size))
+                        Spacer(Modifier.height(6.dp))
+                    }
+                    
                     Text(
-                        text = "Internal Storage → ${f.folderName}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = "Path:",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        modifier = Modifier.padding(top = 8.dp)
                     )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = f.folderPath,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(onClick = { 
+                            clipboardManager.setText(AnnotatedString(f.folderPath))
+                        }) {
+                            Icon(
+                                Icons.Default.ContentCopy,
+                                contentDescription = "Copy Path",
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
         effectiveFolders.size > 1 && selectedImages.isEmpty() -> {
             title = "Multiple Folders"
-            body = { Text("${effectiveFolders.size} folders selected.") }
+            val totalSize = effectiveFolders.sumOf { it.size }
+            val totalImages = effectiveFolders.sumOf { it.imageCount }
+            body = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    DetailRow("Selected Folders:", "${effectiveFolders.size}")
+                    Spacer(Modifier.height(6.dp))
+                    DetailRow("Total Files:", "$totalImages")
+                    Spacer(Modifier.height(6.dp))
+                    DetailRow("Total Size:", formatSize(totalSize))
+                }
+            }
         }
         effectiveFolders.isEmpty() && selectedImages.size > 1 -> {
             title = "Multiple Images"

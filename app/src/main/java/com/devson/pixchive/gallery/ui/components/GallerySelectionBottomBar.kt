@@ -32,7 +32,8 @@ import com.devson.pixchive.utils.shareMedia
 
 @Composable
 fun GallerySelectionBottomBar(
-    selectedImages: List<GalleryImage>,
+    selectedImages: List<GalleryImage> = emptyList(),
+    selectedCount: Int = selectedImages.size,
     onMove: () -> Unit,
     onCopy: () -> Unit,
     onDelete: () -> Unit,
@@ -54,7 +55,7 @@ fun GallerySelectionBottomBar(
         ) {
             ActionColumn(icon = Icons.AutoMirrored.Filled.DriveFileMove, label = "Move", onClick = onMove)
             ActionColumn(icon = Icons.Filled.ContentCopy, label = "Copy", onClick = onCopy)
-            if (selectedImages.size == 1) {
+            if (selectedCount == 1) {
                 ActionColumn(
                     icon = Icons.Filled.Edit,
                     label = "Rename",

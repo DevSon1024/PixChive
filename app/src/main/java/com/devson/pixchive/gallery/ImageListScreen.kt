@@ -108,9 +108,11 @@ fun ImageListScreen(
         }
     )
 
-    val selectedFolders: List<GalleryFolder> = if (showDetailsDialog) {
-        (uiState as? GalleryState.Success)?.folders?.filter { it.bucketId in selectedFolderIds } ?: emptyList()
-    } else emptyList()
+    val selectedFolders = remember(selectedFolderIds, uiState) {
+        if (selectedFolderIds.isNotEmpty() && uiState is GalleryState.Success) {
+            (uiState as GalleryState.Success).folders.filter { it.bucketId in selectedFolderIds }
+        } else emptyList()
+    }
 
     Scaffold(
         topBar = {
@@ -151,7 +153,8 @@ fun ImageListScreen(
         bottomBar = {
             if (selectedFolderIds.isNotEmpty()) {
                 GallerySelectionBottomBar(
-                    selectedImages = emptyList(), // Folder sharing not yet implemented
+                    selectedCount = selectedFolderIds.size,
+                    selectedImages = emptyList(),
                     onMove = {},
                     onCopy = {},
                     onDelete = {},

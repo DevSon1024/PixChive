@@ -66,6 +66,7 @@ class PreferencesManager(private val context: Context) {
         private val GALLERY_SHOW_SIZE_KEY = booleanPreferencesKey("gallery_show_size")
         private val GALLERY_SHOW_DATE_KEY = booleanPreferencesKey("gallery_show_date")
         private val GALLERY_SHOW_FOLDER_THUMBNAIL_KEY = booleanPreferencesKey("gallery_show_folder_thumbnail")
+        private val GALLERY_VIEW_MODE_KEY = stringPreferencesKey("gallery_view_mode")
     }
 
     // Default to index 2 (which represents 4 columns in our list if index 0 is 2 columns)
@@ -108,6 +109,12 @@ class PreferencesManager(private val context: Context) {
 
     val galleryShowFolderThumbnail: Flow<Boolean> = context.dataStore.data.map { it[GALLERY_SHOW_FOLDER_THUMBNAIL_KEY] ?: true }
     suspend fun setGalleryShowFolderThumbnail(show: Boolean) = context.dataStore.edit { it[GALLERY_SHOW_FOLDER_THUMBNAIL_KEY] = show }
+
+    val galleryViewModeFlow: Flow<String> = context.dataStore.data
+        .map { it[GALLERY_VIEW_MODE_KEY] ?: "albums" }.distinctUntilChanged()
+
+    suspend fun setGalleryViewMode(mode: String) =
+        context.dataStore.edit { it[GALLERY_VIEW_MODE_KEY] = mode }
 
     val gallerySortOptionFlow: Flow<String> = context.dataStore.data
         .map { it[GALLERY_SORT_OPTION_KEY] ?: "name_asc" }.distinctUntilChanged()

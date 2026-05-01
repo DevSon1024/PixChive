@@ -44,6 +44,7 @@ fun ImageListScreen(
     onNavigateBack: () -> Unit,
     onFolderClick: (String) -> Unit,
     onSettingsClick: () -> Unit,
+    onAllImagesClick: () -> Unit = {},
     viewModel: ImageListViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -54,6 +55,7 @@ fun ImageListScreen(
     val viewSettings by viewModel.viewSettings.collectAsState()
     val sortOption by viewModel.sortOption.collectAsState()
     val showFolderThumbnail by viewModel.showFolderThumbnail.collectAsState()
+    val galleryViewMode by viewModel.galleryViewMode.collectAsState()
 
     var hasPermission by remember { mutableStateOf(PermissionHelper.hasStoragePermission(context)) }
 
@@ -327,6 +329,14 @@ fun ImageListScreen(
                 isRootFolderView = true,
                 showFolderThumbnail = showFolderThumbnail,
                 onShowFolderThumbnailChange = { viewModel.setShowFolderThumbnail(it) },
+                galleryViewMode = galleryViewMode,
+                onGalleryViewModeChange = { mode ->
+                    viewModel.setGalleryViewMode(mode)
+                    if (mode == "all_images") {
+                        showSettingsSheet = false
+                        onAllImagesClick()
+                    }
+                },
                 onDismiss = { showSettingsSheet = false }
             )
         }

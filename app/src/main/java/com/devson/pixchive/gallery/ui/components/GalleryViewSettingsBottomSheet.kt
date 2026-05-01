@@ -28,6 +28,12 @@ import com.devson.pixchive.ui.components.formatSortField
 import com.devson.pixchive.ui.components.formatSortOption
 import com.devson.pixchive.ui.components.parseSortOption
 
+import androidx.compose.material.icons.filled.Collections
+import androidx.compose.material.icons.filled.FolderCopy
+import androidx.compose.material.icons.outlined.Collections
+import androidx.compose.material.icons.outlined.FolderCopy
+import androidx.compose.foundation.layout.Arrangement
+
 // gridCellsIndex is the PinchZoom index: 0=Fixed(4), 1=Fixed(3), 2=Fixed(2)
 // gridColumnCount is the actual visible column count: 4, 3, or 2
 private fun indexToColumns(index: Int): Int = when (index) {
@@ -56,6 +62,8 @@ fun GalleryViewSettingsBottomSheet(
     isRootFolderView: Boolean = false,
     showFolderThumbnail: Boolean = true,
     onShowFolderThumbnailChange: (Boolean) -> Unit = {},
+    galleryViewMode: String = "albums",
+    onGalleryViewModeChange: ((String) -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState()
@@ -83,6 +91,33 @@ fun GalleryViewSettingsBottomSheet(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 12.dp)
             )
+
+            if (onGalleryViewModeChange != null) {
+                GallerySettingsSectionLabel("View Mode")
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(0.dp)
+                ) {
+                    GalleryIconToggleButton(
+                        label = "Albums",
+                        selected = galleryViewMode == "albums",
+                        selectedIcon = Icons.Filled.FolderCopy,
+                        unselectedIcon = Icons.Outlined.FolderCopy,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onGalleryViewModeChange("albums") }
+                    )
+                    GalleryIconToggleButton(
+                        label = "All Images",
+                        selected = galleryViewMode == "all_images",
+                        selectedIcon = Icons.Filled.Collections,
+                        unselectedIcon = Icons.Outlined.Collections,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onGalleryViewModeChange("all_images") }
+                    )
+                }
+                HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
+            }
 
             Row(
                 modifier = Modifier

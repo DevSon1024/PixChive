@@ -24,6 +24,7 @@ import com.devson.pixchive.viewmodel.FolderViewModel
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import com.devson.pixchive.gallery.ImageListScreen
+import com.devson.pixchive.gallery.ui.AllImagesScreen
 import com.devson.pixchive.gallery.ui.ImageViewScreen
 import com.devson.pixchive.gallery.ui.ImageFolderScreen
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -106,7 +107,18 @@ fun NavGraph(
                     onFolderClick = { bucketId ->
                         navController.navigate(Screen.ImageFolder.createRoute(bucketId))
                     },
-                    onSettingsClick = { navController.navigate(Screen.Settings.route) }
+                    onSettingsClick = { navController.navigate(Screen.Settings.route) },
+                    onAllImagesClick = { navController.navigate(Screen.AllImages.route) }
+                )
+            }
+
+            composable(Screen.AllImages.route) {
+                AllImagesScreen(
+                    onNavigateBack = safeNavigateBack,
+                    onSettingsClick = { navController.navigate(Screen.Settings.route) },
+                    onImageClick = { index ->
+                        navController.navigate(Screen.GalleryImageViewer.createRoute("all_images", index))
+                    }
                 )
             }
 

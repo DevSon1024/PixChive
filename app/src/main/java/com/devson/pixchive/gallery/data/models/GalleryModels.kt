@@ -17,6 +17,7 @@ data class GalleryImage(
     val uri: Uri,
     val realPath: String,
     val dateModified: Long,
+    val dateAdded: Long = 0L,
     val size: Long = 0L,
     val width: Int = 0,
     val height: Int = 0

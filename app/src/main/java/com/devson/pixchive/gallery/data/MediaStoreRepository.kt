@@ -122,4 +122,56 @@ class MediaStoreRepository(private val context: Context) {
         }
         return@withContext imageList
     }
-}
+
+    suspend fun getAllImages(): List<GalleryImage> = withContext(Dispatchers.IO) {
+        val imageList = mutableListOf<GalleryImage>()
+        val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+
+        val projection = arrayOf(
+            MediaStore.Images.Media._ID,
+            MediaStore.Images.Media.DATA,
+            MediaStore.Images.Media.DATE_ADDED,
+            MediaStore.Images.Media.DATE_MODIFIED,
+            MediaStore.Images.Media.SIZE,
+            MediaStore.Images.Media.WIDTH,
+            MediaStore.Images.Media.HEIGHT
+        )
+
+        val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
+
+        context.contentResolver.query(uri, projection, null, null, sortOrder)?.use { cursor ->
+            val idCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+            val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
+            val dateAddedCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
+            val dateModCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)
+            val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
+            val widthCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.WIDTH)
+            val heightCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.HEIGHT)
+
+            while (cursor.moveToNext()) {
+                val id = cursor.getLong(idCol)
+                val realPath = cursor.getString(dataCol) ?: ""
+                val dateAdded = cursor.getLong(dateAddedCol)
+                val dateModified = cursor.getLong(dateModCol)
+                val size = cursor.getLong(sizeCol)
+                val width = cursor.getInt(widthCol)
+                val height = cursor.getInt(heightCol)
+                val contentUri = ContentUris.withAppendedId(uri, id)
+
+                imageList.add(
+                    GalleryImage(
+                        id = id,
+                        uri = contentUri,
+                        realPath = realPath,
+                        dateModified = dateModified,
+                        dateAdded = dateAdded,
+                        size = size,
+                        width = width,
+                        height = height
+                    )
+                )
+            }
+        }
+        return@withContext imageList
+    }
+}

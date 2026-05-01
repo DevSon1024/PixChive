@@ -28,7 +28,7 @@ android {
         applicationId = "com.devson.pixchive"
         minSdk = 24
         targetSdk = 36
-        versionCode = 140
+        versionCode = 141
         versionName = "1.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

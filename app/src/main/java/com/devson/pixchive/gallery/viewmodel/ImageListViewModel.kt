@@ -92,6 +92,13 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    val galleryViewMode: StateFlow<String> = preferencesManager.galleryViewModeFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "albums")
+
+    fun setGalleryViewMode(mode: String) {
+        viewModelScope.launch { preferencesManager.setGalleryViewMode(mode) }
+    }
+
     fun updateViewSettings(settings: GalleryViewSettings) {
         viewModelScope.launch {
             preferencesManager.setGalleryShowThumbnail(settings.showThumbnail)

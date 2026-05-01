@@ -23,9 +23,10 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
 
     val sortOption: StateFlow<String> = preferencesManager.gallerySortOptionFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "date_newest")
+    private val _currentBucketId = MutableStateFlow("")
 
-    val images: StateFlow<List<GalleryImage>> = combine(_images, sortOption) { imgs, sort ->
-        sortImages(imgs, sort)
+    val images: StateFlow<List<GalleryImage>> = combine(_images, sortOption, _currentBucketId) { imgs, sort, bucket ->
+        if (bucket == "all_images") imgs else sortImages(imgs, sort)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _isLoading = MutableStateFlow(true)
@@ -85,10 +86,15 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun loadImages(bucketId: String) {
+        _currentBucketId.value = bucketId
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                _images.value = repository.getImagesForFolder(bucketId)
+                if (bucketId == "all_images") {
+                    _images.value = repository.getAllImages()
+                } else {
+                    _images.value = repository.getImagesForFolder(bucketId)
+                }
             } catch (e: Exception) {
                 _images.value = emptyList()
             } finally {

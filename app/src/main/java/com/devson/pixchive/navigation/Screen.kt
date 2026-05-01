@@ -41,4 +41,5 @@ sealed class Screen(val route: String) {
     object GalleryImageViewer : Screen("gallery_image_viewer/{bucketId}/{initialIndex}") {
         fun createRoute(bucketId: String, initialIndex: Int) = "gallery_image_viewer/$bucketId/$initialIndex"
     }
+    object AllImages : Screen("all_images")
 }

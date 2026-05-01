@@ -46,6 +46,7 @@ fun ImageFolderScreen(
     val savedGridCellsIndex by viewModel.gridCellsIndex.collectAsState()
     val layoutMode by viewModel.layoutMode.collectAsState()
     val viewSettings by viewModel.viewSettings.collectAsState()
+    val sortOption by viewModel.sortOption.collectAsState()
 
     val selectedImageIds = remember { mutableStateListOf<Long>() }
     var showSettingsSheet by remember { mutableStateOf(false) }
@@ -223,6 +224,8 @@ fun ImageFolderScreen(
                 onGridCellsIndexChange = { viewModel.setGridCellsIndex(it) },
                 viewSettings = viewSettings,
                 onViewSettingsChange = { viewModel.updateViewSettings(it) },
+                sortOption = sortOption,
+                onSortOptionChange = { viewModel.setSortOption(it) },
                 onDismiss = { showSettingsSheet = false }
             )
         }

@@ -19,13 +19,18 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
     private val repository = MediaStoreRepository(application)
 
     private val _images = MutableStateFlow<List<GalleryImage>>(emptyList())
-    val images: StateFlow<List<GalleryImage>> = _images.asStateFlow()
+    private val preferencesManager = PreferencesManager(application)
+
+    val sortOption: StateFlow<String> = preferencesManager.gallerySortOptionFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "date_newest")
+
+    val images: StateFlow<List<GalleryImage>> = combine(_images, sortOption) { imgs, sort ->
+        sortImages(imgs, sort)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    private val preferencesManager = PreferencesManager(application)
-    
     val gridCellsIndex: StateFlow<Int> = preferencesManager.galleryGridCellsIndex
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 2)
 
@@ -62,6 +67,12 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
+    fun setSortOption(option: String) {
+        viewModelScope.launch {
+            preferencesManager.setGallerySortOption(option)
+        }
+    }
+
     fun updateViewSettings(settings: GalleryViewSettings) {
         viewModelScope.launch {
             preferencesManager.setGalleryShowThumbnail(settings.showThumbnail)
@@ -83,6 +94,24 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
             } finally {
                 _isLoading.value = false
             }
+        }
+    }
+
+    private fun sortImages(images: List<GalleryImage>, sort: String): List<GalleryImage> {
+        return when (sort) {
+            "name_asc" -> images.sortedBy { it.realPath.substringAfterLast('/').lowercase() }
+            "name_desc" -> images.sortedByDescending { it.realPath.substringAfterLast('/').lowercase() }
+            "date_newest" -> images.sortedByDescending { it.dateModified }
+            "date_oldest" -> images.sortedBy { it.dateModified }
+            "size_desc" -> images.sortedByDescending { it.size }
+            "size_asc" -> images.sortedBy { it.size }
+            "resolution_desc" -> images.sortedByDescending { it.width * it.height }
+            "resolution_asc" -> images.sortedBy { it.width * it.height }
+            "path_asc" -> images.sortedBy { it.realPath.substringBeforeLast('/').lowercase() }
+            "path_desc" -> images.sortedByDescending { it.realPath.substringBeforeLast('/').lowercase() }
+            "type_asc" -> images.sortedBy { it.realPath.substringAfterLast('.', "").lowercase() }
+            "type_desc" -> images.sortedByDescending { it.realPath.substringAfterLast('.', "").lowercase() }
+            else -> images.sortedByDescending { it.dateModified }
         }
     }
 }

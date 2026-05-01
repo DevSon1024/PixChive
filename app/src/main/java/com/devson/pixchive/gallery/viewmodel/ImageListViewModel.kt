@@ -27,10 +27,21 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
     private val repository = MediaStoreRepository(application)
 
     private val _uiState = MutableStateFlow<GalleryState>(GalleryState.Loading)
-    val uiState: StateFlow<GalleryState> = _uiState.asStateFlow()
-
+    private val _folders = MutableStateFlow<List<GalleryFolder>>(emptyList())
+    
     private val preferencesManager = PreferencesManager(application)
     
+    val sortOption: StateFlow<String> = preferencesManager.gallerySortOptionFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "name_asc")
+
+    val uiState: StateFlow<GalleryState> = combine(_uiState, sortOption, _folders) { state, sort, folders ->
+        if (state is GalleryState.Success) {
+            GalleryState.Success(sortFolders(folders, sort))
+        } else {
+            state
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), GalleryState.Loading)
+
     val gridCellsIndex: StateFlow<Int> = preferencesManager.galleryGridCellsIndex
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 2)
 
@@ -67,6 +78,12 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    fun setSortOption(option: String) {
+        viewModelScope.launch {
+            preferencesManager.setGallerySortOption(option)
+        }
+    }
+
     fun updateViewSettings(settings: GalleryViewSettings) {
         viewModelScope.launch {
             preferencesManager.setGalleryShowThumbnail(settings.showThumbnail)
@@ -87,10 +104,25 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
             _uiState.value = GalleryState.Loading
             try {
                 val folders = repository.getFolders()
+                _folders.value = folders
                 _uiState.value = GalleryState.Success(folders)
             } catch (e: Exception) {
                 _uiState.value = GalleryState.Error(e.message ?: "Failed to load device gallery")
             }
+        }
+    }
+
+    private fun sortFolders(folders: List<GalleryFolder>, sort: String): List<GalleryFolder> {
+        return when (sort) {
+            "name_asc" -> folders.sortedBy { it.folderName.lowercase() }
+            "name_desc" -> folders.sortedByDescending { it.folderName.lowercase() }
+            "date_newest" -> folders.sortedByDescending { it.dateModified }
+            "date_oldest" -> folders.sortedBy { it.dateModified }
+            "size_desc" -> folders.sortedByDescending { it.size }
+            "size_asc" -> folders.sortedBy { it.size }
+            "path_asc" -> folders.sortedBy { it.folderPath.lowercase() }
+            "path_desc" -> folders.sortedByDescending { it.folderPath.lowercase() }
+            else -> folders.sortedBy { it.folderName.lowercase() }
         }
     }
 }

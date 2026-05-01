@@ -52,6 +52,7 @@ fun ImageListScreen(
     val savedGridCellsIndex by viewModel.gridCellsIndex.collectAsState()
     val layoutMode by viewModel.layoutMode.collectAsState()
     val viewSettings by viewModel.viewSettings.collectAsState()
+    val sortOption by viewModel.sortOption.collectAsState()
 
     var hasPermission by remember { mutableStateOf(PermissionHelper.hasStoragePermission(context)) }
 
@@ -317,6 +318,8 @@ fun ImageListScreen(
                 onGridCellsIndexChange = { viewModel.setGridCellsIndex(it) },
                 viewSettings = viewSettings,
                 onViewSettingsChange = { viewModel.updateViewSettings(it) },
+                sortOption = sortOption,
+                onSortOptionChange = { viewModel.setSortOption(it) },
                 onDismiss = { showSettingsSheet = false }
             )
         }

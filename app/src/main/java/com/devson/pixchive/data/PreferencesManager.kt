@@ -56,7 +56,8 @@ class PreferencesManager(private val context: Context) {
         private val READ_PROGRESS_KEY = stringPreferencesKey("read_progress")            // JSON: "folderId|chapterPath" → pageIndex
         private val GALLERY_GRID_CELLS_INDEX_KEY = intPreferencesKey("gallery_grid_cells_index")
         private val GALLERY_LAYOUT_MODE_KEY = stringPreferencesKey("gallery_layout_mode")
-        
+        private val GALLERY_SORT_OPTION_KEY = stringPreferencesKey("gallery_sort_option")
+
         // Gallery Fields
         private val GALLERY_SHOW_THUMBNAIL_KEY = booleanPreferencesKey("gallery_show_thumbnail")
         private val GALLERY_SHOW_FILE_EXT_KEY = booleanPreferencesKey("gallery_show_file_ext")
@@ -103,6 +104,12 @@ class PreferencesManager(private val context: Context) {
     suspend fun setGalleryShowPath(show: Boolean) = context.dataStore.edit { it[GALLERY_SHOW_PATH_KEY] = show }
     suspend fun setGalleryShowSize(show: Boolean) = context.dataStore.edit { it[GALLERY_SHOW_SIZE_KEY] = show }
     suspend fun setGalleryShowDate(show: Boolean) = context.dataStore.edit { it[GALLERY_SHOW_DATE_KEY] = show }
+
+    val gallerySortOptionFlow: Flow<String> = context.dataStore.data
+        .map { it[GALLERY_SORT_OPTION_KEY] ?: "name_asc" }.distinctUntilChanged()
+
+    suspend fun setGallerySortOption(option: String) =
+        context.dataStore.edit { it[GALLERY_SORT_OPTION_KEY] = option }
 
     // --- Favorites ---
     val favoritesFlow: Flow<Set<String>> = context.dataStore.data.map { preferences ->

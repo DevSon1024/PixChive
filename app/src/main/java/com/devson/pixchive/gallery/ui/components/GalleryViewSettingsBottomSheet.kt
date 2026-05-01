@@ -1,15 +1,46 @@
 package com.devson.pixchive.gallery.ui.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.ViewAgenda
+import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.ViewAgenda
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.devson.pixchive.gallery.data.models.GalleryViewSettings
+import com.devson.pixchive.ui.components.RotarySortWheelDialog
+import com.devson.pixchive.ui.components.SortDirection
+import com.devson.pixchive.ui.components.SortField
+import com.devson.pixchive.ui.components.formatSortField
+import com.devson.pixchive.ui.components.formatSortOption
+import com.devson.pixchive.ui.components.parseSortOption
+
+// gridCellsIndex is the PinchZoom index: 0=Fixed(4), 1=Fixed(3), 2=Fixed(2)
+// gridColumnCount is the actual visible column count: 4, 3, or 2
+private fun indexToColumns(index: Int): Int = when (index) {
+    0 -> 4
+    1 -> 3
+    else -> 2
+}
+
+private fun columnsToIndex(columns: Int): Int = when (columns) {
+    4 -> 0
+    3 -> 1
+    else -> 2
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -20,105 +51,242 @@ fun GalleryViewSettingsBottomSheet(
     onGridCellsIndexChange: (Int) -> Unit,
     viewSettings: GalleryViewSettings,
     onViewSettingsChange: (GalleryViewSettings) -> Unit,
+    sortOption: String = "name_asc",
+    onSortOptionChange: (String) -> Unit = {},
     onDismiss: () -> Unit
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    val sheetState = rememberModalBottomSheetState()
+    var showSortWheel by remember { mutableStateOf(false) }
+
+    val (currentSortField, currentSortDirection) = remember(sortOption) {
+        parseSortOption(sortOption)
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
-                .padding(bottom = 32.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(vertical = 16.dp)
         ) {
             Text(
-                text = "Gallery View Settings",
+                "View Settings",
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(vertical = 12.dp)
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 12.dp)
             )
-            HorizontalDivider()
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Text("Layout Mode", style = MaterialTheme.typography.labelLarge)
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                FilterChip(
-                    selected = layoutMode == "list",
-                    onClick = { onLayoutModeChange("list") },
-                    label = { Icon(Icons.Default.List, contentDescription = "List View") }
-                )
-                FilterChip(
-                    selected = layoutMode == "grid",
-                    onClick = { onLayoutModeChange("grid") },
-                    label = { Icon(Icons.Default.GridView, contentDescription = "Grid View") }
-                )
-            }
 
-            if (layoutMode == "grid") {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text("Grid Columns", style = MaterialTheme.typography.labelLarge)
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    FilterChip(
-                        selected = gridCellsIndex == 2,
-                        onClick = { onGridCellsIndexChange(2) },
-                        label = { Text("2") }
-                    )
-                    FilterChip(
-                        selected = gridCellsIndex == 1,
-                        onClick = { onGridCellsIndexChange(1) },
-                        label = { Text("3") }
-                    )
-                    FilterChip(
-                        selected = gridCellsIndex == 0,
-                        onClick = { onGridCellsIndexChange(0) },
-                        label = { Text("4") }
-                    )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min),
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    GallerySettingsSectionLabel("Layout")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        GalleryIconToggleButton(
+                            label = "List",
+                            selected = layoutMode == "list",
+                            selectedIcon = Icons.Filled.ViewAgenda,
+                            unselectedIcon = Icons.Outlined.ViewAgenda,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onLayoutModeChange("list") }
+                        )
+                        GalleryIconToggleButton(
+                            label = "Grid",
+                            selected = layoutMode == "grid",
+                            selectedIcon = Icons.Filled.GridView,
+                            unselectedIcon = Icons.Outlined.GridView,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onLayoutModeChange("grid") }
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-            Text("Fields", style = MaterialTheme.typography.labelLarge)
-            Column(modifier = Modifier.padding(top = 8.dp)) {
-                SettingsCheckbox(
-                    label = "Thumbnail",
-                    checked = viewSettings.showThumbnail,
-                    onCheckedChange = { onViewSettingsChange(viewSettings.copy(showThumbnail = it)) }
-                )
-                SettingsCheckbox(
-                    label = "File Ext.",
-                    checked = viewSettings.showFileExt,
-                    onCheckedChange = { onViewSettingsChange(viewSettings.copy(showFileExt = it)) }
-                )
-                SettingsCheckbox(
-                    label = "Resolution",
-                    checked = viewSettings.showResolution,
-                    onCheckedChange = { onViewSettingsChange(viewSettings.copy(showResolution = it)) }
-                )
-                SettingsCheckbox(
-                    label = "Path",
-                    checked = viewSettings.showPath,
-                    onCheckedChange = { onViewSettingsChange(viewSettings.copy(showPath = it)) }
-                )
-                SettingsCheckbox(
-                    label = "Size",
-                    checked = viewSettings.showSize,
-                    onCheckedChange = { onViewSettingsChange(viewSettings.copy(showSize = it)) }
-                )
-                SettingsCheckbox(
-                    label = "Date",
-                    checked = viewSettings.showDate,
-                    onCheckedChange = { onViewSettingsChange(viewSettings.copy(showDate = it)) }
+            if (layoutMode == "grid") {
+                Spacer(modifier = Modifier.height(10.dp))
+                GallerySettingsSectionLabel("Grid Columns")
+                Spacer(modifier = Modifier.height(6.dp))
+                // Show actual column counts 2, 3, 4 mapped to pinch-zoom indices 2, 1, 0
+                val currentColumns = indexToColumns(gridCellsIndex)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(2, 3, 4).forEach { columns ->
+                            val isSelected = currentColumns == columns
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .background(
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.surfaceVariant,
+                                        shape = RoundedCornerShape(10.dp)
+                                    )
+                                    .border(
+                                        width = 1.dp,
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.outlineVariant,
+                                        shape = RoundedCornerShape(10.dp)
+                                    )
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .clickable { onGridCellsIndexChange(columnsToIndex(columns)) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = columns.toString(),
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
+
+            // Sort
+            GallerySettingsSectionLabel("Sort By")
+            OutlinedButton(
+                onClick = { showSortWheel = true },
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                val dirText = if (currentSortDirection == SortDirection.ASCENDING) "↑ Ascending" else "↓ Descending"
+                Text(
+                    "${formatSortField(currentSortField)}  $dirText",
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
+
+            // Fields
+            GallerySettingsSectionLabel("Fields")
+            Spacer(modifier = Modifier.height(4.dp))
+
+            val fieldItems: List<Triple<String, Boolean, (Boolean) -> Unit>> = listOf(
+                Triple("Thumbnail", viewSettings.showThumbnail) {
+                    onViewSettingsChange(viewSettings.copy(showThumbnail = it))
+                },
+                Triple("File Ext.", viewSettings.showFileExt) {
+                    onViewSettingsChange(viewSettings.copy(showFileExt = it))
+                },
+                Triple("Resolution", viewSettings.showResolution) {
+                    onViewSettingsChange(viewSettings.copy(showResolution = it))
+                },
+                Triple("Path", viewSettings.showPath) {
+                    onViewSettingsChange(viewSettings.copy(showPath = it))
+                },
+                Triple("Size", viewSettings.showSize) {
+                    onViewSettingsChange(viewSettings.copy(showSize = it))
+                },
+                Triple("Date", viewSettings.showDate) {
+                    onViewSettingsChange(viewSettings.copy(showDate = it))
+                },
+            )
+
+            val chunked = fieldItems.chunked(3)
+            Column(modifier = Modifier.fillMaxWidth()) {
+                chunked.forEach { rowItems ->
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        rowItems.forEach { (label, checked, onChange) ->
+                            Box(Modifier.weight(1f)) {
+                                GalleryCompactMetadataToggle(
+                                    label = label,
+                                    checked = checked,
+                                    onCheckedChange = onChange
+                                )
+                            }
+                        }
+                        repeat(3 - rowItems.size) { Box(Modifier.weight(1f)) }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
         }
+    }
+
+    if (showSortWheel) {
+        RotarySortWheelDialog(
+            currentSortField = currentSortField,
+            sortDirection = currentSortDirection,
+            onSortFieldSelected = { field ->
+                onSortOptionChange(formatSortOption(field, currentSortDirection))
+            },
+            onSortOrderToggled = { direction ->
+                onSortOptionChange(formatSortOption(currentSortField, direction))
+            },
+            onDismissRequest = { showSortWheel = false }
+        )
     }
 }
 
 @Composable
-private fun SettingsCheckbox(
+private fun GallerySettingsSectionLabel(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.primary
+    )
+}
+
+@Composable
+private fun GalleryIconToggleButton(
+    label: String,
+    selected: Boolean,
+    selectedIcon: ImageVector,
+    unselectedIcon: ImageVector,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val color = if (selected) MaterialTheme.colorScheme.primary
+    else MaterialTheme.colorScheme.onSurfaceVariant
+    val icon = if (selected) selectedIcon else unselectedIcon
+    val fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp, horizontal = 2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = color,
+            modifier = Modifier.size(28.dp)
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = fontWeight,
+            color = color,
+            maxLines = 1,
+            softWrap = false
+        )
+    }
+}
+
+@Composable
+private fun GalleryCompactMetadataToggle(
     label: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
@@ -126,17 +294,15 @@ private fun SettingsCheckbox(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(48.dp),
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Checkbox(
             checked = checked,
-            onCheckedChange = onCheckedChange
+            onCheckedChange = onCheckedChange,
+            modifier = Modifier.size(32.dp)
         )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(start = 8.dp)
-        )
+        Text(label, style = MaterialTheme.typography.bodySmall, maxLines = 1)
     }
 }

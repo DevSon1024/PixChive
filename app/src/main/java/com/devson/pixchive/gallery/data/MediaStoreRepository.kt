@@ -21,7 +21,9 @@ class MediaStoreRepository(private val context: Context) {
             MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
             MediaStore.Images.Media.SIZE,
             MediaStore.Images.Media.DATE_MODIFIED,
-            MediaStore.Images.Media.DATA
+            MediaStore.Images.Media.DATA,
+            MediaStore.Images.Media.RELATIVE_PATH,
+            MediaStore.Images.Media.DISPLAY_NAME
         )
 
         val sortOrder = "${MediaStore.Images.Media.DATE_MODIFIED} DESC"
@@ -46,7 +48,19 @@ class MediaStoreRepository(private val context: Context) {
                 val bucketName = cursor.getString(bucketNameColumn) ?: "Unknown Folder"
                 val size = cursor.getLong(sizeColumn)
                 val dateModified = cursor.getLong(dateModifiedColumn)
-                val realPath = cursor.getString(dataColumn) ?: ""
+                var realPath = cursor.getString(dataColumn) ?: ""
+                
+                // Fallback for Android 10+ if DATA is empty, restricted, or incorrectly returning a URI
+                val relPathCol = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
+                val nameCol = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+                if ((realPath.isBlank() || realPath.startsWith("content://")) && relPathCol != -1 && nameCol != -1) {
+                    val rel = cursor.getString(relPathCol) ?: ""
+                    val name = cursor.getString(nameCol) ?: ""
+                    if (rel.isNotBlank() && name.isNotBlank()) {
+                        realPath = "/storage/emulated/0/$rel$name"
+                    }
+                }
+                
                 val folderPath = realPath.substringBeforeLast('/', "")
 
                 val contentUri = ContentUris.withAppendedId(uri, id)
@@ -83,7 +97,9 @@ class MediaStoreRepository(private val context: Context) {
             MediaStore.Images.Media.DATE_MODIFIED,
             MediaStore.Images.Media.SIZE,
             MediaStore.Images.Media.WIDTH,
-            MediaStore.Images.Media.HEIGHT
+            MediaStore.Images.Media.HEIGHT,
+            MediaStore.Images.Media.RELATIVE_PATH,
+            MediaStore.Images.Media.DISPLAY_NAME
         )
 
         val selection = "${MediaStore.Images.Media.BUCKET_ID} = ?"
@@ -98,9 +114,23 @@ class MediaStoreRepository(private val context: Context) {
             val widthColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.WIDTH)
             val heightColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.HEIGHT)
 
+            // Optional columns for modern Android
+            val relativePathColumn = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
+            val displayNameColumn = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idColumn)
-                val realPath = cursor.getString(dataColumn) ?: ""
+                var realPath = cursor.getString(dataColumn) ?: ""
+                
+                // Fallback for Android 10+ if DATA is empty, restricted, or incorrectly returning a URI
+                if ((realPath.isBlank() || realPath.startsWith("content://")) && relativePathColumn != -1 && displayNameColumn != -1) {
+                    val relPath = cursor.getString(relativePathColumn) ?: ""
+                    val name = cursor.getString(displayNameColumn) ?: ""
+                    if (relPath.isNotBlank() && name.isNotBlank()) {
+                        realPath = "/storage/emulated/0/$relPath$name"
+                    }
+                }
+
                 val dateModified = cursor.getLong(dateColumn)
                 val size = cursor.getLong(sizeColumn)
                 val width = cursor.getInt(widthColumn)
@@ -134,7 +164,9 @@ class MediaStoreRepository(private val context: Context) {
             MediaStore.Images.Media.DATE_MODIFIED,
             MediaStore.Images.Media.SIZE,
             MediaStore.Images.Media.WIDTH,
-            MediaStore.Images.Media.HEIGHT
+            MediaStore.Images.Media.HEIGHT,
+            MediaStore.Images.Media.RELATIVE_PATH,
+            MediaStore.Images.Media.DISPLAY_NAME
         )
 
         val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
@@ -147,10 +179,22 @@ class MediaStoreRepository(private val context: Context) {
             val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
             val widthCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.WIDTH)
             val heightCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.HEIGHT)
+            val relPathCol = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
+            val nameCol = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idCol)
-                val realPath = cursor.getString(dataCol) ?: ""
+                var realPath = cursor.getString(dataCol) ?: ""
+
+                // Fallback for Android 10+ if DATA is empty, restricted, or incorrectly returning a URI
+                if ((realPath.isBlank() || realPath.startsWith("content://")) && relPathCol != -1 && nameCol != -1) {
+                    val rel = cursor.getString(relPathCol) ?: ""
+                    val name = cursor.getString(nameCol) ?: ""
+                    if (rel.isNotBlank() && name.isNotBlank()) {
+                        realPath = "/storage/emulated/0/$rel$name"
+                    }
+                }
+
                 val dateAdded = cursor.getLong(dateAddedCol)
                 val dateModified = cursor.getLong(dateModCol)
                 val size = cursor.getLong(sizeCol)

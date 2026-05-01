@@ -432,8 +432,55 @@ private suspend fun loadImageMetadata(
         var camera: CameraMetadata? = null
         var software: String? = null
 
-        // Convert URI to readable path
-        val readablePath = convertUriToReadablePath(image.uri.toString())
+        // Try to get a valid filesystem path
+        var finalPath = if (image.path.isNotBlank() && (image.path.startsWith("/") || image.path.contains(":")) && !image.path.startsWith("content://")) {
+            image.path
+        } else {
+            ""
+        }
+
+        // If path is missing or restricted, try querying MediaStore columns via ContentResolver
+        if (finalPath.isBlank() && image.uri.scheme == "content") {
+            try {
+                val projection = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    arrayOf(
+                        android.provider.MediaStore.Images.Media.DATA,
+                        android.provider.MediaStore.Images.Media.RELATIVE_PATH,
+                        android.provider.MediaStore.Images.Media.DISPLAY_NAME
+                    )
+                } else {
+                    arrayOf(android.provider.MediaStore.Images.Media.DATA)
+                }
+
+                context.contentResolver.query(image.uri, projection, null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        // Try DATA first
+                        val dataIndex = cursor.getColumnIndex(android.provider.MediaStore.Images.Media.DATA)
+                        if (dataIndex != -1) {
+                            finalPath = cursor.getString(dataIndex) ?: ""
+                        }
+                        
+                        // Fallback to RELATIVE_PATH + DISPLAY_NAME on Android 10+
+                        if (finalPath.isBlank() && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                            val relIndex = cursor.getColumnIndex(android.provider.MediaStore.Images.Media.RELATIVE_PATH)
+                            val nameIndex = cursor.getColumnIndex(android.provider.MediaStore.Images.Media.DISPLAY_NAME)
+                            if (relIndex != -1 && nameIndex != -1) {
+                                val relPath = cursor.getString(relIndex) ?: ""
+                                val name = cursor.getString(nameIndex) ?: ""
+                                if (relPath.isNotBlank() && name.isNotBlank()) {
+                                    // Construct the path (assuming external storage)
+                                    finalPath = "/storage/emulated/0/$relPath$name"
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        val readablePath = if (finalPath.isNotBlank()) finalPath else convertUriToReadablePath(image.uri.toString())
 
         // Get basic image dimensions
         context.contentResolver.openInputStream(image.uri)?.use { inputStream ->
@@ -558,7 +605,7 @@ private suspend fun loadImageMetadata(
             size = formatFileSize(image.size),
             dimensions = "Unknown",
             path = image.path,
-            readablePath = convertUriToReadablePath(image.uri.toString()),
+            readablePath = if (image.path.startsWith("/") || image.path.contains(":")) image.path else convertUriToReadablePath(image.uri.toString()),
             dateModified = null,
             dateTaken = null,
             mimeType = null,
@@ -707,6 +754,16 @@ private fun convertUriToReadablePath(uriString: String): String {
                 }
 
                 readable
+            }
+            decoded.contains("content://media/") -> {
+                // Try to extract the ID and at least show which media it is
+                val id = decoded.substringAfterLast("/")
+                val type = when {
+                    decoded.contains("/images/") -> "Images"
+                    decoded.contains("/video/") -> "Videos"
+                    else -> "Media"
+                }
+                "Internal Storage → $type → $id"
             }
             else -> {
                 // Fallback: just decode URL encoding

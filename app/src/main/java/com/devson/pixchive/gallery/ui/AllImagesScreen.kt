@@ -21,9 +21,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -32,6 +30,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.pixchive.gallery.ui.components.GalleryImageItem
 import com.devson.pixchive.gallery.ui.components.GallerySelectionBottomBar
 import com.devson.pixchive.gallery.ui.components.GalleryViewSettingsBottomSheet
+import com.devson.pixchive.gallery.ui.components.DetailsDialog
 import com.devson.pixchive.gallery.viewmodel.AllImagesState
 import com.devson.pixchive.gallery.viewmodel.AllImagesViewModel
 
@@ -53,7 +52,7 @@ fun AllImagesScreen(
     val viewSettings by viewModel.viewSettings.collectAsState()
 
     var showSettingsSheet by remember { mutableStateOf(false) }
-
+    var showDetailsDialog by remember { mutableStateOf(false) }
 
 
     val gridState = rememberLazyGridState(
@@ -109,7 +108,7 @@ fun AllImagesScreen(
                     onDelete = {},
                     onRename = {},
                     onShare = {},
-                    onInfo = {}
+                    onInfo = { showDetailsDialog = true }
                 )
             }
         },
@@ -322,6 +321,15 @@ fun AllImagesScreen(
                     }
                 },
                 onDismiss = { showSettingsSheet = false }
+            )
+        }
+
+        if (showDetailsDialog) {
+            val selectedImages = (uiState as? AllImagesState.Success)?.flatImages?.filter { it.id in selectedIds } ?: emptyList()
+            DetailsDialog(
+                selectedFolders = emptyList(),
+                selectedImages = selectedImages,
+                onDismiss = { showDetailsDialog = false }
             )
         }
     }

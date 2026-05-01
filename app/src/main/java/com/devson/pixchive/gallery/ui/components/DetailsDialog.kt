@@ -9,11 +9,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.devson.pixchive.gallery.data.models.GalleryFolder
 import com.devson.pixchive.gallery.data.models.GalleryImage
-import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Image
+import com.devson.pixchive.data.ImageFile
+import com.devson.pixchive.ui.reader.components.ImageDetailsDialog
+import java.io.File
 
 @Composable
 fun DetailsDialog(
@@ -22,10 +24,27 @@ fun DetailsDialog(
     folder: GalleryFolder? = null,
     onDismiss: () -> Unit
 ) {
+    val effectiveFolders = if (selectedFolders.isEmpty() && folder != null) listOf(folder) else selectedFolders
+
+    // If exactly 1 image and no folders are selected, show the full ImageDetailsDialog
+    if (effectiveFolders.isEmpty() && selectedImages.size == 1) {
+        val image = selectedImages[0]
+        val imageFile = ImageFile(
+            name = File(image.realPath).name,
+            path = image.realPath,
+            uri = image.uri,
+            size = image.size,
+            dateModified = image.dateModified
+        )
+        ImageDetailsDialog(
+            image = imageFile,
+            onDismiss = onDismiss
+        )
+        return
+    }
+
     val title: String
     val body: @Composable () -> Unit
-    
-    val effectiveFolders = if (selectedFolders.isEmpty() && folder != null) listOf(folder) else selectedFolders
 
     when {
         effectiveFolders.size == 1 && selectedImages.isEmpty() -> {
@@ -51,31 +70,34 @@ fun DetailsDialog(
             title = "Multiple Folders"
             body = { Text("${effectiveFolders.size} folders selected.") }
         }
-        effectiveFolders.isEmpty() && selectedImages.size == 1 -> {
-            val image = selectedImages[0]
-            val dateStr = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-                .format(Date(image.dateModified * 1000L))
-            title = "Image Details"
+        effectiveFolders.isEmpty() && selectedImages.size > 1 -> {
+            title = "Multiple Images"
+            val totalSize = selectedImages.sumOf { it.size }
             body = {
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    DetailRow("Path:", image.realPath)
+                    DetailRow("Selected Images:", "${selectedImages.size}")
                     Spacer(Modifier.height(6.dp))
-                    DetailRow("Modified:", dateStr)
-                    Spacer(Modifier.height(6.dp))
-                    DetailRow("Resolution:", "N/A (EXIF)")
-                    Spacer(Modifier.height(6.dp))
-                    DetailRow("Camera:", "N/A (EXIF)")
+                    DetailRow("Total Size:", formatSize(totalSize))
                 }
             }
         }
         else -> {
             val total = effectiveFolders.size + selectedImages.size
             title = "Multiple Items"
-            body = { Text("$total items selected. Size calculation coming soon.") }
+            val totalSize = effectiveFolders.sumOf { it.size } + selectedImages.sumOf { it.size }
+            body = { 
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    DetailRow("Selected Items:", "$total")
+                    Spacer(Modifier.height(6.dp))
+                    if (totalSize > 0L) {
+                        DetailRow("Total Size:", formatSize(totalSize))
+                    }
+                }
+            }
         }
     }
 
-   AlertDialog(
+    AlertDialog(
         onDismissRequest = onDismiss,
         icon = { 
             val icon = if (selectedImages.isNotEmpty() && effectiveFolders.isEmpty()) Icons.Default.Image else Icons.Default.Folder
@@ -98,11 +120,19 @@ private fun DetailRow(label: String, value: String) {
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-            modifier = Modifier.width(90.dp)
+            modifier = Modifier.width(110.dp)
         )
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium
         )
+    }
+}
+
+private fun formatSize(bytes: Long): String {
+    return when {
+        bytes < 1024 -> "$bytes B"
+        bytes < 1024 * 1024 -> String.format(Locale.getDefault(), "%.2f KB", bytes / 1024.0)
+        else -> String.format(Locale.getDefault(), "%.2f MB", bytes / (1024.0 * 1024.0))
     }
 }

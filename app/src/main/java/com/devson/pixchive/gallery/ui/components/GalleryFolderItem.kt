@@ -1,59 +1,36 @@
 package com.devson.pixchive.gallery.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Outline
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.geometry.Size
 import coil.compose.AsyncImage
 import com.devson.pixchive.gallery.data.models.GalleryFolder
 import com.devson.pixchive.gallery.data.models.GalleryViewSettings
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-
-class FolderShape : Shape {
-    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
-        val cornerRadius = with(density) { 8.dp.toPx() }
-        val tabWidth = size.width * 0.45f
-        val tabHeight = size.height * 0.15f
-
-        val path = Path().apply {
-            moveTo(0f, cornerRadius)
-            quadraticBezierTo(0f, 0f, cornerRadius, 0f)
-            lineTo(tabWidth - cornerRadius, 0f)
-            quadraticBezierTo(tabWidth, 0f, tabWidth + cornerRadius/2, cornerRadius/2)
-            lineTo(tabWidth + cornerRadius*1.5f, tabHeight - cornerRadius/2)
-            quadraticBezierTo(tabWidth + cornerRadius*2, tabHeight, tabWidth + cornerRadius*3, tabHeight)
-            lineTo(size.width - cornerRadius, tabHeight)
-            quadraticBezierTo(size.width, tabHeight, size.width, tabHeight + cornerRadius)
-            lineTo(size.width, size.height - cornerRadius)
-            quadraticBezierTo(size.width, size.height, size.width - cornerRadius, size.height)
-            lineTo(cornerRadius, size.height)
-            quadraticBezierTo(0f, size.height, 0f, size.height - cornerRadius)
-            close()
-        }
-        return Outline.Generic(path)
-    }
-}
 
 private fun formatSize(bytes: Long): String {
     if (bytes <= 0) return "0 B"
@@ -63,36 +40,95 @@ private fun formatSize(bytes: Long): String {
 }
 
 private fun formatDate(timestamp: Long): String {
-    val date = Date(timestamp * 1000L) // Assuming MediaStore returns seconds, if milliseconds remove * 1000L
-    // MediaStore.Images.Media.DATE_MODIFIED is in seconds.
-    val format = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-    return format.format(date)
+    val sdf = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+    return sdf.format(Date(timestamp * 1000L))
 }
 
 @Composable
-private fun InfoChip(text: String, bgColor: Color, textColor: Color) {
+private fun FolderThumbnail(
+    folder: GalleryFolder,
+    showThumbnail: Boolean,
+    modifier: Modifier = Modifier
+) {
     Box(
-        modifier = Modifier
-            .background(bgColor, RoundedCornerShape(6.dp))
-            .padding(horizontal = 6.dp, vertical = 2.dp)
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.secondaryContainer),
+        contentAlignment = Alignment.Center
     ) {
-        Text(text = text, color = textColor, fontSize = 11.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+        if (showThumbnail && folder.thumbnailUri != null) {
+            AsyncImage(
+                model = folder.thumbnailUri,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            0.55f to Color.Transparent,
+                            1.0f to Color.Black.copy(alpha = 0.28f)
+                        )
+                    )
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Filled.FolderOpen,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f),
+                modifier = Modifier.size(28.dp)
+            )
+        }
     }
 }
 
 @Composable
-private fun ThumbnailPlaceholder() {
+private fun MetaChip(text: String, isPrimary: Boolean) {
+    val bg = if (isPrimary)
+        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.85f)
+    else
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f)
+    val fg = if (isPrimary)
+        MaterialTheme.colorScheme.onSecondaryContainer
+    else
+        MaterialTheme.colorScheme.onSurfaceVariant
+
     Box(
         modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceVariant),
-        contentAlignment = Alignment.Center
+            .background(bg, RoundedCornerShape(5.dp))
+            .padding(horizontal = 6.dp, vertical = 2.dp)
     ) {
-        Icon(
-            painter = androidx.compose.ui.res.painterResource(id = android.R.drawable.ic_menu_gallery),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            fontSize = 10.5.sp,
+            fontWeight = if (isPrimary) FontWeight.SemiBold else FontWeight.Normal,
+            color = fg,
+            maxLines = 1
         )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FolderMetaRow(
+    folder: GalleryFolder,
+    viewSettings: GalleryViewSettings,
+    compact: Boolean = false
+) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        MetaChip("${folder.imageCount} images", isPrimary = true)
+        if (viewSettings.showSize) {
+            MetaChip(formatSize(folder.size), isPrimary = false)
+        }
+        if (viewSettings.showDate) {
+            MetaChip(formatDate(folder.dateModified), isPrimary = false)
+        }
     }
 }
 
@@ -102,6 +138,7 @@ fun GalleryFolderItem(
     folder: GalleryFolder,
     isSelected: Boolean,
     isListMode: Boolean = false,
+    gridColumns: Int = 2,
     viewSettings: GalleryViewSettings = GalleryViewSettings(),
     showThumbnail: Boolean = viewSettings.showThumbnail,
     onClick: () -> Unit,
@@ -110,167 +147,288 @@ fun GalleryFolderItem(
 ) {
     val haptics = LocalHapticFeedback.current
 
+    val bgColor by animateColorAsState(
+        targetValue = if (isSelected)
+            MaterialTheme.colorScheme.primaryContainer
+        else
+            MaterialTheme.colorScheme.surface,
+        animationSpec = tween(180),
+        label = "folderBg"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (isSelected)
+            MaterialTheme.colorScheme.primary
+        else
+            Color.Transparent,
+        animationSpec = tween(180),
+        label = "folderBorder"
+    )
+
+    val clickMod = Modifier.galleryItemClick(
+        onClick = onClick,
+        onLongClick = {
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            onLongPress()
+        }
+    )
+
     if (isListMode) {
+        // List row: thumbnail left, info right
         Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             modifier = modifier
                 .fillMaxWidth()
-                .galleryItemClick(
-                    onClick = onClick,
-                    onLongClick = {
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onLongPress()
-                    }
-                )
+                .then(clickMod),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = bgColor),
+            elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),
+            border = BorderStroke(if (isSelected) 1.5.dp else 0.dp, borderColor)
         ) {
-            Row(
-                modifier = Modifier.padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Row(
                     modifier = Modifier
-                        .width(100.dp)
-                        .height(75.dp)
-                        .clip(FolderShape())
+                        .fillMaxWidth()
+                        .padding(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                        if (showThumbnail) {
+                    FolderThumbnail(
+                        folder = folder,
+                        showThumbnail = showThumbnail,
+                        modifier = Modifier.size(width = 96.dp, height = 72.dp)
+                    )
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = folder.folderName,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = if (isSelected)
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            else
+                                MaterialTheme.colorScheme.onSurface
+                        )
+                        if (viewSettings.showPath) {
+                            Text(
+                                text = folder.folderPath,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(top = 1.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        FolderMetaRow(folder = folder, viewSettings = viewSettings)
+                    }
+                }
+                SelectionCheckmarkOverlay(visible = isSelected)
+            }
+        }
+        return
+    }
+
+    // Grid layouts
+    when {
+        gridColumns <= 1 -> {
+            // 1-col: wide landscape card (thumbnail left, info right)
+            Card(
+                modifier = modifier
+                    .fillMaxWidth()
+                    .then(clickMod),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = bgColor),
+                elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),
+                border = BorderStroke(if (isSelected) 1.5.dp else 0.dp, borderColor)
+            ) {
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        FolderThumbnail(
+                            folder = folder,
+                            showThumbnail = showThumbnail,
+                            modifier = Modifier.size(width = 124.dp, height = 82.dp)
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = folder.folderName,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                color = if (isSelected)
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                else
+                                    MaterialTheme.colorScheme.onSurface
+                            )
+                            if (viewSettings.showPath) {
+                                Text(
+                                    text = folder.folderPath,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.padding(top = 1.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            FolderMetaRow(folder = folder, viewSettings = viewSettings)
+                        }
+                    }
+                    SelectionCheckmarkOverlay(visible = isSelected)
+                }
+            }
+        }
+
+        gridColumns == 2 -> {
+            // 2-col: thumbnail top, label strip below
+            Card(
+                modifier = modifier
+                    .fillMaxWidth()
+                    .aspectRatio(0.88f)
+                    .then(clickMod),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = bgColor),
+                elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),
+                border = BorderStroke(if (isSelected) 1.5.dp else 0.dp, borderColor)
+            ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        FolderThumbnail(
+                            folder = folder,
+                            showThumbnail = showThumbnail,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                        )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 10.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = folder.folderName,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = if (isSelected)
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                else
+                                    MaterialTheme.colorScheme.onSurface
+                            )
+                            if (viewSettings.showPath) {
+                                Text(
+                                    text = folder.folderPath,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.padding(top = 1.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(3.dp))
+                            FolderMetaRow(folder = folder, viewSettings = viewSettings, compact = true)
+                        }
+                    }
+                    SelectionCheckmarkOverlay(visible = isSelected)
+                }
+            }
+        }
+
+        else -> {
+            // 3+ col: full-bleed thumbnail with gradient overlay label
+            Card(
+                modifier = modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .then(clickMod),
+                shape = RoundedCornerShape(10.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),
+                border = BorderStroke(if (isSelected) 1.5.dp else 0.dp, borderColor)
+            ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    // Thumbnail fills whole card
+                    if (showThumbnail && folder.thumbnailUri != null) {
                         AsyncImage(
                             model = folder.thumbnailUri,
-                            contentDescription = "Thumbnail for ${folder.folderName}",
+                            contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize()
                         )
                     } else {
-                        ThumbnailPlaceholder()
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = folder.folderName,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    
-                    if (viewSettings.showPath) {
-                        Text(
-                            text = folder.folderPath,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(top = 2.dp)
-                        )
-                    }
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        InfoChip(text = "${folder.imageCount} images", bgColor = Color(0xFFFFF9C4), textColor = Color(0xFFF57F17))
-                        if (viewSettings.showSize) {
-                            InfoChip(text = formatSize(folder.size), bgColor = Color(0xFFF5F5F5), textColor = Color(0xFF757575))
-                        }
-                        if (viewSettings.showDate) {
-                            InfoChip(text = formatDate(folder.dateModified), bgColor = Color(0xFFFBE9E7), textColor = Color(0xFFD84315))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.secondaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.FolderOpen,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f),
+                                modifier = Modifier.size(32.dp)
+                            )
                         }
                     }
-                }
-            }
-        }
-    } else {
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-            modifier = modifier
-                .fillMaxWidth()
-                .galleryItemClick(
-                    onClick = onClick,
-                    onLongClick = {
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onLongPress()
-                    }
-                )
-        ) {
-            Box {
-                Column {
+
+                    // Gradient scrim for label legibility
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(1f)
-                            .clip(FolderShape())
-                    ) {
-                            if (showThumbnail) {
-                            AsyncImage(
-                                model = folder.thumbnailUri,
-                                contentDescription = "Thumbnail for ${folder.folderName}",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
+                            .fillMaxSize()
+                            .background(
+                                Brush.verticalGradient(
+                                    0.40f to Color.Transparent,
+                                    1.0f to Color.Black.copy(alpha = 0.72f)
+                                )
                             )
-                        } else {
-                            ThumbnailPlaceholder()
-                        }
+                    )
+
+                    if (isSelected) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.30f))
+                        )
                     }
 
+                    // Label at bottom
                     Column(
-                        modifier = Modifier.padding(8.dp)
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .fillMaxWidth()
+                            .padding(horizontal = 6.dp, vertical = 5.dp)
                     ) {
                         Text(
                             text = folder.folderName,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        
                         if (viewSettings.showPath) {
                             Text(
                                 text = folder.folderPath,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = Color.White.copy(alpha = 0.75f),
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(top = 1.dp)
                             )
                         }
-                        
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            InfoChip(
-                                text = "${folder.imageCount} Images",
-                                bgColor = Color(0xFFFFF9C4),
-                                textColor = Color(0xFFF57F17)
-                            )
-                            if (viewSettings.showSize) {
-                                InfoChip(
-                                    text = formatSize(folder.size),
-                                    bgColor = Color(0xFFF5F5F5),
-                                    textColor = Color(0xFF757575)
-                                )
-                            }
-                            if (viewSettings.showDate) {
-                                InfoChip(
-                                    text = formatDate(folder.dateModified),
-                                    bgColor = Color(0xFFFBE9E7),
-                                    textColor = Color(0xFFD84315)
-                                )
-                            }
-                        }
+                        Spacer(modifier = Modifier.height(3.dp))
+                        FolderMetaRow(folder = folder, viewSettings = viewSettings, compact = true)
                     }
+
+                    SelectionCheckmarkOverlay(visible = isSelected)
                 }
-                SelectionCheckmarkOverlay(visible = isSelected)
             }
         }
     }

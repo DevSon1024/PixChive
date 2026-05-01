@@ -283,6 +283,7 @@ fun ImageListScreen(
                                             GalleryFolderItem(
                                                 folder = folder,
                                                 isSelected = folder.bucketId in selectedFolderIds,
+                                                gridColumns = currentColumnCount,
                                                 viewSettings = viewSettings,
                                                 showThumbnail = showFolderThumbnail,
                                                 modifier = Modifier.pinchItem(key = folder.bucketId),

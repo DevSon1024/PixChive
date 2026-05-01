@@ -129,6 +129,19 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
         _selectedIds.value = emptySet()
     }
 
+    fun renameSelectedImage(newName: String) {
+        val selectedId = _selectedIds.value.firstOrNull() ?: return
+        val image = _images.value.find { it.id == selectedId } ?: return
+        val bucketId = _currentBucketId.value
+
+        viewModelScope.launch {
+            if (repository.renameImage(image.id, newName)) {
+                loadImages(bucketId)
+                clearSelection()
+            }
+        }
+    }
+
     private fun sortImages(images: List<GalleryImage>, sort: String): List<GalleryImage> {
         return when (sort) {
             "name_asc" -> images.sortedBy { it.realPath.substringAfterLast('/').lowercase() }

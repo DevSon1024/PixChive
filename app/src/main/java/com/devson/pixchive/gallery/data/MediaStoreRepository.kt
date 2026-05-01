@@ -1,5 +1,6 @@
 package com.devson.pixchive.gallery.data
 
+import android.content.ContentValues
 import android.content.ContentUris
 import android.content.Context
 import android.provider.MediaStore
@@ -7,6 +8,7 @@ import com.devson.pixchive.gallery.data.models.GalleryFolder
 import com.devson.pixchive.gallery.data.models.GalleryImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
 
 class MediaStoreRepository(private val context: Context) {
 
@@ -217,5 +219,40 @@ class MediaStoreRepository(private val context: Context) {
             }
         }
         return@withContext imageList
+    }
+
+    suspend fun renameImage(id: Long, newName: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val uri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
+            val values = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, newName)
+            }
+            context.contentResolver.update(uri, values, null, null) > 0
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun renameFolder(folderPath: String, newName: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val oldFolder = File(folderPath)
+            val parent = oldFolder.parentFile
+            val newFolder = File(parent, newName)
+            
+            if (oldFolder.renameTo(newFolder)) {
+                // Trigger media scan to update MediaStore
+                android.media.MediaScannerConnection.scanFile(
+                    context,
+                    arrayOf(newFolder.absolutePath),
+                    null,
+                    null
+                )
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            false
+        }
     }
 }

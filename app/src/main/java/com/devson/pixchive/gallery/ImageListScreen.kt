@@ -32,6 +32,7 @@ import com.devson.pixchive.gallery.ui.components.DetailsDialog
 import com.devson.pixchive.gallery.ui.components.GalleryFolderItem
 import com.devson.pixchive.gallery.ui.components.GallerySelectionBottomBar
 import com.devson.pixchive.gallery.ui.components.GalleryViewSettingsBottomSheet
+import com.devson.pixchive.gallery.ui.components.CustomRenameDialog
 import com.devson.pixchive.gallery.ui.components.gridDragSelect
 import com.devson.pixchive.gallery.viewmodel.GalleryState
 import com.devson.pixchive.gallery.viewmodel.ImageListViewModel
@@ -63,6 +64,7 @@ fun ImageListScreen(
     val selectedFolderIds by viewModel.selectedIds.collectAsState()
     var showSettingsSheet by remember { mutableStateOf(false) }
     var showDetailsDialog by remember { mutableStateOf(false) }
+    var showRenameDialog by remember { mutableStateOf(false) }
 
     val cellsConfig = remember {
         mapOf(
@@ -161,7 +163,7 @@ fun ImageListScreen(
                     onMove = {},
                     onCopy = {},
                     onDelete = {},
-                    onRename = {},
+                    onRename = { showRenameDialog = true },
                     onShare = {},
                     onInfo = { showDetailsDialog = true }
                 )
@@ -347,6 +349,21 @@ fun ImageListScreen(
                 selectedImages = emptyList(),
                 onDismiss = { showDetailsDialog = false }
             )
+        }
+
+        if (showRenameDialog) {
+            val selectedId = selectedFolderIds.firstOrNull()
+            val folder = (uiState as? GalleryState.Success)?.folders?.find { it.bucketId == selectedId }
+            folder?.let {
+                CustomRenameDialog(
+                    initialName = it.folderName,
+                    onConfirm = { newName ->
+                        viewModel.renameSelectedFolder(newName)
+                        showRenameDialog = false
+                    },
+                    onDismiss = { showRenameDialog = false }
+                )
+            }
         }
     }
 }

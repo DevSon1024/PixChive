@@ -139,6 +139,18 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
         _selectedIds.value = newSelection
     }
 
+    fun renameSelectedFolder(newName: String) {
+        val selectedId = _selectedIds.value.firstOrNull() ?: return
+        val folder = _folders.value.find { it.bucketId == selectedId } ?: return
+
+        viewModelScope.launch {
+            if (repository.renameFolder(folder.folderPath, newName)) {
+                loadGalleryFolders()
+                clearSelection()
+            }
+        }
+    }
+
     init {
         loadGalleryFolders()
     }

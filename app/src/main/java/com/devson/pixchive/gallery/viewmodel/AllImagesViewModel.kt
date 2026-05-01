@@ -170,6 +170,19 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
         preferencesManager.setGalleryViewMode(mode)
     }
 
+    fun renameSelectedImage(newName: String) {
+        val selectedId = _selectedIds.value.firstOrNull() ?: return
+        val state = _uiState.value as? AllImagesState.Success ?: return
+        val image = state.flatImages.find { it.id == selectedId } ?: return
+
+        viewModelScope.launch {
+            if (repository.renameImage(image.id, newName)) {
+                loadAllImages()
+                clearSelection()
+            }
+        }
+    }
+
     private fun groupByDate(images: List<GalleryImage>): Map<String, List<GalleryImage>> {
         val now = Calendar.getInstance()
         val today = calendarMidnight(now)

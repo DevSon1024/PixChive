@@ -413,18 +413,12 @@ fun GalleryFolderItem(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        if (viewSettings.showPath) {
-                            Text(
-                                text = folder.folderPath,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.75f),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(top = 1.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(3.dp))
-                        FolderMetaRow(folder = folder, viewSettings = viewSettings, compact = true)
+                        Text(
+                            text = "${folder.imageCount} images",
+                            color = Color.White.copy(alpha = 0.75f),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 9.5.sp
+                        )
                     }
 
                     SelectionCheckmarkOverlay(visible = isSelected)

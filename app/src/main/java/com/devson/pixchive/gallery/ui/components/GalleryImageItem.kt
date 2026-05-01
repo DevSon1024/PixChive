@@ -50,13 +50,30 @@ private fun formatDate(timestamp: Long): String {
 }
 
 @Composable
-private fun InfoChip(text: String, bgColor: Color, textColor: Color) {
-    Box(
-        modifier = Modifier
-            .background(bgColor, RoundedCornerShape(6.dp))
-            .padding(horizontal = 6.dp, vertical = 2.dp)
+private fun InfoChip(
+    text: String,
+    modifier: Modifier = Modifier,
+    bgColor: Color = Color.Black.copy(alpha = 0.45f),
+    textColor: Color = Color.White,
+    borderColor: Color = Color.White.copy(alpha = 0.15f),
+    fontWeight: FontWeight = FontWeight.Medium,
+    fontSize: androidx.compose.ui.unit.TextUnit = 9.sp
+) {
+    Surface(
+        modifier = modifier,
+        color = bgColor,
+        shape = RoundedCornerShape(6.dp),
+        border = BorderStroke(0.5.dp, borderColor)
     ) {
-        Text(text = text, color = textColor, fontSize = 11.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+        Text(
+            text = text,
+            color = textColor,
+            fontSize = fontSize,
+            fontWeight = fontWeight,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.5.dp)
+        )
     }
 }
 
@@ -128,7 +145,6 @@ fun GalleryImageItem(
     modifier: Modifier = Modifier,
     isListMode: Boolean = false,
     onThumbnailClick: (() -> Unit)? = null,
-    // columnCount drives dense mode: 3+ cols = only extension badge shown
     columnCount: Int = 2,
     viewSettings: GalleryViewSettings = GalleryViewSettings()
 ) {
@@ -151,17 +167,13 @@ fun GalleryImageItem(
     )
 
     if (isListMode) {
-        // List layout mirrors VideoListItem
         Card(
             modifier = modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 3.dp),
+                .padding(horizontal = 12.dp, vertical = 4.dp),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = bgColor),
-            elevation = CardDefaults.cardElevation(
-                defaultElevation = if (isSelected) 0.dp else 1.dp,
-                pressedElevation = 0.dp
-            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),
             border = BorderStroke(if (isSelected) 1.5.dp else 0.dp, borderColor),
             onClick = onClick
         ) {
@@ -171,104 +183,73 @@ fun GalleryImageItem(
                     .padding(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Thumbnail: Tapping toggles selection
                 Card(
                     modifier = Modifier
-                        .size(width = 100.dp, height = 75.dp)
-                        .clickable { 
-                            if (onThumbnailClick != null) onThumbnailClick() 
-                            else onLongClick() 
-                        },
-                    shape = RoundedCornerShape(10.dp),
-                    elevation = CardDefaults.cardElevation(0.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+                        .size(width = 110.dp, height = 82.dp)
+                        .clickable { onThumbnailClick?.invoke() ?: onLongClick() },
+                    shape = RoundedCornerShape(12.dp),
+                    elevation = CardDefaults.cardElevation(0.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(10.dp))
-                    ) {
+                    Box(modifier = Modifier.fillMaxSize()) {
                         if (viewSettings.showThumbnail) {
                             AsyncImage(
                                 model = image.uri,
-                                contentDescription = "Image thumbnail",
+                                contentDescription = null,
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()
                             )
                         } else {
                             ThumbnailPlaceholder()
                         }
-                        // Extension badge overlaid bottom-end
-                        if (viewSettings.showFileExt && extension.isNotEmpty() && !isSelected) {
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(4.dp)
-                                    .background(Color.Black.copy(alpha = 0.72f), RoundedCornerShape(5.dp))
-                                    .padding(horizontal = 5.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = extension,
-                                    color = Color.White,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 10.sp
-                                )
-                            }
-                        }
                         SelectionCheckmarkOverlay(visible = isSelected, isDense = true)
                     }
                 }
 
-                Spacer(modifier = Modifier.width(14.dp))
+                Spacer(modifier = Modifier.width(16.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = baseName,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 2,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
-                                else MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface
                     )
 
                     if (viewSettings.showPath) {
                         Text(
                             text = image.realPath,
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(top = 2.dp)
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(5.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (viewSettings.showResolution && image.width > 0 && image.height > 0) {
-                            InfoChip(text = "${image.width}x${image.height}", bgColor = Color(0xFFE1F5FE), textColor = Color(0xFF0288D1))
+                        if (viewSettings.showFileExt && extension.isNotEmpty()) {
+                            InfoChip(text = extension, bgColor = MaterialTheme.colorScheme.secondaryContainer, textColor = MaterialTheme.colorScheme.onSecondaryContainer)
+                        }
+                        if (viewSettings.showResolution && image.width > 0) {
+                            InfoChip(text = "${image.width}x${image.height}", bgColor = MaterialTheme.colorScheme.tertiaryContainer, textColor = MaterialTheme.colorScheme.onTertiaryContainer)
                         }
                         if (viewSettings.showSize) {
-                            InfoChip(
-                                text = formatSize(image.size),
-                                bgColor = MaterialTheme.colorScheme.surfaceVariant,
-                                textColor = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            InfoChip(text = formatSize(image.size), bgColor = MaterialTheme.colorScheme.surfaceVariant, textColor = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (viewSettings.showDate) {
-                            InfoChip(text = formatDate(image.dateModified), bgColor = Color(0xFFFBE9E7), textColor = Color(0xFFD84315))
+                            InfoChip(text = formatDate(image.dateModified), bgColor = MaterialTheme.colorScheme.surfaceVariant, textColor = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
             }
         }
     } else {
-        // Grid layout: dense (3-4 cols) = thumbnail + ext badge only, no bottom label
         Card(
             modifier = modifier
                 .fillMaxWidth()
@@ -279,128 +260,79 @@ fun GalleryImageItem(
                         onLongClick()
                     }
                 ),
-            shape = RoundedCornerShape(if (isDense) 8.dp else 14.dp),
+            shape = RoundedCornerShape(if (isDense) 10.dp else 16.dp),
             colors = CardDefaults.cardColors(containerColor = bgColor),
-            elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),
-            border = BorderStroke(if (isSelected) 1.5.dp else 0.dp, borderColor)
+            border = BorderStroke(if (isSelected) 2.dp else 0.dp, borderColor)
         ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                // Square thumbnail
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f)
-                        .clip(
-                            if (isDense) RoundedCornerShape(8.dp)
-                            else RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .clip(RoundedCornerShape(if (isDense) 10.dp else 16.dp))
+            ) {
+                if (viewSettings.showThumbnail) {
+                    AsyncImage(
+                        model = image.uri,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    ThumbnailPlaceholder()
+                }
+
+                // Metadata Overlays (Grid Mode)
+                if (columnCount <= 2) {
+                    // Top Overlay: Filename
+                    if (viewSettings.showPath) {
+                        InfoChip(
+                            text = baseName,
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .padding(8.dp)
+                                .fillMaxWidth(0.85f)
                         )
-                ) {
-                    if (viewSettings.showThumbnail) {
-                        AsyncImage(
-                            model = image.uri,
-                            contentDescription = "Image thumbnail",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        ThumbnailPlaceholder()
                     }
 
-                    // Dense mode: only ext badge overlaid on thumbnail bottom-start
-                    if (isDense && viewSettings.showFileExt && extension.isNotEmpty() && !isSelected) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomStart)
-                                .padding(4.dp)
-                                .background(Color.Black.copy(alpha = 0.65f), RoundedCornerShape(4.dp))
-                                .padding(horizontal = 4.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = extension,
-                                color = Color.White,
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1
+                    // Bottom Overlay: Metadata Row
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(8.dp)
+                            .fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (viewSettings.showFileExt && extension.isNotEmpty()) {
+                            InfoChip(text = extension, fontWeight = FontWeight.Bold)
+                        }
+                        if (viewSettings.showResolution && image.width > 0) {
+                            InfoChip(text = "${image.width}x${image.height}")
+                        }
+                        if (viewSettings.showSize) {
+                            InfoChip(text = formatSize(image.size))
+                        }
+                        if (viewSettings.showDate) {
+                            InfoChip(
+                                text = formatDate(image.dateModified),
+                                modifier = Modifier.weight(1f, fill = false)
                             )
                         }
                     }
-
-                    // Extension badge (2-col only, bottom-end)
-                    if (!isDense && viewSettings.showFileExt && extension.isNotEmpty() && !isSelected) {
-                        Box(
+                } else {
+                    // Column count 3 or 4: Only show extension chip
+                    if (viewSettings.showFileExt && extension.isNotEmpty()) {
+                        InfoChip(
+                            text = extension,
+                            fontWeight = FontWeight.Bold,
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
                                 .padding(6.dp)
-                                .background(Color.Black.copy(alpha = 0.72f), RoundedCornerShape(5.dp))
-                                .padding(horizontal = 5.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = extension,
-                                color = Color.White,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 11.sp
-                            )
-                        }
-                    }
-
-                    SelectionCheckmarkOverlay(visible = isSelected, isDense = isDense)
-                }
-
-                // Bottom label: only shown for 2-col (non-dense) mode
-                if (!isDense) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 10.dp, top = 6.dp, end = 10.dp, bottom = 10.dp)
-                    ) {
-                        Text(
-                            text = baseName,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
-                                    else MaterialTheme.colorScheme.onSurface
                         )
-
-                        if (viewSettings.showPath) {
-                            Text(
-                                text = image.realPath,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(top = 1.dp, bottom = 3.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(3.dp))
-
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            if (viewSettings.showResolution && image.width > 0 && image.height > 0) {
-                                InfoChip(text = "${image.width}x${image.height}", bgColor = Color(0xFFE1F5FE), textColor = Color(0xFF0288D1))
-                            }
-                            if (viewSettings.showSize) {
-                                InfoChip(
-                                    text = formatSize(image.size),
-                                    bgColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    textColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            if (viewSettings.showDate) {
-                                InfoChip(
-                                    text = formatDate(image.dateModified),
-                                    bgColor = Color(0xFFFBE9E7),
-                                    textColor = Color(0xFFD84315)
-                                )
-                            }
-                        }
                     }
                 }
+
+                SelectionCheckmarkOverlay(visible = isSelected, isDense = isDense)
             }
         }
     }

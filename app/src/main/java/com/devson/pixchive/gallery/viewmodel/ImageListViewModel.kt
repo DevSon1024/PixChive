@@ -27,6 +27,8 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
 
     private val _uiState = MutableStateFlow<GalleryState>(GalleryState.Loading)
     private val _folders = MutableStateFlow<List<GalleryFolder>>(emptyList())
+    private val _selectedIds = MutableStateFlow<Set<String>>(emptySet())
+    val selectedIds: StateFlow<Set<String>> = _selectedIds
     
     private val preferencesManager = PreferencesManager(application)
     
@@ -108,6 +110,33 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
             preferencesManager.setGalleryShowSize(settings.showSize)
             preferencesManager.setGalleryShowDate(settings.showDate)
         }
+    }
+
+    fun toggleSelection(id: String) {
+        _selectedIds.value = _selectedIds.value.toMutableSet().apply {
+            if (!add(id)) remove(id)
+        }
+    }
+
+    fun enterSelectionMode(id: String) {
+        _selectedIds.value = setOf(id)
+    }
+
+    fun clearSelection() {
+        _selectedIds.value = emptySet()
+    }
+
+    fun selectRange(startIndex: Int, endIndex: Int) {
+        val state = _uiState.value as? GalleryState.Success ?: return
+        val items = state.folders
+        val start = minOf(startIndex, endIndex).coerceIn(0, items.lastIndex)
+        val end = maxOf(startIndex, endIndex).coerceIn(0, items.lastIndex)
+        
+        val newSelection = _selectedIds.value.toMutableSet()
+        for (i in start..end) {
+            newSelection.add(items[i].bucketId)
+        }
+        _selectedIds.value = newSelection
     }
 
     init {

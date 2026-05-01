@@ -27,10 +27,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.devson.pixchive.gallery.ui.components.GalleryImageItem
-import com.devson.pixchive.gallery.ui.components.GallerySelectionBottomBar
+import com.devson.pixchive.gallery.data.models.GalleryImage
 import com.devson.pixchive.gallery.ui.components.GalleryViewSettingsBottomSheet
 import com.devson.pixchive.gallery.ui.components.DetailsDialog
+import com.devson.pixchive.gallery.ui.components.GalleryImageItem
+import com.devson.pixchive.gallery.ui.components.GallerySelectionBottomBar
+import com.devson.pixchive.gallery.ui.components.gridDragSelect
 import com.devson.pixchive.gallery.viewmodel.AllImagesState
 import com.devson.pixchive.gallery.viewmodel.AllImagesViewModel
 
@@ -150,7 +152,20 @@ fun AllImagesScreen(
                                 contentPadding = PaddingValues(0.dp),
                                 horizontalArrangement = Arrangement.Start,
                                 verticalArrangement = Arrangement.Top,
-                                modifier = Modifier.fillMaxSize()
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .gridDragSelect(
+                                        state = gridState,
+                                        onDragStart = { idx ->
+                                            val item = state.gridItems.getOrNull(idx)
+                                            if (item is GalleryImage) {
+                                                viewModel.enterSelectionMode(item.id)
+                                            }
+                                        },
+                                        onSelectionChange = { start, end ->
+                                            viewModel.selectRangeIncremental(start, end)
+                                        }
+                                    )
                             ) {
                                 state.grouped.forEach { (dateLabel, images) ->
                                     item(
@@ -160,7 +175,7 @@ fun AllImagesScreen(
                                         DateGroupHeader(label = dateLabel)
                                     }
 
-                                    items(
+                                     items(
                                         items = images,
                                         key = { it.id }
                                     ) { image ->
@@ -171,22 +186,17 @@ fun AllImagesScreen(
                                             isListMode = true,
                                             columnCount = 1,
                                             viewSettings = viewSettings,
+                                            onThumbnailClick = {
+                                                viewModel.toggleSelection(image.id)
+                                            },
                                             onClick = {
-                                                if (selectedIds.isNotEmpty()) {
-                                                    viewModel.toggleSelection(image.id)
-                                                } else {
-                                                    val flatIdx = state.flatImages.indexOfFirst { it.id == image.id }
-                                                    if (flatIdx >= 0) {
-                                                        onImageClick(flatIdx)
-                                                    }
+                                                val flatIdx = state.flatImages.indexOfFirst { it.id == image.id }
+                                                if (flatIdx >= 0) {
+                                                    onImageClick(flatIdx)
                                                 }
                                             },
                                             onLongClick = {
-                                                if (selectedIds.isEmpty()) {
-                                                    viewModel.enterSelectionMode(image.id)
-                                                } else {
-                                                    viewModel.toggleSelection(image.id)
-                                                }
+                                                viewModel.toggleSelection(image.id)
                                             },
                                             modifier = Modifier.fillMaxWidth()
                                         )
@@ -211,6 +221,18 @@ fun AllImagesScreen(
                                 verticalArrangement = Arrangement.spacedBy(6.dp),
                                 modifier = Modifier
                                     .fillMaxSize()
+                                    .gridDragSelect(
+                                        state = gridState,
+                                        onDragStart = { idx ->
+                                            val item = state.gridItems.getOrNull(idx)
+                                            if (item is GalleryImage) {
+                                                viewModel.enterSelectionMode(item.id)
+                                            }
+                                        },
+                                        onSelectionChange = { start, end ->
+                                            viewModel.selectRangeIncremental(start, end)
+                                        }
+                                    )
                                     .pointerInput(Unit) {
                                         awaitEachGesture {
                                             awaitFirstDown(requireUnconsumed = false)
@@ -277,11 +299,7 @@ fun AllImagesScreen(
                                                 }
                                             },
                                             onLongClick = {
-                                                if (selectedIds.isEmpty()) {
-                                                    viewModel.enterSelectionMode(image.id)
-                                                } else {
-                                                    viewModel.toggleSelection(image.id)
-                                                }
+                                                viewModel.toggleSelection(image.id)
                                             },
                                             modifier = Modifier
                                                 .animateItem()

@@ -5,6 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -142,6 +143,7 @@ fun GalleryFolderItem(
     viewSettings: GalleryViewSettings = GalleryViewSettings(),
     showThumbnail: Boolean = viewSettings.showThumbnail,
     onClick: () -> Unit,
+    onThumbnailClick: (() -> Unit)? = null,
     onLongPress: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -177,11 +179,12 @@ fun GalleryFolderItem(
         Card(
             modifier = modifier
                 .fillMaxWidth()
-                .then(clickMod),
+                .padding(horizontal = 12.dp, vertical = 4.dp),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = bgColor),
             elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),
-            border = BorderStroke(if (isSelected) 1.5.dp else 0.dp, borderColor)
+            border = BorderStroke(if (isSelected) 1.5.dp else 0.dp, borderColor),
+            onClick = onClick
         ) {
             Box(modifier = Modifier.fillMaxWidth()) {
                 Row(
@@ -190,11 +193,22 @@ fun GalleryFolderItem(
                         .padding(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    FolderThumbnail(
-                        folder = folder,
-                        showThumbnail = showThumbnail,
-                        modifier = Modifier.size(width = 96.dp, height = 72.dp)
-                    )
+                    Card(
+                        modifier = Modifier
+                            .size(width = 96.dp, height = 72.dp)
+                            .clickable { 
+                                if (onThumbnailClick != null) onThumbnailClick() 
+                                else onLongPress() 
+                            },
+                        shape = RoundedCornerShape(10.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        FolderThumbnail(
+                            folder = folder,
+                            showThumbnail = showThumbnail,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                     Spacer(modifier = Modifier.width(14.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(

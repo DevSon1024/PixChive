@@ -21,6 +21,9 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
     private val _images = MutableStateFlow<List<GalleryImage>>(emptyList())
     private val preferencesManager = PreferencesManager(application)
 
+    private val _selectedIds = MutableStateFlow<Set<Long>>(emptySet())
+    val selectedIds: StateFlow<Set<Long>> = _selectedIds.asStateFlow()
+
     val sortOption: StateFlow<String> = preferencesManager.gallerySortOptionFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "date_newest")
     private val _currentBucketId = MutableStateFlow("")
@@ -101,6 +104,29 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
                 _isLoading.value = false
             }
         }
+    }
+
+    fun toggleSelection(id: Long) {
+        _selectedIds.value = _selectedIds.value.toMutableSet().apply {
+            if (!add(id)) remove(id)
+        }
+    }
+
+    fun selectRangeIncremental(startIndex: Int, currentIndex: Int) {
+        val currentImages = images.value
+        val start = minOf(startIndex, currentIndex).coerceIn(0, currentImages.lastIndex)
+        val end = maxOf(startIndex, currentIndex).coerceIn(0, currentImages.lastIndex)
+        
+        val rangeIds = currentImages.subList(start, end + 1).map { it.id }
+        _selectedIds.value = _selectedIds.value + rangeIds
+    }
+
+    fun enterSelectionMode(id: Long) {
+        _selectedIds.value = setOf(id)
+    }
+
+    fun clearSelection() {
+        _selectedIds.value = emptySet()
     }
 
     private fun sortImages(images: List<GalleryImage>, sort: String): List<GalleryImage> {

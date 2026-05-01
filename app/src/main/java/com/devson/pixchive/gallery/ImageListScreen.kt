@@ -29,9 +29,10 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.pixchive.gallery.data.models.GalleryFolder
 import com.devson.pixchive.gallery.ui.components.DetailsDialog
-import com.devson.pixchive.gallery.ui.components.GallerySelectionBottomBar
 import com.devson.pixchive.gallery.ui.components.GalleryFolderItem
+import com.devson.pixchive.gallery.ui.components.GallerySelectionBottomBar
 import com.devson.pixchive.gallery.ui.components.GalleryViewSettingsBottomSheet
+import com.devson.pixchive.gallery.ui.components.gridDragSelect
 import com.devson.pixchive.gallery.viewmodel.GalleryState
 import com.devson.pixchive.gallery.viewmodel.ImageListViewModel
 import com.devson.pixchive.utils.PermissionHelper
@@ -59,7 +60,7 @@ fun ImageListScreen(
 
     var hasPermission by remember { mutableStateOf(PermissionHelper.hasStoragePermission(context)) }
 
-    val selectedFolderIds = remember { mutableStateListOf<String>() }
+    val selectedFolderIds by viewModel.selectedIds.collectAsState()
     var showSettingsSheet by remember { mutableStateOf(false) }
     var showDetailsDialog by remember { mutableStateOf(false) }
 
@@ -78,7 +79,7 @@ fun ImageListScreen(
     )
 
     BackHandler(enabled = selectedFolderIds.isNotEmpty()) {
-        selectedFolderIds.clear()
+        viewModel.clearSelection()
     }
 
     DisposableEffect(lifecycleOwner) {
@@ -122,7 +123,7 @@ fun ImageListScreen(
                 TopAppBar(
                     title = { Text("${selectedFolderIds.size} selected") },
                     navigationIcon = {
-                        IconButton(onClick = { selectedFolderIds.clear() }) {
+                        IconButton(onClick = { viewModel.clearSelection() }) {
                             Icon(Icons.Default.Close, contentDescription = "Clear selection")
                         }
                     },
@@ -245,20 +246,13 @@ fun ImageListScreen(
                                             showThumbnail = showFolderThumbnail,
                                             modifier = Modifier.fillMaxWidth(),
                                             onClick = {
-                                                if (selectedFolderIds.isNotEmpty()) {
-                                                    if (folder.bucketId in selectedFolderIds) {
-                                                        selectedFolderIds.remove(folder.bucketId)
-                                                    } else {
-                                                        selectedFolderIds.add(folder.bucketId)
-                                                    }
-                                                } else {
-                                                    onFolderClick(folder.bucketId)
-                                                }
+                                                onFolderClick(folder.bucketId)
+                                            },
+                                            onThumbnailClick = {
+                                                viewModel.toggleSelection(folder.bucketId)
                                             },
                                             onLongPress = {
-                                                if (folder.bucketId !in selectedFolderIds) {
-                                                    selectedFolderIds.add(folder.bucketId)
-                                                }
+                                                viewModel.toggleSelection(folder.bucketId)
                                             }
                                         )
                                     }
@@ -279,7 +273,19 @@ fun ImageListScreen(
                                         contentPadding = PaddingValues(12.dp),
                                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                                         verticalArrangement = Arrangement.spacedBy(8.dp),
-                                        modifier = Modifier.fillMaxSize()
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .gridDragSelect(
+                                                state = gridState,
+                                                onDragStart = { idx ->
+                                                    state.folders.getOrNull(idx)?.let {
+                                                        viewModel.enterSelectionMode(it.bucketId)
+                                                    }
+                                                },
+                                                onSelectionChange = { start, end ->
+                                                    viewModel.selectRange(start, end)
+                                                }
+                                            )
                                     ) {
                                         items(state.folders, key = { it.bucketId }) { folder ->
                                             GalleryFolderItem(
@@ -291,19 +297,13 @@ fun ImageListScreen(
                                                 modifier = Modifier.pinchItem(key = folder.bucketId),
                                                 onClick = {
                                                     if (selectedFolderIds.isNotEmpty()) {
-                                                        if (folder.bucketId in selectedFolderIds) {
-                                                            selectedFolderIds.remove(folder.bucketId)
-                                                        } else {
-                                                            selectedFolderIds.add(folder.bucketId)
-                                                        }
+                                                        viewModel.toggleSelection(folder.bucketId)
                                                     } else {
                                                         onFolderClick(folder.bucketId)
                                                     }
                                                 },
                                                 onLongPress = {
-                                                    if (folder.bucketId !in selectedFolderIds) {
-                                                        selectedFolderIds.add(folder.bucketId)
-                                                    }
+                                                    viewModel.toggleSelection(folder.bucketId)
                                                 }
                                             )
                                         }

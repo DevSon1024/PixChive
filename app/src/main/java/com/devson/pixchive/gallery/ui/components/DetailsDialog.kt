@@ -24,10 +24,8 @@ fun DetailsDialog(
     folder: GalleryFolder? = null,
     onDismiss: () -> Unit
 ) {
-    val effectiveFolders = if (selectedFolders.isEmpty() && folder != null) listOf(folder) else selectedFolders
-
-    // If exactly 1 image and no folders are selected, show the full ImageDetailsDialog
-    if (effectiveFolders.isEmpty() && selectedImages.size == 1) {
+    // Prioritize showing full ImageDetailsDialog for a single image selection
+    if (selectedImages.size == 1 && selectedFolders.isEmpty()) {
         val image = selectedImages[0]
         val imageFile = ImageFile(
             name = File(image.realPath).name,
@@ -41,6 +39,12 @@ fun DetailsDialog(
             onDismiss = onDismiss
         )
         return
+    }
+
+    val effectiveFolders = if (selectedFolders.isEmpty() && selectedImages.isEmpty() && folder != null) {
+        listOf(folder)
+    } else {
+        selectedFolders
     }
 
     val title: String

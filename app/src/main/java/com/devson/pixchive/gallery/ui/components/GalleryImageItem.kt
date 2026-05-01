@@ -8,6 +8,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -126,6 +127,7 @@ fun GalleryImageItem(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
     isListMode: Boolean = false,
+    onThumbnailClick: (() -> Unit)? = null,
     // columnCount drives dense mode: 3+ cols = only extension badge shown
     columnCount: Int = 2,
     viewSettings: GalleryViewSettings = GalleryViewSettings()
@@ -153,21 +155,15 @@ fun GalleryImageItem(
         Card(
             modifier = modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 3.dp)
-                .galleryItemClick(
-                    onClick = onClick,
-                    onLongClick = {
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onLongClick()
-                    }
-                ),
+                .padding(horizontal = 12.dp, vertical = 3.dp),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = bgColor),
             elevation = CardDefaults.cardElevation(
                 defaultElevation = if (isSelected) 0.dp else 1.dp,
                 pressedElevation = 0.dp
             ),
-            border = BorderStroke(if (isSelected) 1.5.dp else 0.dp, borderColor)
+            border = BorderStroke(if (isSelected) 1.5.dp else 0.dp, borderColor),
+            onClick = onClick
         ) {
             Row(
                 modifier = Modifier
@@ -175,9 +171,14 @@ fun GalleryImageItem(
                     .padding(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Thumbnail
+                // Thumbnail: Tapping toggles selection
                 Card(
-                    modifier = Modifier.size(width = 100.dp, height = 75.dp),
+                    modifier = Modifier
+                        .size(width = 100.dp, height = 75.dp)
+                        .clickable { 
+                            if (onThumbnailClick != null) onThumbnailClick() 
+                            else onLongClick() 
+                        },
                     shape = RoundedCornerShape(10.dp),
                     elevation = CardDefaults.cardElevation(0.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.Transparent)

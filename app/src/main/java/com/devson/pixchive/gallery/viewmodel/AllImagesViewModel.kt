@@ -23,7 +23,11 @@ import java.util.Locale
 
 sealed class AllImagesState {
     object Loading : AllImagesState()
-    data class Success(val grouped: Map<String, List<GalleryImage>>, val flatImages: List<GalleryImage>) : AllImagesState()
+    data class Success(
+        val grouped: Map<String, List<GalleryImage>>,
+        val flatImages: List<GalleryImage>,
+        val gridItems: List<Any> = emptyList()
+    ) : AllImagesState()
     data class Error(val message: String) : AllImagesState()
 }
 
@@ -71,8 +75,16 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
             _uiState.value = AllImagesState.Loading
             try {
                 val images = repository.getAllImages()
-                val grouped = withContext(Dispatchers.Default) { groupByDate(images) }
-                _uiState.value = AllImagesState.Success(grouped, images)
+                val (grouped, gridItems) = withContext(Dispatchers.Default) { 
+                    val g = groupByDate(images)
+                    val items = mutableListOf<Any>()
+                    g.forEach { (label, imgs) ->
+                        items.add(label)
+                        items.addAll(imgs)
+                    }
+                    g to items
+                }
+                _uiState.value = AllImagesState.Success(grouped, images, gridItems)
             } catch (e: Exception) {
                 _uiState.value = AllImagesState.Error(e.message ?: "Failed to load images")
             }
@@ -83,6 +95,47 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
         _selectedIds.value = _selectedIds.value.toMutableSet().apply {
             if (!add(id)) remove(id)
         }
+    }
+
+    private var selectionAnchorIndex: Int? = null
+
+    fun selectRange(startIndex: Int, endIndex: Int) {
+        val state = _uiState.value as? AllImagesState.Success ?: return
+        val items = state.gridItems
+        
+        val start = minOf(startIndex, endIndex).coerceIn(0, items.lastIndex)
+        val end = maxOf(startIndex, endIndex).coerceIn(0, items.lastIndex)
+        
+        val newSelection = _selectedIds.value.toMutableSet()
+        for (i in start..end) {
+            val item = items[i]
+            if (item is GalleryImage) {
+                newSelection.add(item.id)
+            }
+        }
+        _selectedIds.value = newSelection
+    }
+
+    fun selectRangeIncremental(startIndex: Int, currentIndex: Int) {
+        val state = _uiState.value as? AllImagesState.Success ?: return
+        val items = state.gridItems
+        
+        val start = minOf(startIndex, currentIndex).coerceIn(0, items.lastIndex)
+        val end = maxOf(startIndex, currentIndex).coerceIn(0, items.lastIndex)
+        
+        val currentRangeIds = mutableSetOf<Long>()
+        for (i in start..end) {
+            val item = items[i]
+            if (item is GalleryImage) {
+                currentRangeIds.add(item.id)
+            }
+        }
+        
+        // When dragging, we want to replace the selection with the range starting from initial anchor
+        // But we should keep the items that were already selected before the drag started if we want "additive" behavior.
+        // Usually drag-select in galleries is additive to whatever was selected or toggles.
+        // For simplicity, let's make it additive for now.
+        _selectedIds.value = _selectedIds.value + currentRangeIds
     }
 
     fun enterSelectionMode(id: Long) {

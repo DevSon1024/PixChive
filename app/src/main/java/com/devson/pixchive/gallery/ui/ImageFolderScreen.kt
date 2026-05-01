@@ -26,6 +26,7 @@ import com.devson.pixchive.gallery.ui.components.DetailsDialog
 import com.devson.pixchive.gallery.ui.components.GallerySelectionBottomBar
 import com.devson.pixchive.gallery.ui.components.GalleryImageItem
 import com.devson.pixchive.gallery.ui.components.GalleryViewSettingsBottomSheet
+import com.devson.pixchive.gallery.ui.components.gridDragSelect
 import com.devson.pixchive.gallery.viewmodel.GalleryFolderViewModel
 import com.dokar.pinchzoomgrid.PinchZoomGridLayout
 import com.dokar.pinchzoomgrid.rememberPinchZoomGridState
@@ -48,7 +49,7 @@ fun ImageFolderScreen(
     val viewSettings by viewModel.viewSettings.collectAsState()
     val sortOption by viewModel.sortOption.collectAsState()
 
-    val selectedImageIds = remember { mutableStateListOf<Long>() }
+    val selectedImageIds by viewModel.selectedIds.collectAsState()
     var showSettingsSheet by remember { mutableStateOf(false) }
     var showDetailsDialog by remember { mutableStateOf(false) }
 
@@ -68,7 +69,7 @@ fun ImageFolderScreen(
     )
 
     BackHandler(enabled = selectedImageIds.isNotEmpty()) {
-        selectedImageIds.clear()
+        viewModel.clearSelection()
     }
 
     LaunchedEffect(bucketId) {
@@ -85,7 +86,7 @@ fun ImageFolderScreen(
                 TopAppBar(
                     title = { Text("${selectedImageIds.size} selected") },
                     navigationIcon = {
-                        IconButton(onClick = { selectedImageIds.clear() }) {
+                        IconButton(onClick = { viewModel.clearSelection() }) {
                             Icon(Icons.Default.Close, contentDescription = "Clear selection")
                         }
                     },
@@ -150,18 +151,16 @@ fun ImageFolderScreen(
                                 isListMode = true,
                                 columnCount = 1,
                                 viewSettings = viewSettings,
-                                modifier = sharedModifier.fillMaxWidth(),
+                                onThumbnailClick = {
+                                    viewModel.toggleSelection(image.id)
+                                },
                                 onClick = {
-                                    if (selectedImageIds.isNotEmpty()) {
-                                        if (image.id in selectedImageIds) selectedImageIds.remove(image.id)
-                                        else selectedImageIds.add(image.id)
-                                    } else {
-                                        onImageClick(index)
-                                    }
+                                    onImageClick(index)
                                 },
                                 onLongClick = {
-                                    if (image.id !in selectedImageIds) selectedImageIds.add(image.id)
-                                }
+                                    viewModel.toggleSelection(image.id)
+                                },
+                                modifier = sharedModifier.fillMaxWidth()
                             )
                         }
                     }
@@ -183,7 +182,19 @@ fun ImageFolderScreen(
                             contentPadding = PaddingValues(2.dp),
                             horizontalArrangement = Arrangement.spacedBy(2.dp),
                             verticalArrangement = Arrangement.spacedBy(2.dp),
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .gridDragSelect(
+                                    state = gridState,
+                                    onSelectionChange = { start, current ->
+                                        viewModel.selectRangeIncremental(start, current)
+                                    },
+                                    onDragStart = { index ->
+                                        if (selectedImageIds.isEmpty()) {
+                                            viewModel.enterSelectionMode(images[index].id)
+                                        }
+                                    }
+                                )
                         ) {
                             gridItemsIndexed(images, key = { _, img -> img.id }) { index, image ->
                                 val sharedModifier = with(sharedTransitionScope) {
@@ -201,14 +212,13 @@ fun ImageFolderScreen(
                                     modifier = sharedModifier.pinchItem(key = image.id),
                                     onClick = {
                                         if (selectedImageIds.isNotEmpty()) {
-                                            if (image.id in selectedImageIds) selectedImageIds.remove(image.id)
-                                            else selectedImageIds.add(image.id)
+                                            viewModel.toggleSelection(image.id)
                                         } else {
                                             onImageClick(index)
                                         }
                                     },
                                     onLongClick = {
-                                        if (image.id !in selectedImageIds) selectedImageIds.add(image.id)
+                                        viewModel.toggleSelection(image.id)
                                     }
                                 )
                             }

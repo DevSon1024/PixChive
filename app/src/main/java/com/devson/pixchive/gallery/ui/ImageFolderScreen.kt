@@ -4,12 +4,18 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed as listItemsIndexed
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
@@ -19,6 +25,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.pixchive.gallery.data.models.GalleryImage
@@ -29,8 +36,6 @@ import com.devson.pixchive.gallery.ui.components.GalleryViewSettingsBottomSheet
 import com.devson.pixchive.gallery.ui.components.CustomRenameDialog
 import com.devson.pixchive.gallery.ui.components.gridDragSelect
 import com.devson.pixchive.gallery.viewmodel.GalleryFolderViewModel
-import com.dokar.pinchzoomgrid.PinchZoomGridLayout
-import com.dokar.pinchzoomgrid.rememberPinchZoomGridState
 
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -55,20 +60,7 @@ fun ImageFolderScreen(
     var showDetailsDialog by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
 
-    // 4 cols (zoom out) -> 3 -> 2 (zoom in)
-    val cellsConfig = remember {
-        mapOf(
-            GridCells.Fixed(4) to 4,
-            GridCells.Fixed(3) to 3,
-            GridCells.Fixed(2) to 2
-        )
-    }
-    val cellsList = remember { cellsConfig.keys.toList() }
-
-    val pinchZoomGridState = rememberPinchZoomGridState(
-        cellsList = cellsList,
-        initialCellsIndex = savedGridCellsIndex.coerceIn(0, cellsList.lastIndex)
-    )
+    val gridState = rememberLazyGridState()
 
     BackHandler(enabled = selectedImageIds.isNotEmpty()) {
         viewModel.clearSelection()
@@ -153,77 +145,105 @@ fun ImageFolderScreen(
                                 isListMode = true,
                                 columnCount = 1,
                                 viewSettings = viewSettings,
-                                onThumbnailClick = {
-                                    viewModel.toggleSelection(image.id)
-                                },
-                                onClick = {
-                                    onImageClick(index)
-                                },
-                                onLongClick = {
-                                    viewModel.toggleSelection(image.id)
-                                },
+                                onThumbnailClick = { viewModel.toggleSelection(image.id) },
+                                onClick = { onImageClick(index) },
+                                onLongClick = { viewModel.toggleSelection(image.id) },
                                 modifier = sharedModifier.fillMaxWidth()
                             )
                         }
                     }
                 } else {
-                    PinchZoomGridLayout(state = pinchZoomGridState) {
-                        // gridCells and gridState are provided by PinchZoomGridLayout scope
-                        val currentColumnCount = cellsConfig[gridCells] ?: 4
+                    var currentColumns by remember(savedGridCellsIndex) {
+                        mutableStateOf(4 - savedGridCellsIndex.coerceIn(0, 2))
+                    }
+                    var accumulatedZoom by remember { mutableFloatStateOf(1f) }
 
-                        LaunchedEffect(currentColumnCount) {
-                            val newIndex = 4 - currentColumnCount
-                            if (newIndex in 0..2 && newIndex != savedGridCellsIndex) {
-                                viewModel.setGridCellsIndex(newIndex)
-                            }
-                        }
+                    val animatedColumns by animateIntAsState(
+                        targetValue = currentColumns,
+                        animationSpec = tween(300),
+                        label = "columns_anim"
+                    )
 
-                        LazyVerticalGrid(
-                            columns = gridCells,
-                            state = gridState,
-                            contentPadding = PaddingValues(2.dp),
-                            horizontalArrangement = Arrangement.spacedBy(2.dp),
-                            verticalArrangement = Arrangement.spacedBy(2.dp),
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .gridDragSelect(
-                                    state = gridState,
-                                    onSelectionChange = { start, current ->
-                                        viewModel.selectRangeIncremental(start, current)
-                                    },
-                                    onDragStart = { index ->
-                                        if (selectedImageIds.isEmpty()) {
-                                            viewModel.enterSelectionMode(images[index].id)
-                                        }
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(animatedColumns.coerceIn(2, 4)),
+                        state = gridState,
+                        contentPadding = PaddingValues(2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .gridDragSelect(
+                                state = gridState,
+                                onSelectionChange = { start, current ->
+                                    viewModel.selectRangeIncremental(start, current)
+                                },
+                                onDragStart = { index ->
+                                    if (selectedImageIds.isEmpty()) {
+                                        viewModel.enterSelectionMode(images[index].id)
                                     }
-                                )
-                        ) {
-                            gridItemsIndexed(images, key = { _, img -> img.id }) { index, image ->
-                                val sharedModifier = with(sharedTransitionScope) {
-                                    Modifier.sharedElement(
-                                        sharedContentState = rememberSharedContentState(key = "image_${image.id}"),
-                                        animatedVisibilityScope = animatedVisibilityScope
-                                    )
                                 }
-                                GalleryImageItem(
-                                    image = image,
-                                    isSelected = image.id in selectedImageIds,
-                                    isListMode = false,
-                                    columnCount = currentColumnCount,
-                                    viewSettings = viewSettings,
-                                    modifier = sharedModifier.pinchItem(key = image.id),
-                                    onClick = {
-                                        if (selectedImageIds.isNotEmpty()) {
-                                            viewModel.toggleSelection(image.id)
+                            )
+                            .pointerInput(Unit) {
+                                awaitEachGesture {
+                                    awaitFirstDown(requireUnconsumed = false)
+                                    var hasChangedInThisGesture = false
+                                    do {
+                                        val event = awaitPointerEvent()
+                                        if (event.changes.size >= 2) {
+                                            val zoom = event.calculateZoom()
+                                            accumulatedZoom *= zoom
+                                            if (!hasChangedInThisGesture) {
+                                                if (accumulatedZoom > 1.25f) {
+                                                    val newCols = (currentColumns - 1).coerceIn(2, 4)
+                                                    if (newCols != currentColumns) {
+                                                        currentColumns = newCols
+                                                        viewModel.setGridCellsIndex(4 - newCols)
+                                                    }
+                                                    hasChangedInThisGesture = true
+                                                } else if (accumulatedZoom < 0.75f) {
+                                                    val newCols = (currentColumns + 1).coerceIn(2, 4)
+                                                    if (newCols != currentColumns) {
+                                                        currentColumns = newCols
+                                                        viewModel.setGridCellsIndex(4 - newCols)
+                                                    }
+                                                    hasChangedInThisGesture = true
+                                                }
+                                            }
+                                            event.changes.forEach { if (it.pressed) it.consume() }
                                         } else {
-                                            onImageClick(index)
+                                            accumulatedZoom = 1f
+                                            hasChangedInThisGesture = false
                                         }
-                                    },
-                                    onLongClick = {
-                                        viewModel.toggleSelection(image.id)
-                                    }
+                                    } while (event.changes.any { it.pressed })
+                                }
+                            }
+                    ) {
+                        gridItemsIndexed(images, key = { _, img -> img.id }) { index, image ->
+                            val sharedModifier = with(sharedTransitionScope) {
+                                Modifier.sharedElement(
+                                    sharedContentState = rememberSharedContentState(key = "image_${image.id}"),
+                                    animatedVisibilityScope = animatedVisibilityScope
                                 )
                             }
+                            GalleryImageItem(
+                                image = image,
+                                isSelected = image.id in selectedImageIds,
+                                isListMode = false,
+                                columnCount = animatedColumns.coerceIn(2, 4),
+                                viewSettings = viewSettings,
+                                modifier = sharedModifier
+                                    .animateItem()
+                                    .fillMaxWidth()
+                                    .aspectRatio(1f),
+                                onClick = {
+                                    if (selectedImageIds.isNotEmpty()) {
+                                        viewModel.toggleSelection(image.id)
+                                    } else {
+                                        onImageClick(index)
+                                    }
+                                },
+                                onLongClick = { viewModel.toggleSelection(image.id) }
+                            )
                         }
                     }
                 }

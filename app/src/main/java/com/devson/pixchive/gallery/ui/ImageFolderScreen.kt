@@ -70,9 +70,9 @@ fun ImageFolderScreen(
         viewModel.loadImages(bucketId)
     }
 
-    val selectedImages: List<GalleryImage> = if (showDetailsDialog) {
+    val selectedImages = remember(selectedImageIds, images) {
         images.filter { it.id in selectedImageIds }
-    } else emptyList()
+    }
 
     Scaffold(
         topBar = {
@@ -110,12 +110,11 @@ fun ImageFolderScreen(
         bottomBar = {
             if (selectedImageIds.isNotEmpty()) {
                 GallerySelectionBottomBar(
-                    selectedCount = selectedImageIds.size,
+                    selectedImages = selectedImages,
                     onMove = {},
                     onCopy = {},
                     onDelete = {},
                     onRename = { showRenameDialog = true },
-                    onShare = {},
                     onInfo = { showDetailsDialog = true }
                 )
             }

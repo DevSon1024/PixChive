@@ -151,12 +151,11 @@ fun ImageListScreen(
         bottomBar = {
             if (selectedFolderIds.isNotEmpty()) {
                 GallerySelectionBottomBar(
-                    selectedCount = selectedFolderIds.size,
+                    selectedImages = emptyList(), // Folder sharing not yet implemented
                     onMove = {},
                     onCopy = {},
                     onDelete = {},
                     onRename = { showRenameDialog = true },
-                    onShare = {},
                     onInfo = { showDetailsDialog = true }
                 )
             }

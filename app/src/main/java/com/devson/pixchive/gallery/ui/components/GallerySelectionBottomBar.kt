@@ -26,16 +26,20 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import androidx.compose.ui.platform.LocalContext
+import com.devson.pixchive.gallery.data.models.GalleryImage
+import com.devson.pixchive.utils.shareMedia
+
 @Composable
 fun GallerySelectionBottomBar(
-    selectedCount: Int,
+    selectedImages: List<GalleryImage>,
     onMove: () -> Unit,
     onCopy: () -> Unit,
     onDelete: () -> Unit,
     onRename: () -> Unit,
-    onShare: () -> Unit,
     onInfo: () -> Unit
 ) {
+    val context = LocalContext.current
     BottomAppBar(
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -50,14 +54,18 @@ fun GallerySelectionBottomBar(
         ) {
             ActionColumn(icon = Icons.AutoMirrored.Filled.DriveFileMove, label = "Move", onClick = onMove)
             ActionColumn(icon = Icons.Filled.ContentCopy, label = "Copy", onClick = onCopy)
-            if (selectedCount == 1) {
+            if (selectedImages.size == 1) {
                 ActionColumn(
                     icon = Icons.Filled.Edit,
                     label = "Rename",
                     onClick = onRename
                 )
             }
-            ActionColumn(icon = Icons.Filled.Share, label = "Share", onClick = onShare)
+            ActionColumn(
+                icon = Icons.Filled.Share,
+                label = "Share",
+                onClick = { shareMedia(context, selectedImages) }
+            )
             ActionColumn(icon = Icons.Filled.Info, label = "Info", onClick = onInfo)
             ActionColumn(icon = Icons.Filled.Delete, label = "Delete", onClick = onDelete, tint = MaterialTheme.colorScheme.error)
         }

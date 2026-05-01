@@ -105,13 +105,13 @@ fun AllImagesScreen(
         },
         bottomBar = {
             if (selectedIds.isNotEmpty()) {
+                val selectedImages = (uiState as? AllImagesState.Success)?.flatImages?.filter { it.id in selectedIds } ?: emptyList()
                 GallerySelectionBottomBar(
-                    selectedCount = selectedIds.size,
+                    selectedImages = selectedImages,
                     onMove = {},
                     onCopy = {},
                     onDelete = {},
                     onRename = { showRenameDialog = true },
-                    onShare = {},
                     onInfo = { showDetailsDialog = true }
                 )
             }

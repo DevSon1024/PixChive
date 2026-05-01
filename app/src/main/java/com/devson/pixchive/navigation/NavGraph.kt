@@ -96,8 +96,12 @@ fun NavGraph(
                             )
                         )
                     },
-                    onBrowseGalleryClick = {
-                        navController.navigate(Screen.ImageList.route)
+                    onBrowseGalleryClick = { mode ->
+                        if (mode == "all_images") {
+                            navController.navigate(Screen.AllImages.route)
+                        } else {
+                            navController.navigate(Screen.ImageList.route)
+                        }
                     }
                 )
             }
@@ -108,7 +112,12 @@ fun NavGraph(
                         navController.navigate(Screen.ImageFolder.createRoute(bucketId))
                     },
                     onSettingsClick = { navController.navigate(Screen.Settings.route) },
-                    onAllImagesClick = { navController.navigate(Screen.AllImages.route) }
+                    onAllImagesClick = {
+                        navController.navigate(Screen.AllImages.route) {
+                            popUpTo(Screen.Home.route) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    }
                 )
             }
 
@@ -118,6 +127,12 @@ fun NavGraph(
                     onSettingsClick = { navController.navigate(Screen.Settings.route) },
                     onImageClick = { index ->
                         navController.navigate(Screen.GalleryImageViewer.createRoute("all_images", index))
+                    },
+                    onAlbumsClick = {
+                        navController.navigate(Screen.ImageList.route) {
+                            popUpTo(Screen.Home.route) { inclusive = false }
+                            launchSingleTop = true
+                        }
                     }
                 )
             }

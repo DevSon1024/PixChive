@@ -65,7 +65,7 @@ fun HomeScreen(
     onSettingsClick: () -> Unit = {},
     onFavoritesClick: () -> Unit = {},
     onResumeChapter: (folderId: String, chapterPath: String, initialPage: Int) -> Unit = { _, _, _ -> },
-    onBrowseGalleryClick: () -> Unit = {}
+    onBrowseGalleryClick: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val activity = context as? Activity
@@ -81,6 +81,7 @@ fun HomeScreen(
     val layoutMode by viewModel.layoutMode.collectAsState()
     val sortOption by viewModel.sortOption.collectAsState()
     val gridColumns by viewModel.gridColumns.collectAsState()
+    val galleryViewMode by viewModel.galleryViewMode.collectAsState()
 
     var permissionState by remember { mutableStateOf<PermissionState>(PermissionState.NotRequested) }
     var showRationaleDialog by remember { mutableStateOf(false) }
@@ -196,7 +197,7 @@ fun HomeScreen(
                 folders.isEmpty() -> {
                     // Apply top padding to empty state
                     Box(modifier = Modifier.padding(top = paddingValues.calculateTopPadding())) {
-                        EmptyStateContent(onBrowseGalleryClick = onBrowseGalleryClick)
+                        EmptyStateContent(onBrowseGalleryClick = { onBrowseGalleryClick(galleryViewMode) })
                     }
                 }
                 else -> {
@@ -220,7 +221,7 @@ fun HomeScreen(
                             // NEW BROWSE GALLERY BUTTON
                             item(span = { GridItemSpan(maxLineSpan) }) {
                                 Button(
-                                    onClick = onBrowseGalleryClick,
+                                    onClick = { onBrowseGalleryClick(galleryViewMode) },
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(horizontal = 16.dp, vertical = 8.dp),

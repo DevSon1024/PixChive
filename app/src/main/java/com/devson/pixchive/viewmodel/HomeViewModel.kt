@@ -63,6 +63,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
+    val galleryViewMode: StateFlow<String> = preferencesManager.galleryViewModeFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "albums")
+
     init {
         loadPreferences()
     }

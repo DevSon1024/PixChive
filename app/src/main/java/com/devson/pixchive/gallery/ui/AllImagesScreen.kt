@@ -43,6 +43,7 @@ fun AllImagesScreen(
     onNavigateBack: () -> Unit,
     onSettingsClick: () -> Unit,
     onImageClick: (Int) -> Unit = {},
+    onAlbumsClick: () -> Unit = {},
     viewModel: AllImagesViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -292,7 +293,7 @@ fun AllImagesScreen(
                     viewModel.setGalleryViewMode(mode)
                     if (mode == "albums") {
                         showSettingsSheet = false
-                        onNavigateBack()
+                        onAlbumsClick()
                     }
                 },
                 onDismiss = { showSettingsSheet = false }

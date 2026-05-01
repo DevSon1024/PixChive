@@ -52,7 +52,7 @@ fun ImageFolderScreen(
     var showSettingsSheet by remember { mutableStateOf(false) }
     var showDetailsDialog by remember { mutableStateOf(false) }
 
-    // Pinch-zoom grid state: 4 cols (zoom out) -> 3 -> 2 (zoom in)
+    // 4 cols (zoom out) -> 3 -> 2 (zoom in)
     val cellsConfig = remember {
         mapOf(
             GridCells.Fixed(4) to 4,
@@ -89,7 +89,6 @@ fun ImageFolderScreen(
                             Icon(Icons.Default.Close, contentDescription = "Clear selection")
                         }
                     },
-
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant
                     )
@@ -135,8 +134,7 @@ fun ImageFolderScreen(
             } else {
                 if (layoutMode == "list") {
                     LazyColumn(
-                        contentPadding = PaddingValues(2.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(bottom = 16.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
                         listItemsIndexed(images, key = { _, img -> img.id }) { index, image ->
@@ -150,6 +148,7 @@ fun ImageFolderScreen(
                                 image = image,
                                 isSelected = image.id in selectedImageIds,
                                 isListMode = true,
+                                columnCount = 1,
                                 viewSettings = viewSettings,
                                 modifier = sharedModifier.fillMaxWidth(),
                                 onClick = {
@@ -160,14 +159,15 @@ fun ImageFolderScreen(
                                         onImageClick(index)
                                     }
                                 },
-                                    onLongClick = {
-                                        if (image.id !in selectedImageIds) selectedImageIds.add(image.id)
-                                    }
+                                onLongClick = {
+                                    if (image.id !in selectedImageIds) selectedImageIds.add(image.id)
+                                }
                             )
                         }
                     }
                 } else {
                     PinchZoomGridLayout(state = pinchZoomGridState) {
+                        // gridCells and gridState are provided by PinchZoomGridLayout scope
                         val currentColumnCount = cellsConfig[gridCells] ?: 4
 
                         LaunchedEffect(currentColumnCount) {
@@ -176,6 +176,7 @@ fun ImageFolderScreen(
                                 viewModel.setGridCellsIndex(newIndex)
                             }
                         }
+
                         LazyVerticalGrid(
                             columns = gridCells,
                             state = gridState,
@@ -194,6 +195,8 @@ fun ImageFolderScreen(
                                 GalleryImageItem(
                                     image = image,
                                     isSelected = image.id in selectedImageIds,
+                                    isListMode = false,
+                                    columnCount = currentColumnCount,
                                     viewSettings = viewSettings,
                                     modifier = sharedModifier.pinchItem(key = image.id),
                                     onClick = {
@@ -204,9 +207,9 @@ fun ImageFolderScreen(
                                             onImageClick(index)
                                         }
                                     },
-                                        onLongClick = {
-                                            if (image.id !in selectedImageIds) selectedImageIds.add(image.id)
-                                        }
+                                    onLongClick = {
+                                        if (image.id !in selectedImageIds) selectedImageIds.add(image.id)
+                                    }
                                 )
                             }
                         }
@@ -214,7 +217,6 @@ fun ImageFolderScreen(
                 }
             }
         }
-
 
         if (showSettingsSheet) {
             GalleryViewSettingsBottomSheet(

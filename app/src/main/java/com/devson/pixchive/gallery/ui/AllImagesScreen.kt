@@ -42,8 +42,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.IntentSenderRequest
 import androidx.compose.ui.platform.LocalContext
 
-
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AllImagesScreen(

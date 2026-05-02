@@ -14,8 +14,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Dispatchers
 import com.devson.pixchive.gallery.data.models.GalleryViewSettings
 
+@OptIn(FlowPreview::class)
 class GalleryFolderViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = MediaStoreRepository(application)
 
@@ -28,6 +32,19 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
     val sortOption: StateFlow<String> = preferencesManager.gallerySortOptionFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "date_newest")
     private val _currentBucketId = MutableStateFlow("")
+
+    init {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.observeMediaStoreChanges()
+                .debounce(500L)
+                .collect {
+                    val bucketId = _currentBucketId.value
+                    if (bucketId.isNotEmpty()) {
+                        loadImages(bucketId)
+                    }
+                }
+        }
+    }
 
     val images: StateFlow<List<GalleryImage>> = combine(_images, sortOption, _currentBucketId) { imgs, sort, bucket ->
         if (bucket == "all_images") imgs else sortImages(imgs, sort)

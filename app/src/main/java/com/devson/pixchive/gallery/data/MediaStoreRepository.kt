@@ -7,6 +7,7 @@ import android.provider.MediaStore
 import com.devson.pixchive.gallery.data.models.GalleryFolder
 import com.devson.pixchive.gallery.data.models.GalleryImage
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -253,6 +254,22 @@ class MediaStoreRepository(private val context: Context) {
             }
         } catch (e: Exception) {
             false
+        }
+    }
+
+    fun observeMediaStoreChanges(): kotlinx.coroutines.flow.Flow<Unit> = kotlinx.coroutines.flow.callbackFlow {
+        val observer = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                trySend(Unit)
+            }
+        }
+        context.contentResolver.registerContentObserver(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            true,
+            observer
+        )
+        awaitClose {
+            context.contentResolver.unregisterContentObserver(observer)
         }
     }
 }

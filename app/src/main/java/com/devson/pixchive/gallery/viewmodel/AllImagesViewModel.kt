@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.FlowPreview
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -32,6 +34,7 @@ sealed class AllImagesState {
     data class Error(val message: String) : AllImagesState()
 }
 
+@OptIn(FlowPreview::class)
 class AllImagesViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = MediaStoreRepository(application)
@@ -69,6 +72,13 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
 
     init {
         loadAllImages()
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.observeMediaStoreChanges()
+                .debounce(500L)
+                .collect {
+                    loadAllImages()
+                }
+        }
     }
 
     fun loadAllImages() {

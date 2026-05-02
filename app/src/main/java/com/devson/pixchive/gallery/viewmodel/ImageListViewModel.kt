@@ -13,6 +13,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Dispatchers
 import com.devson.pixchive.gallery.data.models.GalleryViewSettings
 
 sealed class GalleryState {
@@ -22,6 +25,7 @@ sealed class GalleryState {
 }
 
 // Using AndroidViewModel to easily access context for the MediaStoreRepository
+@OptIn(FlowPreview::class)
 class ImageListViewModel(application: Application) : AndroidViewModel(application) {
     
     private val repository = MediaStoreRepository(application)
@@ -159,6 +163,13 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
 
     init {
         loadGalleryFolders()
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.observeMediaStoreChanges()
+                .debounce(500L)
+                .collect {
+                    loadGalleryFolders()
+                }
+        }
     }
 
     fun loadGalleryFolders() {
@@ -176,7 +187,7 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun removeFoldersLocally(uris: List<Uri>) {
         // If a folder has no images left (because they were deleted), we should remove it from the list.
-        // For simplicity, we just trigger a full reload when images are deleted, 
+        // For simplicity, we just trigger a full reload when images are deleted,
         // because determining if a folder is now completely empty requires checking all remaining MediaStore items.
         // Alternatively, if we just want to force a refresh:
         loadGalleryFolders()

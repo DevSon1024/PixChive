@@ -77,6 +77,9 @@ fun Modifier.gridDragSelect(
 
         detectDragGesturesAfterLongPress(
             onDragStart = { offset ->
+                val viewportOffset = state.layoutInfo.viewportStartOffset
+                val contentOffset = offset.copy(y = offset.y - viewportOffset)
+
                 val item = state.layoutInfo.visibleItemsInfo.firstOrNull { item ->
                     val rect = Rect(
                         item.offset.x.toFloat(),
@@ -84,7 +87,7 @@ fun Modifier.gridDragSelect(
                         item.offset.x.toFloat() + item.size.width,
                         item.offset.y.toFloat() + item.size.height
                     )
-                    rect.contains(offset)
+                    rect.contains(contentOffset)
                 }
                 item?.let {
                     initialIndex = it.index
@@ -93,7 +96,9 @@ fun Modifier.gridDragSelect(
                 }
             },
             onDrag = { change, _ ->
-                val offset = change.position
+                val viewportOffset = state.layoutInfo.viewportStartOffset
+                val contentOffset = change.position.copy(y = change.position.y - viewportOffset)
+
                 val item = state.layoutInfo.visibleItemsInfo.firstOrNull { item ->
                     val rect = Rect(
                         item.offset.x.toFloat(),
@@ -101,7 +106,7 @@ fun Modifier.gridDragSelect(
                         item.offset.x.toFloat() + item.size.width,
                         item.offset.y.toFloat() + item.size.height
                     )
-                    rect.contains(offset)
+                    rect.contains(contentOffset)
                 }
                 item?.let {
                     if (it.index != currentIndex) {

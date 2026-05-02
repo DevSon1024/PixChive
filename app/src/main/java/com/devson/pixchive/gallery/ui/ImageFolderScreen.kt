@@ -101,6 +101,7 @@ fun ImageFolderScreen(
         images.filter { it.id in selectedImageIds }
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
         topBar = {
             if (selectedImageIds.isNotEmpty()) {
@@ -117,7 +118,7 @@ fun ImageFolderScreen(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        containerColor = MaterialTheme.colorScheme.background
                     )
                 )
             } else {
@@ -135,7 +136,10 @@ fun ImageFolderScreen(
                         IconButton(onClick = onSettingsClick) {
                             Icon(Icons.Default.Settings, contentDescription = "App Settings")
                         }
-                    }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background
+                    )
                 )
             }
         },
@@ -322,18 +326,19 @@ fun ImageFolderScreen(
                 )
             }
         }
+    }
 
-        if (showStorageExplorer) {
-            val selectedImages = images.filter { it.id in selectedImageIds }
-            com.devson.pixchive.ui.screens.StorageExplorerScreen(
-                operationType = explorerOperationType,
-                sourceUris = selectedImages.map { it.uri },
-                onComplete = {
-                    showStorageExplorer = false
-                    viewModel.clearSelection()
-                },
-                onCancel = { showStorageExplorer = false }
-            )
-        }
+    if (showStorageExplorer) {
+        val selectedImages = images.filter { it.id in selectedImageIds }
+        com.devson.pixchive.ui.screens.StorageExplorerScreen(
+            operationType = explorerOperationType,
+            sourceUris = selectedImages.map { it.uri },
+            onComplete = {
+                showStorageExplorer = false
+                viewModel.clearSelection()
+            },
+            onCancel = { showStorageExplorer = false }
+        )
+    }
     }
 }

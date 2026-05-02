@@ -10,6 +10,11 @@ import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -22,7 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CreateNewFolder
-import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -48,18 +53,24 @@ fun StorageExplorerScreen(
     onCancel: () -> Unit,
     fileOpsViewModel: FileOperationsViewModel = viewModel()
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+    AnimatedVisibility(
+        visible = true,
+        enter = fadeIn() + slideInVertically(initialOffsetY = { it / 8 }),
+        exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 8 })
     ) {
-        StorageExplorerContent(
-            operationType = operationType,
-            sourceUris = sourceUris,
-            onComplete = onComplete,
-            onCancel = onCancel,
-            fileOpsViewModel = fileOpsViewModel
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+        ) {
+            StorageExplorerContent(
+                operationType = operationType,
+                sourceUris = sourceUris,
+                onComplete = onComplete,
+                onCancel = onCancel,
+                fileOpsViewModel = fileOpsViewModel
+            )
+        }
     }
 }
 
@@ -158,23 +169,31 @@ private fun StorageExplorerContent(
                         if (!isAtRoot) currentDirectory = currentDirectory.parentFile ?: rootDir
                         else onCancel()
                     }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back)
+                        )
                     }
                 },
                 actions = {
                     IconButton(onClick = { showCreateFolderDialog = true }) {
-                        Icon(Icons.Filled.CreateNewFolder, contentDescription = stringResource(R.string.cd_create_new_folder))
+                        Icon(
+                            Icons.Filled.CreateNewFolder,
+                            contentDescription = stringResource(R.string.cd_create_new_folder)
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = MaterialTheme.colorScheme.background,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             )
         },
         bottomBar = {
             Surface(
-                color = MaterialTheme.colorScheme.background,
-                tonalElevation = 0.dp
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 3.dp,
+                shadowElevation = 8.dp
             ) {
                 Column(
                     modifier = Modifier
@@ -192,7 +211,7 @@ private fun StorageExplorerContent(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -206,7 +225,8 @@ private fun StorageExplorerContent(
                             Text(
                                 text = stringResource(R.string.storage_items_count, sourceUris.size),
                                 style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -312,7 +332,8 @@ private fun BreadcrumbRow(
     LazyRow(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         items(segments.indices.toList()) { index ->
@@ -321,7 +342,7 @@ private fun BreadcrumbRow(
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodySmall,
-                fontWeight = if (isLast) FontWeight.SemiBold else FontWeight.Normal,
+                fontWeight = if (isLast) FontWeight.Bold else FontWeight.Normal,
                 color = if (isLast) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
                     .clip(RoundedCornerShape(4.dp))
@@ -347,26 +368,31 @@ private fun FolderRow(folder: File, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Box(
             modifier = Modifier
-                .size(40.dp)
+                .size(42.dp)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.secondaryContainer),
+                .background(MaterialTheme.colorScheme.primaryContainer),
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.Filled.Folder,
+                imageVector = Icons.Filled.FolderOpen,
                 contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                modifier = Modifier.size(22.dp),
+                tint = MaterialTheme.colorScheme.onPrimaryContainer
             )
         }
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = folder.name, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = folder.name,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
             if (subFolderCount > 0) {
                 Text(
                     text = "$subFolderCount subfolder${if (subFolderCount != 1) "s" else ""}",

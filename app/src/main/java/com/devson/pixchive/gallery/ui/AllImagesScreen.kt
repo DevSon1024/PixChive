@@ -92,6 +92,7 @@ fun AllImagesScreen(
         viewModel.clearSelection()
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
         topBar = {
             if (selectedIds.isNotEmpty()) {
@@ -108,7 +109,7 @@ fun AllImagesScreen(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        containerColor = MaterialTheme.colorScheme.background
                     )
                 )
             } else {
@@ -148,7 +149,6 @@ fun AllImagesScreen(
                     },
                     onDelete = {
                         fileOpsViewModel.deleteImages(context, selectedImages.map { it.uri }, trash = true)
-                        // Selection will be cleared after permission granted or if no permission needed
                     },
                     onRename = { showRenameDialog = true },
                     onInfo = { showDetailsDialog = true }
@@ -202,18 +202,6 @@ fun AllImagesScreen(
                                 verticalArrangement = Arrangement.Top,
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    // .gridDragSelect(
-                                    //     state = gridState,
-                                    //     onDragStart = { idx ->
-                                    //         val item = state.gridItems.getOrNull(idx)
-                                    //         if (item is GalleryImage) {
-                                    //             viewModel.enterSelectionMode(item.id)
-                                    //         }
-                                    //     },
-                                    //     onSelectionChange = { start, end ->
-                                    //         viewModel.selectRangeIncremental(start, end)
-                                    //     }
-                                    // )
                             ) {
                                 state.grouped.forEach { (dateLabel, images) ->
                                     item(
@@ -406,19 +394,20 @@ fun AllImagesScreen(
                 )
             }
         }
+    }
 
-        if (showStorageExplorer) {
-            val selectedImages = (uiState as? AllImagesState.Success)?.flatImages?.filter { it.id in selectedIds } ?: emptyList()
-            com.devson.pixchive.ui.screens.StorageExplorerScreen(
-                operationType = explorerOperationType,
-                sourceUris = selectedImages.map { it.uri },
-                onComplete = {
-                    showStorageExplorer = false
-                    viewModel.clearSelection()
-                },
-                onCancel = { showStorageExplorer = false }
-            )
-        }
+    if (showStorageExplorer) {
+        val selectedImages = (uiState as? AllImagesState.Success)?.flatImages?.filter { it.id in selectedIds } ?: emptyList()
+        com.devson.pixchive.ui.screens.StorageExplorerScreen(
+            operationType = explorerOperationType,
+            sourceUris = selectedImages.map { it.uri },
+            onComplete = {
+                showStorageExplorer = false
+                viewModel.clearSelection()
+            },
+            onCancel = { showStorageExplorer = false }
+        )
+    }
     }
 }
 

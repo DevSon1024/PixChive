@@ -42,10 +42,6 @@ fun Modifier.galleryItemClick(
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false)
 
-                // BOUNDS CHECK 
-                // Since requireUnconsumed=false, ALL sibling items receive this
-                // down event. Only the item whose bounds contain the touch point
-                // should proceed; all others must bail out here.
                 val downPos = down.position
                 if (downPos.x < 0f || downPos.x > size.width ||
                     downPos.y < 0f || downPos.y > size.height

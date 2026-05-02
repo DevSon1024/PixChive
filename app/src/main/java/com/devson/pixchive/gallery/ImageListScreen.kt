@@ -40,7 +40,6 @@ import com.devson.pixchive.gallery.ui.components.GalleryFolderItem
 import com.devson.pixchive.gallery.ui.components.GallerySelectionBottomBar
 import com.devson.pixchive.gallery.ui.components.GalleryViewSettingsBottomSheet
 import com.devson.pixchive.gallery.ui.components.CustomRenameDialog
-import com.devson.pixchive.gallery.ui.components.gridDragSelect
 import com.devson.pixchive.gallery.viewmodel.GalleryState
 import com.devson.pixchive.gallery.viewmodel.ImageListViewModel
 import com.devson.pixchive.utils.PermissionHelper
@@ -277,17 +276,6 @@ fun ImageListScreen(
                                     verticalArrangement = Arrangement.spacedBy(8.dp),
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .gridDragSelect(
-                                            state = gridState,
-                                            onDragStart = { idx ->
-                                                state.folders.getOrNull(idx)?.let {
-                                                    viewModel.enterSelectionMode(it.bucketId)
-                                                }
-                                            },
-                                            onSelectionChange = { start, end ->
-                                                viewModel.selectRange(start, end)
-                                            }
-                                        )
                                         .pointerInput(Unit) {
                                             awaitEachGesture {
                                                 awaitFirstDown(requireUnconsumed = false)

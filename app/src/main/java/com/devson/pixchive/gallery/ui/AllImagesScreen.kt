@@ -33,7 +33,6 @@ import com.devson.pixchive.gallery.ui.components.DetailsDialog
 import com.devson.pixchive.gallery.ui.components.GalleryImageItem
 import com.devson.pixchive.gallery.ui.components.GallerySelectionBottomBar
 import com.devson.pixchive.gallery.ui.components.CustomRenameDialog
-import com.devson.pixchive.gallery.ui.components.gridDragSelect
 import com.devson.pixchive.gallery.viewmodel.AllImagesState
 import com.devson.pixchive.gallery.viewmodel.AllImagesViewModel
 
@@ -163,18 +162,18 @@ fun AllImagesScreen(
                                 verticalArrangement = Arrangement.Top,
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .gridDragSelect(
-                                        state = gridState,
-                                        onDragStart = { idx ->
-                                            val item = state.gridItems.getOrNull(idx)
-                                            if (item is GalleryImage) {
-                                                viewModel.enterSelectionMode(item.id)
-                                            }
-                                        },
-                                        onSelectionChange = { start, end ->
-                                            viewModel.selectRangeIncremental(start, end)
-                                        }
-                                    )
+                                    // .gridDragSelect(
+                                    //     state = gridState,
+                                    //     onDragStart = { idx ->
+                                    //         val item = state.gridItems.getOrNull(idx)
+                                    //         if (item is GalleryImage) {
+                                    //             viewModel.enterSelectionMode(item.id)
+                                    //         }
+                                    //     },
+                                    //     onSelectionChange = { start, end ->
+                                    //         viewModel.selectRangeIncremental(start, end)
+                                    //     }
+                                    // )
                             ) {
                                 state.grouped.forEach { (dateLabel, images) ->
                                     item(
@@ -235,18 +234,6 @@ fun AllImagesScreen(
                                 verticalArrangement = Arrangement.spacedBy(6.dp),
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .gridDragSelect(
-                                        state = gridState,
-                                        onDragStart = { idx ->
-                                            val item = state.gridItems.getOrNull(idx)
-                                            if (item is GalleryImage) {
-                                                viewModel.enterSelectionMode(item.id)
-                                            }
-                                        },
-                                        onSelectionChange = { start, end ->
-                                            viewModel.selectRangeIncremental(start, end)
-                                        }
-                                    )
                                     .pointerInput(Unit) {
                                         awaitEachGesture {
                                             awaitFirstDown(requireUnconsumed = false)

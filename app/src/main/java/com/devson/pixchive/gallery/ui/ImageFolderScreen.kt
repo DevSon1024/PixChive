@@ -28,13 +28,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.devson.pixchive.gallery.data.models.GalleryImage
 import com.devson.pixchive.gallery.ui.components.DetailsDialog
 import com.devson.pixchive.gallery.ui.components.GallerySelectionBottomBar
 import com.devson.pixchive.gallery.ui.components.GalleryImageItem
 import com.devson.pixchive.gallery.ui.components.GalleryViewSettingsBottomSheet
 import com.devson.pixchive.gallery.ui.components.CustomRenameDialog
-import com.devson.pixchive.gallery.ui.components.gridDragSelect
 import com.devson.pixchive.gallery.viewmodel.GalleryFolderViewModel
 
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class)
@@ -179,17 +177,6 @@ fun ImageFolderScreen(
                         verticalArrangement = Arrangement.spacedBy(2.dp),
                         modifier = Modifier
                             .fillMaxSize()
-                            .gridDragSelect(
-                                state = gridState,
-                                onSelectionChange = { start, current ->
-                                    viewModel.selectRangeIncremental(start, current)
-                                },
-                                onDragStart = { index ->
-                                    if (selectedImageIds.isEmpty()) {
-                                        viewModel.enterSelectionMode(images[index].id)
-                                    }
-                                }
-                            )
                             .pointerInput(Unit) {
                                 awaitEachGesture {
                                     awaitFirstDown(requireUnconsumed = false)

@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.FlowPreview
@@ -30,7 +31,7 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
     val selectedIds: StateFlow<Set<Long>> = _selectedIds.asStateFlow()
 
     val sortOption: StateFlow<String> = preferencesManager.gallerySortOptionFlow
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "date_newest")
+        .stateIn(viewModelScope, SharingStarted.Lazily, "date_newest")
     private val _currentBucketId = MutableStateFlow("")
 
     init {
@@ -40,7 +41,7 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
                 .collect {
                     val bucketId = _currentBucketId.value
                     if (bucketId.isNotEmpty()) {
-                        loadImages(bucketId)
+                        loadImages(bucketId, forceRefresh = true)
                     }
                 }
         }
@@ -48,16 +49,16 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
 
     val images: StateFlow<List<GalleryImage>> = combine(_images, sortOption, _currentBucketId) { imgs, sort, bucket ->
         if (bucket == "all_images") imgs else sortImages(imgs, sort)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     val gridCellsIndex: StateFlow<Int> = preferencesManager.galleryGridCellsIndex
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 2)
+        .stateIn(viewModelScope, SharingStarted.Lazily, 2)
 
     val layoutMode: StateFlow<String> = preferencesManager.galleryLayoutModeFlow
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "grid")
+        .stateIn(viewModelScope, SharingStarted.Lazily, "grid")
 
     val viewSettings: StateFlow<GalleryViewSettings> = combine(
         preferencesManager.galleryShowThumbnail,
@@ -75,7 +76,7 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
             showSize = settingsArray[4],
             showDate = settingsArray[5]
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), GalleryViewSettings())
+    }.stateIn(viewModelScope, SharingStarted.Lazily, GalleryViewSettings())
 
     fun setLayoutMode(mode: String) {
         viewModelScope.launch {
@@ -106,18 +107,32 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-    fun loadImages(bucketId: String) {
+    fun loadImages(bucketId: String, forceRefresh: Boolean = false) {
+        // If we are already displaying this bucket and not forcing a refresh, do nothing.
+        if (_currentBucketId.value == bucketId && !forceRefresh && _images.value.isNotEmpty()) {
+            return
+        }
+
+        val isNewBucket = _currentBucketId.value != bucketId
         _currentBucketId.value = bucketId
+
         viewModelScope.launch {
-            _isLoading.value = true
+            // Only show loading spinner if it's a new bucket or we currently have no images
+            if (isNewBucket || _images.value.isEmpty()) {
+                _isLoading.value = true
+            }
+
             try {
-                if (bucketId == "all_images") {
-                    _images.value = repository.getAllImages()
+                val newImages = if (bucketId == "all_images") {
+                    repository.getAllImages()
                 } else {
-                    _images.value = repository.getImagesForFolder(bucketId)
+                    repository.getImagesForFolder(bucketId)
                 }
+                _images.value = newImages
             } catch (e: Exception) {
-                _images.value = emptyList()
+                if (isNewBucket) {
+                    _images.value = emptyList()
+                }
             } finally {
                 _isLoading.value = false
             }
@@ -158,7 +173,7 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
 
         viewModelScope.launch {
             if (repository.renameImage(image.id, newName)) {
-                loadImages(bucketId)
+                loadImages(bucketId, forceRefresh = true)
                 clearSelection()
             }
         }

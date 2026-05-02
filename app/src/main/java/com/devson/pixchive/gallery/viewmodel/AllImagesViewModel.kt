@@ -83,7 +83,9 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun loadAllImages() {
         viewModelScope.launch {
-            _uiState.value = AllImagesState.Loading
+            if (_uiState.value !is AllImagesState.Success) {
+                _uiState.value = AllImagesState.Loading
+            }
             try {
                 val images = repository.getAllImages()
                 val (grouped, gridItems) = withContext(Dispatchers.Default) { 
@@ -97,7 +99,9 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
                 }
                 _uiState.value = AllImagesState.Success(grouped, images, gridItems)
             } catch (e: Exception) {
-                _uiState.value = AllImagesState.Error(e.message ?: "Failed to load images")
+                if (_uiState.value !is AllImagesState.Success) {
+                    _uiState.value = AllImagesState.Error(e.message ?: "Failed to load images")
+                }
             }
         }
     }

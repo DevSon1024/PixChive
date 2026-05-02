@@ -29,18 +29,12 @@ import com.github.panpf.zoomimage.CoilZoomAsyncImage
 import com.github.panpf.zoomimage.rememberCoilZoomState
 import java.text.SimpleDateFormat
 import java.util.*
-import androidx.compose.animation.AnimatedVisibilityScope
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionScope
-
-@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun ImageViewScreen(
     bucketId: String,
     initialIndex: Int,
     onNavigateBack: () -> Unit,
-    sharedTransitionScope: SharedTransitionScope,
-    animatedVisibilityScope: AnimatedVisibilityScope,
     viewModel: GalleryFolderViewModel = viewModel()
 ) {
     val images by viewModel.images.collectAsState()
@@ -92,20 +86,13 @@ fun ImageViewScreen(
         ) { page ->
             val zoomState = rememberCoilZoomState()
 
-            with(sharedTransitionScope) {
-                CoilZoomAsyncImage(
-                    model = images[page].uri,
-                    contentDescription = null,
-                    zoomState = zoomState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .sharedElement(
-                            sharedContentState = rememberSharedContentState(key = "image_${images[page].id}"),
-                            animatedVisibilityScope = animatedVisibilityScope
-                        ),
-                    onTap = { showOverlays = !showOverlays }
-                )
-            }
+            CoilZoomAsyncImage(
+                model = images[page].uri,
+                contentDescription = null,
+                zoomState = zoomState,
+                modifier = Modifier.fillMaxSize(),
+                onTap = { showOverlays = !showOverlays }
+            )
         }
 
         AnimatedVisibility(

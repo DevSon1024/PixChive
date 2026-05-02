@@ -1,9 +1,6 @@
 package com.devson.pixchive.gallery.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibilityScope
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -41,15 +38,13 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.IntentSenderRequest
 import androidx.compose.ui.platform.LocalContext
 
-@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ImageFolderScreen(
     bucketId: String,
     onNavigateBack: () -> Unit,
     onImageClick: (Int) -> Unit,
     onSettingsClick: () -> Unit,
-    sharedTransitionScope: SharedTransitionScope,
-    animatedVisibilityScope: AnimatedVisibilityScope,
     viewModel: GalleryFolderViewModel = viewModel()
 ) {
     val images by viewModel.images.collectAsState()
@@ -185,12 +180,6 @@ fun ImageFolderScreen(
                         modifier = Modifier.fillMaxSize()
                     ) {
                         listItemsIndexed(images, key = { _, img -> img.id }) { index, image ->
-                            val sharedModifier = with(sharedTransitionScope) {
-                                Modifier.sharedElement(
-                                    sharedContentState = rememberSharedContentState(key = "image_${image.id}"),
-                                    animatedVisibilityScope = animatedVisibilityScope
-                                )
-                            }
                             GalleryImageItem(
                                 image = image,
                                 isSelected = image.id in selectedImageIds,
@@ -200,7 +189,7 @@ fun ImageFolderScreen(
                                 onThumbnailClick = { viewModel.toggleSelection(image.id) },
                                 onClick = { onImageClick(index) },
                                 onLongClick = { viewModel.toggleSelection(image.id) },
-                                modifier = sharedModifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
                     }
@@ -265,19 +254,13 @@ fun ImageFolderScreen(
                             }
                     ) {
                         gridItemsIndexed(images, key = { _, img -> img.id }) { index, image ->
-                            val sharedModifier = with(sharedTransitionScope) {
-                                Modifier.sharedElement(
-                                    sharedContentState = rememberSharedContentState(key = "image_${image.id}"),
-                                    animatedVisibilityScope = animatedVisibilityScope
-                                )
-                            }
                             GalleryImageItem(
                                 image = image,
                                 isSelected = image.id in selectedImageIds,
                                 isListMode = false,
                                 columnCount = animatedColumns.coerceIn(2, 4),
                                 viewSettings = viewSettings,
-                                modifier = sharedModifier
+                                modifier = Modifier
                                     .animateItem()
                                     .fillMaxWidth()
                                     .aspectRatio(1f),

@@ -35,6 +35,11 @@ import com.devson.pixchive.gallery.ui.components.GalleryImageItem
 import com.devson.pixchive.gallery.ui.components.GalleryViewSettingsBottomSheet
 import com.devson.pixchive.gallery.ui.components.CustomRenameDialog
 import com.devson.pixchive.gallery.viewmodel.GalleryFolderViewModel
+import com.devson.pixchive.viewmodel.FileOperationsViewModel
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.IntentSenderRequest
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -58,6 +63,29 @@ fun ImageFolderScreen(
     var showSettingsSheet by remember { mutableStateOf(false) }
     var showDetailsDialog by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
+    var showStorageExplorer by remember { mutableStateOf(false) }
+    var explorerOperationType by remember { mutableStateOf("") }
+
+    val fileOpsViewModel: FileOperationsViewModel = viewModel()
+    val context = LocalContext.current
+    val pendingIntentSender by fileOpsViewModel.pendingIntentSender.collectAsState()
+
+    val intentSenderLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            fileOpsViewModel.onPermissionGranted(context)
+            viewModel.clearSelection()
+        }
+    }
+
+    LaunchedEffect(pendingIntentSender) {
+        pendingIntentSender?.let { intentSender ->
+            val request = IntentSenderRequest.Builder(intentSender).build()
+            intentSenderLauncher.launch(request)
+            fileOpsViewModel.clearPendingIntentSender()
+        }
+    }
 
     val gridState = rememberLazyGridState()
 
@@ -115,9 +143,17 @@ fun ImageFolderScreen(
             if (selectedImageIds.isNotEmpty()) {
                 GallerySelectionBottomBar(
                     selectedImages = selectedImages,
-                    onMove = {},
-                    onCopy = {},
-                    onDelete = {},
+                    onMove = {
+                        explorerOperationType = "MOVE"
+                        showStorageExplorer = true
+                    },
+                    onCopy = {
+                        explorerOperationType = "COPY"
+                        showStorageExplorer = true
+                    },
+                    onDelete = {
+                        fileOpsViewModel.deleteImages(context, selectedImages.map { it.uri }, trash = true)
+                    },
                     onRename = { showRenameDialog = true },
                     onInfo = { showDetailsDialog = true }
                 )
@@ -285,6 +321,19 @@ fun ImageFolderScreen(
                     onDismiss = { showRenameDialog = false }
                 )
             }
+        }
+
+        if (showStorageExplorer) {
+            val selectedImages = images.filter { it.id in selectedImageIds }
+            com.devson.pixchive.ui.screens.StorageExplorerScreen(
+                operationType = explorerOperationType,
+                sourceUris = selectedImages.map { it.uri },
+                onComplete = {
+                    showStorageExplorer = false
+                    viewModel.clearSelection()
+                },
+                onCancel = { showStorageExplorer = false }
+            )
         }
     }
 }

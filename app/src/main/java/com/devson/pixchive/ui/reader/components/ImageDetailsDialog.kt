@@ -13,14 +13,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import android.content.ClipData
+import androidx.compose.ui.platform.ClipEntry
 import com.devson.pixchive.data.ImageFile
 import com.devson.pixchive.data.local.ImageEntity
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileInputStream
@@ -62,8 +65,8 @@ fun ImageDetailsDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    @Suppress("DEPRECATION")
-    val clipboardManager = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
     var metadata by remember { mutableStateOf<ImageMetadata?>(null) }
     var isLoading by remember { mutableStateOf(true) }
 
@@ -215,7 +218,9 @@ fun ImageDetailsDialog(
                                         }
                                         IconButton(
                                             onClick = {
-                                                clipboardManager.setText(AnnotatedString(data.readablePath))
+                                                scope.launch {
+                                                    clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Path", data.readablePath)))
+                                                }
                                             }
                                         ) {
                                             Icon(
@@ -246,7 +251,8 @@ fun ImageDetailsDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    val clipboardManager = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
     var metadata by remember { mutableStateOf<ImageMetadata?>(null) }
     var isLoading by remember { mutableStateOf(true) }
 
@@ -372,7 +378,9 @@ fun ImageDetailsDialog(
                                             )
                                         }
                                         IconButton(onClick = {
-                                            clipboardManager.setText(AnnotatedString(data.readablePath))
+                                            scope.launch {
+                                                clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Path", data.readablePath)))
+                                            }
                                         }) {
                                             Icon(
                                                 Icons.Default.ContentCopy,

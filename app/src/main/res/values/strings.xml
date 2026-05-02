@@ -19,4 +19,20 @@
     <string name="appearance_marathi_full">Marathi (मराठी)</string>
     <string name="appearance_close">Close</string>
     <string name="appearance_restart_info">Some changes might require an app restart to fully apply.</string>
+
+    <!-- Storage Explorer Screen -->
+    <string name="storage_paste_here">Paste Here</string>
+    <string name="storage_internal_storage">Internal Storage</string>
+    <string name="cd_folder">Folder</string>
+    <string name="storage_empty_folder">Folder is empty</string>
+    <string name="storage_new_folder">New Folder</string>
+    <string name="storage_move">Move</string>
+    <string name="storage_copy">Copy</string>
+    <string name="storage_moving">Moving</string>
+    <string name="storage_copying">Copying</string>
+    <string name="storage_items_count">%1$d items</string>
+    <string name="storage_permission_required">Please grant storage permission to %1$s items.</string>
+    <string name="storage_grant_permission">Grant Permission</string>
+    <string name="history_cancel_button">Cancel</string>
+    <string name="cd_create_new_folder">Create new folder</string>
 </resources>

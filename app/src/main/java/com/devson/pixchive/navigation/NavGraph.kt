@@ -2,6 +2,10 @@ package com.devson.pixchive.navigation
 
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -106,7 +110,37 @@ fun NavGraph(
                     }
                 )
             }
-            composable(Screen.ImageList.route) {
+            composable(
+                route = Screen.ImageList.route,
+                enterTransition = {
+                    if (initialState.destination.route == Screen.AllImages.route) {
+                        scaleIn(initialScale = 0.9f, animationSpec = tween(300)) + fadeIn(animationSpec = tween(300))
+                    } else {
+                        null
+                    }
+                },
+                exitTransition = {
+                    if (targetState.destination.route == Screen.AllImages.route) {
+                        scaleOut(targetScale = 0.9f, animationSpec = tween(300)) + fadeOut(animationSpec = tween(300))
+                    } else {
+                        null
+                    }
+                },
+                popEnterTransition = {
+                    if (initialState.destination.route == Screen.AllImages.route) {
+                        scaleIn(initialScale = 0.9f, animationSpec = tween(300)) + fadeIn(animationSpec = tween(300))
+                    } else {
+                        null
+                    }
+                },
+                popExitTransition = {
+                    if (targetState.destination.route == Screen.AllImages.route) {
+                        scaleOut(targetScale = 0.9f, animationSpec = tween(300)) + fadeOut(animationSpec = tween(300))
+                    } else {
+                        null
+                    }
+                }
+            ) {
                 ImageListScreen(
                     onNavigateBack = safeNavigateBack,
                     onFolderClick = { bucketId ->
@@ -123,7 +157,37 @@ fun NavGraph(
                 )
             }
 
-            composable(Screen.AllImages.route) {
+            composable(
+                route = Screen.AllImages.route,
+                enterTransition = {
+                    if (initialState.destination.route == Screen.ImageList.route) {
+                        scaleIn(initialScale = 1.1f, animationSpec = tween(300)) + fadeIn(animationSpec = tween(300))
+                    } else {
+                        null
+                    }
+                },
+                exitTransition = {
+                    if (targetState.destination.route == Screen.ImageList.route) {
+                        scaleOut(targetScale = 1.1f, animationSpec = tween(300)) + fadeOut(animationSpec = tween(300))
+                    } else {
+                        null
+                    }
+                },
+                popEnterTransition = {
+                    if (initialState.destination.route == Screen.ImageList.route) {
+                        scaleIn(initialScale = 1.1f, animationSpec = tween(300)) + fadeIn(animationSpec = tween(300))
+                    } else {
+                        null
+                    }
+                },
+                popExitTransition = {
+                    if (targetState.destination.route == Screen.ImageList.route) {
+                        scaleOut(targetScale = 1.1f, animationSpec = tween(300)) + fadeOut(animationSpec = tween(300))
+                    } else {
+                        null
+                    }
+                }
+            ) {
                 AllImagesScreen(
                     onNavigateBack = safeNavigateBack,
                     onSettingsClick = { navController.navigate(Screen.Settings.route) },

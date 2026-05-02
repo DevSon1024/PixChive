@@ -126,6 +126,11 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
         _selectedIds.value = emptySet()
     }
 
+    fun selectAll() {
+        val state = _uiState.value as? GalleryState.Success ?: return
+        _selectedIds.value = state.folders.map { it.bucketId }.toSet()
+    }
+
     fun selectRange(startIndex: Int, endIndex: Int) {
         val state = _uiState.value as? GalleryState.Success ?: return
         val items = state.folders

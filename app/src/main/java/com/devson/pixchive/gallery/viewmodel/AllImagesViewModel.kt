@@ -146,6 +146,11 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
         _selectedIds.value = emptySet()
     }
 
+    fun selectAll() {
+        val state = _uiState.value as? AllImagesState.Success ?: return
+        _selectedIds.value = state.flatImages.map { it.id }.toSet()
+    }
+
     fun setLayoutMode(mode: String) = viewModelScope.launch {
         preferencesManager.setGalleryLayoutMode(mode)
     }

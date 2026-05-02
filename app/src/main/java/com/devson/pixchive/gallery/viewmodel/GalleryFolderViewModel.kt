@@ -129,6 +129,10 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
         _selectedIds.value = emptySet()
     }
 
+    fun selectAll() {
+        _selectedIds.value = _images.value.map { it.id }.toSet()
+    }
+
     fun renameSelectedImage(newName: String) {
         val selectedId = _selectedIds.value.firstOrNull() ?: return
         val image = _images.value.find { it.id == selectedId } ?: return

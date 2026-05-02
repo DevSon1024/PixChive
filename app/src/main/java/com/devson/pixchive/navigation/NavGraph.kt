@@ -27,6 +27,7 @@ import com.devson.pixchive.gallery.ImageListScreen
 import com.devson.pixchive.gallery.ui.AllImagesScreen
 import com.devson.pixchive.gallery.ui.ImageViewScreen
 import com.devson.pixchive.gallery.ui.ImageFolderScreen
+import com.devson.pixchive.ui.screens.RecycleBinScreen
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 
@@ -117,7 +118,8 @@ fun NavGraph(
                             popUpTo(Screen.Home.route) { inclusive = false }
                             launchSingleTop = true
                         }
-                    }
+                    },
+                    onRecycleBinClick = { navController.navigate(Screen.RecycleBin.route) }
                 )
             }
 
@@ -133,8 +135,13 @@ fun NavGraph(
                             popUpTo(Screen.Home.route) { inclusive = false }
                             launchSingleTop = true
                         }
-                    }
+                    },
+                    onRecycleBinClick = { navController.navigate(Screen.RecycleBin.route) }
                 )
+            }
+
+            composable(Screen.RecycleBin.route) {
+                RecycleBinScreen(onBack = safeNavigateBack)
             }
 
             // 1. Inside your ImageFolder composable block:

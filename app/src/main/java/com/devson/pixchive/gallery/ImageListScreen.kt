@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.RestoreFromTrash
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tune
@@ -44,6 +45,8 @@ import com.devson.pixchive.gallery.ui.components.CustomRenameDialog
 import com.devson.pixchive.gallery.viewmodel.GalleryState
 import com.devson.pixchive.gallery.viewmodel.ImageListViewModel
 import com.devson.pixchive.utils.PermissionHelper
+import com.devson.pixchive.viewmodel.FileOperationsViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,10 +55,12 @@ fun ImageListScreen(
     onFolderClick: (String) -> Unit,
     onSettingsClick: () -> Unit,
     onAllImagesClick: () -> Unit = {},
+    onRecycleBinClick: () -> Unit = {},
     viewModel: ImageListViewModel = viewModel()
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val fileOpsViewModel: FileOperationsViewModel = viewModel()
     val uiState by viewModel.uiState.collectAsState()
     val savedGridCellsIndex by viewModel.gridCellsIndex.collectAsState()
     val layoutMode by viewModel.layoutMode.collectAsState()
@@ -142,6 +147,9 @@ fun ImageListScreen(
                         }
                     },
                     actions = {
+                        IconButton(onClick = onRecycleBinClick) {
+                            Icon(Icons.Filled.RestoreFromTrash, contentDescription = "Recycle Bin")
+                        }
                         IconButton(onClick = { showSettingsSheet = true }) {
                             Icon(Icons.Default.Tune, contentDescription = "View Settings")
                         }
@@ -160,6 +168,7 @@ fun ImageListScreen(
                 GallerySelectionBottomBar(
                     selectedCount = selectedFolderIds.size,
                     selectedImages = emptyList(),
+                    fileOpsViewModel = fileOpsViewModel,
                     onMove = {},
                     onCopy = {},
                     onDelete = {},

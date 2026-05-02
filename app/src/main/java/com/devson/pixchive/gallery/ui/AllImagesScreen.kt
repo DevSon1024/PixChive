@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.RestoreFromTrash
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tune
@@ -49,6 +50,7 @@ fun AllImagesScreen(
     onSettingsClick: () -> Unit,
     onImageClick: (Int) -> Unit = {},
     onAlbumsClick: () -> Unit = {},
+    onRecycleBinClick: () -> Unit = {},
     viewModel: AllImagesViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -121,6 +123,9 @@ fun AllImagesScreen(
                         }
                     },
                     actions = {
+                        IconButton(onClick = onRecycleBinClick) {
+                            Icon(Icons.Filled.RestoreFromTrash, contentDescription = "Recycle Bin")
+                        }
                         IconButton(onClick = { showSettingsSheet = true }) {
                             Icon(Icons.Default.Tune, contentDescription = "View Settings")
                         }
@@ -139,6 +144,7 @@ fun AllImagesScreen(
                 val selectedImages = (uiState as? AllImagesState.Success)?.flatImages?.filter { it.id in selectedIds } ?: emptyList()
                 GallerySelectionBottomBar(
                     selectedImages = selectedImages,
+                    fileOpsViewModel = fileOpsViewModel,
                     onMove = {
                         explorerOperationType = "MOVE"
                         showStorageExplorer = true
@@ -147,9 +153,7 @@ fun AllImagesScreen(
                         explorerOperationType = "COPY"
                         showStorageExplorer = true
                     },
-                    onDelete = {
-                        fileOpsViewModel.deleteImages(context, selectedImages.map { it.uri }, trash = true)
-                    },
+                    onDelete = {},
                     onRename = { showRenameDialog = true },
                     onInfo = { showDetailsDialog = true }
                 )

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material3.*
@@ -23,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -103,13 +105,21 @@ fun RotarySortWheelDialog(
         onDismissRequest = onDismissRequest,
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = true
+            decorFitsSystemWindows = false
         )
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.6f))
+                .background(
+                    Brush.verticalGradient(
+                        colorStops = arrayOf(
+                            0.0f to Color(0xFF000000).copy(alpha = 0.72f),
+                            0.5f to Color(0xFF0A0E1A).copy(alpha = 0.82f),
+                            1.0f to Color(0xFF000000).copy(alpha = 0.88f)
+                        )
+                    )
+                )
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -119,6 +129,8 @@ fun RotarySortWheelDialog(
         ) {
             Box(
                 modifier = Modifier
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
@@ -129,13 +141,38 @@ fun RotarySortWheelDialog(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
-                    // Title label above wheel
-                    Text(
-                        text = "Sort By",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color.White.copy(alpha = 0.85f),
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    // Header row: centred title chip + close button
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Spacer(Modifier.width(48.dp)) // mirror of close button width
+                        Spacer(Modifier.weight(1f))
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.15f),
+                            border = BorderStroke(
+                                width = 1.dp,
+                                color = Color.White.copy(alpha = 0.20f)
+                            )
+                        ) {
+                            Text(
+                                text = "Sort By",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                            )
+                        }
+                        Spacer(Modifier.weight(1f))
+                        IconButton(onClick = onDismissRequest) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = "Close",
+                                tint = Color.White.copy(alpha = 0.85f)
+                            )
+                        }
+                    }
 
                     RotarySortWheel(
                         currentSortField = currentSortField,
@@ -144,18 +181,18 @@ fun RotarySortWheelDialog(
                         onSortOrderToggled = onSortOrderToggled
                     )
 
-                    // Bottom info card — properly visible on any background
+                    // Bottom info card - Material You surface with strong contrast
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        tonalElevation = 4.dp,
-                        shadowElevation = 4.dp,
-                        modifier = Modifier.widthIn(min = 180.dp)
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        tonalElevation = 6.dp,
+                        shadowElevation = 8.dp,
+                        modifier = Modifier.widthIn(min = 200.dp)
                     ) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(2.dp),
-                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.padding(horizontal = 28.dp, vertical = 14.dp)
                         ) {
                             val dirLabels = getSortDirectionLabels(currentSortField)
                             Text(
@@ -164,13 +201,20 @@ fun RotarySortWheelDialog(
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
-                            Text(
-                                text = if (sortDirection == SortDirection.ASCENDING)
-                                    dirLabels.first else dirLabels.second,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Medium
-                            )
+                            // Direction pill
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = MaterialTheme.colorScheme.primaryContainer
+                            ) {
+                                Text(
+                                    text = if (sortDirection == SortDirection.ASCENDING)
+                                        dirLabels.first else dirLabels.second,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                                )
+                            }
                         }
                     }
                 }

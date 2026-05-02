@@ -12,8 +12,11 @@ import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -35,6 +38,9 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
 
     private val _operationInProgress = MutableStateFlow(false)
     val operationInProgress: StateFlow<Boolean> = _operationInProgress.asStateFlow()
+
+    private val _successfulDeletions = MutableSharedFlow<List<Uri>>(extraBufferCapacity = 8)
+    val successfulDeletions: SharedFlow<List<Uri>> = _successfulDeletions.asSharedFlow()
 
     /** Non-null = show this message as a Toast then clear. */
     private val _operationResult = MutableStateFlow<String?>(null)
@@ -126,7 +132,7 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
         viewModelScope.launch {
             try {
                 val deletedCount = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    action.uris.size 
+                    action.uris.size
                 } else {
                     withContext(Dispatchers.IO) {
                         action.uris.count { uri ->
@@ -139,6 +145,7 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
                 } else {
                     "Successfully deleted $deletedCount images."
                 }
+                _successfulDeletions.emit(action.uris)
                 _needsRefresh.value = true
             } catch (e: Exception) {
                 _operationResult.value = "Delete failed: ${e.localizedMessage}"

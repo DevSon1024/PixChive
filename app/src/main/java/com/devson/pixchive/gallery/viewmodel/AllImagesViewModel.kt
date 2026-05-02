@@ -1,6 +1,7 @@
 package com.devson.pixchive.gallery.viewmodel
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.devson.pixchive.data.PreferencesManager
@@ -186,6 +187,26 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
                 clearSelection()
             }
         }
+    }
+
+    fun removeImagesLocally(uris: List<Uri>) {
+        val uriSet = uris.toSet()
+        val current = _uiState.value as? AllImagesState.Success ?: return
+        val newFlat = current.flatImages.filter { it.uri !in uriSet }
+        val newGrouped = groupByDate(newFlat)
+        
+        val items = mutableListOf<Any>()
+        newGrouped.forEach { (label, imgs) ->
+            items.add(label)
+            items.addAll(imgs)
+        }
+        
+        _uiState.value = AllImagesState.Success(
+            grouped = newGrouped,
+            flatImages = newFlat,
+            gridItems = items
+        )
+        _selectedIds.value = _selectedIds.value.filter { id -> newFlat.any { it.id == id } }.toSet()
     }
 
     private fun groupByDate(images: List<GalleryImage>): Map<String, List<GalleryImage>> {

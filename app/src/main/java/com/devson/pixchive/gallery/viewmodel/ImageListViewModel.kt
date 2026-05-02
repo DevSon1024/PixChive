@@ -1,6 +1,7 @@
 package com.devson.pixchive.gallery.viewmodel
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.devson.pixchive.gallery.data.MediaStoreRepository
@@ -171,6 +172,14 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
                 _uiState.value = GalleryState.Error(e.message ?: "Failed to load device gallery")
             }
         }
+    }
+
+    fun removeFoldersLocally(uris: List<Uri>) {
+        // If a folder has no images left (because they were deleted), we should remove it from the list.
+        // For simplicity, we just trigger a full reload when images are deleted, 
+        // because determining if a folder is now completely empty requires checking all remaining MediaStore items.
+        // Alternatively, if we just want to force a refresh:
+        loadGalleryFolders()
     }
 
     private fun sortFolders(folders: List<GalleryFolder>, sort: String): List<GalleryFolder> {

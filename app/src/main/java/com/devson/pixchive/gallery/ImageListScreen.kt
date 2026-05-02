@@ -96,6 +96,12 @@ fun ImageListScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    LaunchedEffect(Unit) {
+        fileOpsViewModel.successfulDeletions.collect { uris ->
+            viewModel.removeFoldersLocally(uris)
+        }
+    }
+
     val legacyPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted ->

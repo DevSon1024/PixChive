@@ -1,6 +1,7 @@
 package com.devson.pixchive.gallery.viewmodel
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.devson.pixchive.gallery.data.MediaStoreRepository
@@ -144,6 +145,14 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
                 clearSelection()
             }
         }
+    }
+
+    fun removeImagesLocally(uris: List<Uri>) {
+        val uriSet = uris.toSet()
+        val currentImages = _images.value
+        val newImages = currentImages.filter { it.uri !in uriSet }
+        _images.value = newImages
+        _selectedIds.value = _selectedIds.value.filter { id -> newImages.any { it.id == id } }.toSet()
     }
 
     private fun sortImages(images: List<GalleryImage>, sort: String): List<GalleryImage> {

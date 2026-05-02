@@ -86,6 +86,12 @@ fun AllImagesScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        fileOpsViewModel.successfulDeletions.collect { uris ->
+            viewModel.removeImagesLocally(uris)
+        }
+    }
+
     val gridState = rememberLazyGridState(
         initialFirstVisibleItemIndex = 0
     )

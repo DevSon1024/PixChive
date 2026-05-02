@@ -87,6 +87,12 @@ fun ImageFolderScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        fileOpsViewModel.successfulDeletions.collect { uris ->
+            viewModel.removeImagesLocally(uris)
+        }
+    }
+
     val gridState = rememberLazyGridState()
 
     BackHandler(enabled = selectedImageIds.isNotEmpty()) {

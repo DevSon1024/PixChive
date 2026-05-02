@@ -18,9 +18,12 @@ import androidx.compose.ui.platform.LocalViewConfiguration
 import kotlinx.coroutines.launch
 
 /**
- * A custom clickable modifier that DOES NOT consume the down pointer event.
- * This allows parent gesture detectors (like PinchZoomGrid) to still process
- * the touch events, particularly the initial down event and multi-touch gestures.
+ * A custom clickable modifier that DOES NOT consume the down pointer event on Main pass,
+ * which allows the parent PinchZoomGrid to also receive it for pinch detection.
+ *
+ * FIX: Before handling any gesture, we verify the DOWN landed within this composable's
+ * own bounds. Because [requireUnconsumed = false] means every sibling item receives the
+ * same down event, without this check every item in the grid would handle every touch.
  */
 fun Modifier.galleryItemClick(
     onClick: () -> Unit,
@@ -38,43 +41,39 @@ fun Modifier.galleryItemClick(
         .pointerInput(currentInteractionSource) {
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false)
-                // Do not consume the down event to let PinchZoomGrid handle it!
-                
-                val press = PressInteraction.Press(down.position)
-                coroutineScope.launch {
-                    currentInteractionSource.emit(press)
+
+                // BOUNDS CHECK 
+                // Since requireUnconsumed=false, ALL sibling items receive this
+                // down event. Only the item whose bounds contain the touch point
+                // should proceed; all others must bail out here.
+                val downPos = down.position
+                if (downPos.x < 0f || downPos.x > size.width ||
+                    downPos.y < 0f || downPos.y > size.height
+                ) {
+                    return@awaitEachGesture
                 }
+
+                val press = PressInteraction.Press(downPos)
+                coroutineScope.launch { currentInteractionSource.emit(press) }
 
                 var isLongPress = false
                 var upOrCancelEvent: androidx.compose.ui.input.pointer.PointerEvent? = null
                 val longPressTimeout = viewConfiguration.longPressTimeoutMillis
                 val touchSlop = viewConfiguration.touchSlop
-                val initialPosition = down.position
+                val initialPosition = downPos
 
                 try {
                     withTimeout(longPressTimeout) {
                         while (true) {
                             val event = awaitPointerEvent(PointerEventPass.Main)
-                            if (event.changes.any { it.isConsumed }) {
-                                // Event was consumed by something else (e.g. scroll)
-                                break
-                            }
-                            if (event.changes.size > 1) {
-                                // Multi-touch detected, probably a pinch
-                                break
-                            }
-                            // Check if pointer went out of bounds (slop)
+                            if (event.changes.any { it.isConsumed }) break
+                            if (event.changes.size > 1) break  // pinch → hand off
+
                             val pos = event.changes.first().position
-                            if (pos.x < 0 || pos.x > size.width || pos.y < 0 || pos.y > size.height) {
-                                break
-                            }
-                            
-                            // Check if pointer moved beyond touch slop
+                            // Left bounds via slop
                             val distance = (pos - initialPosition).getDistance()
-                            if (distance > touchSlop) {
-                                break
-                            }
-                            
+                            if (distance > touchSlop) break
+
                             if (event.changes.all { !it.pressed }) {
                                 upOrCancelEvent = event
                                 break
@@ -82,7 +81,6 @@ fun Modifier.galleryItemClick(
                         }
                     }
                 } catch (e: PointerEventTimeoutCancellationException) {
-                    // Timeout -> Long Press
                     isLongPress = true
                 }
 
@@ -91,16 +89,18 @@ fun Modifier.galleryItemClick(
                         currentInteractionSource.emit(PressInteraction.Cancel(press))
                     }
                     onLongClick?.invoke()
-                    // Wait for the pointer to go up
-                    while (true) {
-                        val event = awaitPointerEvent(PointerEventPass.Main)
-                        if (event.changes.all { !it.pressed }) break
-                    }
+                    // Drain & consume ALL remaining pointer events until finger lifts
+                    // so the UP cannot propagate to any sibling or parent and trigger
+                    // an accidental click on the item below.
+                    var drainEvent: androidx.compose.ui.input.pointer.PointerEvent
+                    do {
+                        drainEvent = awaitPointerEvent(PointerEventPass.Initial)
+                        drainEvent.changes.forEach { it.consume() }
+                    } while (drainEvent.changes.any { it.pressed })
                 } else if (upOrCancelEvent != null) {
                     coroutineScope.launch {
                         currentInteractionSource.emit(PressInteraction.Release(press))
                     }
-                    // Consume the up event so it counts as a click
                     upOrCancelEvent!!.changes.forEach { it.consume() }
                     onClick()
                 } else {

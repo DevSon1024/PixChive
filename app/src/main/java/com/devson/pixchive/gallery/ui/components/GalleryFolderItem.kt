@@ -5,7 +5,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -175,68 +174,63 @@ fun GalleryFolderItem(
     )
 
     if (isListMode) {
-        // List row: thumbnail left, info right
-        Card(
+        Row(
             modifier = modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 4.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = bgColor),
-            elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),
-            border = BorderStroke(if (isSelected) 1.5.dp else 0.dp, borderColor),
-            onClick = onClick
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onLongPress()
+                    }
+                )
+                .background(bgColor)
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Card(
-                        modifier = Modifier
-                            .size(width = 96.dp, height = 72.dp)
-                            .clickable { 
-                                if (onThumbnailClick != null) onThumbnailClick() 
-                                else onLongPress() 
-                            },
-                        shape = RoundedCornerShape(10.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        FolderThumbnail(
-                            folder = folder,
-                            showThumbnail = showThumbnail,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(14.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = folder.folderName,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = if (isSelected)
-                                MaterialTheme.colorScheme.onPrimaryContainer
-                            else
-                                MaterialTheme.colorScheme.onSurface
-                        )
-                        if (viewSettings.showPath) {
-                            Text(
-                                text = folder.folderPath,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(top = 1.dp)
-                            )
+            Box(
+                modifier = Modifier
+                    .size(width = 72.dp, height = 56.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .combinedClickable(
+                        onClick = { onThumbnailClick?.invoke() ?: onLongPress() },
+                        onLongClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onLongPress()
                         }
-                        Spacer(modifier = Modifier.height(6.dp))
-                        FolderMetaRow(folder = folder, viewSettings = viewSettings)
-                    }
+                    )
+            ) {
+                FolderThumbnail(
+                    folder = folder,
+                    showThumbnail = showThumbnail,
+                    modifier = Modifier.fillMaxSize()
+                )
+                SelectionCheckmarkOverlay(visible = isSelected, isDense = true)
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = folder.folderName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = if (isSelected)
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    else
+                        MaterialTheme.colorScheme.onSurface
+                )
+                if (viewSettings.showPath) {
+                    Text(
+                        text = folder.folderPath,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
-                SelectionCheckmarkOverlay(visible = isSelected)
+                Spacer(modifier = Modifier.height(4.dp))
+                FolderMetaRow(folder = folder, viewSettings = viewSettings)
             }
         }
         return
@@ -300,18 +294,22 @@ fun GalleryFolderItem(
         }
 
         gridColumns == 2 -> {
-            // 2-col: thumbnail top, label strip below
+            val card2Shape = RoundedCornerShape(14.dp)
             Card(
                 modifier = modifier
                     .fillMaxWidth()
-                    .aspectRatio(0.88f)
-                    .then(clickMod),
-                shape = RoundedCornerShape(14.dp),
+                    .aspectRatio(0.88f),
+                shape = card2Shape,
                 colors = CardDefaults.cardColors(containerColor = bgColor),
                 elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),
                 border = BorderStroke(if (isSelected) 1.5.dp else 0.dp, borderColor)
             ) {
-                Box(modifier = Modifier.fillMaxSize()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(card2Shape)
+                        .then(clickMod)
+                ) {
                     Column(modifier = Modifier.fillMaxSize()) {
                         FolderThumbnail(
                             folder = folder,
@@ -356,18 +354,22 @@ fun GalleryFolderItem(
         }
 
         else -> {
-            // 3+ col: full-bleed thumbnail with gradient overlay label
+            val card3Shape = RoundedCornerShape(10.dp)
             Card(
                 modifier = modifier
                     .fillMaxWidth()
-                    .aspectRatio(1f)
-                    .then(clickMod),
-                shape = RoundedCornerShape(10.dp),
+                    .aspectRatio(1f),
+                shape = card3Shape,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),
                 border = BorderStroke(if (isSelected) 1.5.dp else 0.dp, borderColor)
             ) {
-                Box(modifier = Modifier.fillMaxSize()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(card3Shape)
+                        .then(clickMod)
+                ) {
                     // Thumbnail fills whole card
                     if (showThumbnail && folder.thumbnailUri != null) {
                         AsyncImage(

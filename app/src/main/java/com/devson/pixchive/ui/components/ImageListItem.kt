@@ -3,8 +3,10 @@ package com.devson.pixchive.ui.components
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
@@ -13,10 +15,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.painter.ColorPainter
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
@@ -31,6 +36,7 @@ import java.util.Locale
 
 private val listItemDateFormat = SimpleDateFormat("d MMM yyyy", Locale.getDefault())
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ImageListItem(
     image: ImageEntity,
@@ -39,17 +45,17 @@ fun ImageListItem(
 ) {
     val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
+    val haptics = LocalHapticFeedback.current
 
     val formattedSize = image.formattedSize
     val placeholderColor = MaterialTheme.colorScheme.surfaceVariant
     val placeholderPainter = remember(placeholderColor) { ColorPainter(placeholderColor) }
 
-    // Performance fix for list view
     val imageRequest = remember(image.path) {
         ImageRequest.Builder(context)
             .data(File(image.path))
-            .size(200) // Fixed small size for lists
-            .allowHardware(true) 
+            .size(200)
+            .allowHardware(true)
             .crossfade(false)
             .bitmapConfig(android.graphics.Bitmap.Config.RGB_565)
             .memoryCachePolicy(CachePolicy.ENABLED)
@@ -60,8 +66,13 @@ fun ImageListItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                }
+            )
+            .padding(horizontal = 8.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         AsyncImage(
@@ -69,30 +80,40 @@ fun ImageListItem(
             contentDescription = image.name,
             placeholder = placeholderPainter,
             error = placeholderPainter,
-            modifier = Modifier.size(64.dp),
+            modifier = Modifier
+                .size(56.dp)
+                .clip(RoundedCornerShape(8.dp)),
             contentScale = ContentScale.Crop
         )
 
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = image.name,
                 style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "$formattedSize • ${formatDate(image.dateModified)}",
+                text = "$formattedSize  •  ${formatDate(image.dateModified)}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
         Box {
-            IconButton(onClick = { showMenu = true }) {
-                Icon(Icons.Default.MoreVert, contentDescription = "More options")
+            IconButton(
+                onClick = { showMenu = true },
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    Icons.Default.MoreVert,
+                    contentDescription = "More options",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
             DropdownMenu(

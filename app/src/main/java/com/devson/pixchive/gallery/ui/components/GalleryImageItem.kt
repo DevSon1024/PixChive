@@ -8,7 +8,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -167,108 +168,32 @@ fun GalleryImageItem(
     )
 
     if (isListMode) {
-        Card(
+        val rowShape = RoundedCornerShape(12.dp)
+        Row(
             modifier = modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 4.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = bgColor),
-            elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),
-            border = BorderStroke(if (isSelected) 1.5.dp else 0.dp, borderColor),
-            onClick = onClick
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Card(
-                    modifier = Modifier
-                        .size(width = 110.dp, height = 82.dp)
-                        .clickable { onThumbnailClick?.invoke() ?: onLongClick() },
-                    shape = RoundedCornerShape(12.dp),
-                    elevation = CardDefaults.cardElevation(0.dp)
-                ) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        if (viewSettings.showThumbnail) {
-                            AsyncImage(
-                                model = image.uri,
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        } else {
-                            ThumbnailPlaceholder()
-                        }
-                        SelectionCheckmarkOverlay(visible = isSelected, isDense = true)
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = baseName,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-
-                    if (viewSettings.showPath) {
-                        Text(
-                            text = image.realPath,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (viewSettings.showFileExt && extension.isNotEmpty()) {
-                            InfoChip(text = extension, bgColor = MaterialTheme.colorScheme.secondaryContainer, textColor = MaterialTheme.colorScheme.onSecondaryContainer)
-                        }
-                        if (viewSettings.showResolution && image.width > 0) {
-                            InfoChip(text = "${image.width}x${image.height}", bgColor = MaterialTheme.colorScheme.tertiaryContainer, textColor = MaterialTheme.colorScheme.onTertiaryContainer)
-                        }
-                        if (viewSettings.showSize) {
-                            InfoChip(text = formatSize(image.size), bgColor = MaterialTheme.colorScheme.surfaceVariant, textColor = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        if (viewSettings.showDate) {
-                            InfoChip(text = formatDate(image.dateModified), bgColor = MaterialTheme.colorScheme.surfaceVariant, textColor = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                }
-            }
-        }
-    } else {
-        Card(
-            modifier = modifier
-                .fillMaxWidth()
-                .galleryItemClick(
+                .combinedClickable(
                     onClick = onClick,
                     onLongClick = {
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         onLongClick()
                     }
-                ),
-            shape = RoundedCornerShape(if (isDense) 10.dp else 16.dp),
-            colors = CardDefaults.cardColors(containerColor = bgColor),
-            border = BorderStroke(if (isSelected) 2.dp else 0.dp, borderColor)
+                )
+                .background(bgColor)
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f)
-                    .clip(RoundedCornerShape(if (isDense) 10.dp else 16.dp))
+                    .size(width = 80.dp, height = 60.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .combinedClickable(
+                        onClick = { onThumbnailClick?.invoke() ?: onLongClick() },
+                        onLongClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onLongClick()
+                        }
+                    )
             ) {
                 if (viewSettings.showThumbnail) {
                     AsyncImage(
@@ -280,6 +205,83 @@ fun GalleryImageItem(
                 } else {
                     ThumbnailPlaceholder()
                 }
+                SelectionCheckmarkOverlay(visible = isSelected, isDense = true)
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = baseName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                if (viewSettings.showPath) {
+                    Text(
+                        text = image.realPath,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (viewSettings.showFileExt && extension.isNotEmpty()) {
+                        InfoChip(text = extension, bgColor = MaterialTheme.colorScheme.secondaryContainer, textColor = MaterialTheme.colorScheme.onSecondaryContainer)
+                    }
+                    if (viewSettings.showResolution && image.width > 0) {
+                        InfoChip(text = "${image.width}x${image.height}", bgColor = MaterialTheme.colorScheme.tertiaryContainer, textColor = MaterialTheme.colorScheme.onTertiaryContainer)
+                    }
+                    if (viewSettings.showSize) {
+                        InfoChip(text = formatSize(image.size), bgColor = MaterialTheme.colorScheme.surfaceVariant, textColor = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if (viewSettings.showDate) {
+                        InfoChip(text = formatDate(image.dateModified), bgColor = MaterialTheme.colorScheme.surfaceVariant, textColor = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+    } else {
+        val gridShape = RoundedCornerShape(if (isDense) 10.dp else 16.dp)
+        Box(
+            modifier = modifier
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .clip(gridShape)
+                .galleryItemClick(
+                    onClick = onClick,
+                    onLongClick = {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onLongClick()
+                    }
+                )
+                .background(bgColor)
+                .border(
+                    width = if (isSelected) 2.dp else 0.dp,
+                    color = borderColor,
+                    shape = gridShape
+                )
+        ) {
+            if (viewSettings.showThumbnail) {
+                AsyncImage(
+                    model = image.uri,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                ThumbnailPlaceholder()
+            }
 
                 // Metadata Overlays (Grid Mode)
                 if (columnCount <= 2) {
@@ -333,7 +335,6 @@ fun GalleryImageItem(
                 }
 
                 SelectionCheckmarkOverlay(visible = isSelected, isDense = isDense)
-            }
         }
     }
 }

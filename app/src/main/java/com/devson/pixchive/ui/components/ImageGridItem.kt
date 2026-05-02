@@ -15,7 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
@@ -42,29 +42,21 @@ fun ImageGridItem(
     var showMenu by remember { mutableStateOf(false) }
     val haptics = LocalHapticFeedback.current
 
-    // Determine what to show based on column count
     val showDetails = columns <= 2
     val showName = columns <= 4
 
-    // Calculate approx fetch size based on columns
     val fetchSize = when {
         columns <= 2 -> 600
         columns <= 4 -> 400
         else -> 200
     }
 
-    // formattedSize is pre-computed at scan time in FolderScanner and stored in the entity.
-    // No Math.log10 / Math.pow ever runs here - it's a simple field read.
     val formattedSize = image.formattedSize
     val placeholderColor = MaterialTheme.colorScheme.surfaceVariant
     val placeholderPainter = remember(placeholderColor) {
         ColorPainter(placeholderColor)
     }
 
-    // remember ensures the same ImageRequest object is reused across recompositions
-    // as long as the URI and fetchSize haven't changed.  Without this, AsyncImage
-    // receives a brand-new (non-equal) model every scroll frame and re-issues the
-    // Coil load, causing the "images reloading" flicker.
     val imageRequest = remember(image.uri, fetchSize) {
         ImageRequest.Builder(context)
             .data(image.uri)
@@ -76,15 +68,14 @@ fun ImageGridItem(
             .build()
     }
 
+    val shape = RoundedCornerShape(8.dp)
+
     Box {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(0.7f)
-                .graphicsLayer {
-                    clip = true
-                    shape = RoundedCornerShape(8.dp)
-                }
+                .clip(shape)
                 .combinedClickable(
                     onClick = onClick,
                     onLongClick = {
@@ -102,7 +93,6 @@ fun ImageGridItem(
                 contentScale = ContentScale.Crop
             )
 
-            // Overlay Text (Name) only if enabled
             if (showName) {
                 Column(
                     modifier = Modifier
@@ -176,8 +166,7 @@ private fun shareItem(context: Context, image: ImageEntity) {
 
 private fun deleteItem(file: File): Boolean {
     return try {
-        val deleted = if (file.isDirectory) file.deleteRecursively() else file.delete()
-        if (deleted) true else false
+        if (file.isDirectory) file.deleteRecursively() else file.delete()
     } catch (e: Exception) {
         false
     }

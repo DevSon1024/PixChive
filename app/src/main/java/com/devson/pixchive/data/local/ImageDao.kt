@@ -6,20 +6,25 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.RawQuery
+import androidx.room.Transaction
 import androidx.sqlite.db.SupportSQLiteQuery
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ImageDao {
-    @androidx.room.Insert(onConflict = androidx.room.OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertImages(images: List<ImageEntity>)
 
     @Query("DELETE FROM images WHERE folderId = :folderId")
     suspend fun deleteFolderContent(folderId: String)
 
-    // Returns a continuous stream of images for a specific folder
     @Query("SELECT * FROM images WHERE folderId = :folderId")
     fun getImagesFlow(folderId: String): Flow<List<ImageEntity>>
+
+    // Chunked non-Paging fetch to avoid loading the entire table in one allocation.
+    // Use limit/offset loops on the call site to stream results incrementally.
+    @Query("SELECT * FROM images WHERE folderId = :folderId ORDER BY parentFolderPath ASC, name ASC LIMIT :limit OFFSET :offset")
+    suspend fun getImagesChunked(folderId: String, limit: Int, offset: Int): List<ImageEntity>
 
     @Query("SELECT images.* FROM images INNER JOIN favorite_images ON images.uri = favorite_images.uri ORDER BY images.parentFolderPath ASC, images.name ASC")
     fun getFavoritesPagedNameAsc(): PagingSource<Int, ImageEntity>
@@ -33,15 +38,8 @@ interface ImageDao {
     @Query("SELECT images.* FROM images INNER JOIN favorite_images ON images.uri = favorite_images.uri ORDER BY favorite_images.addedAt ASC")
     fun getFavoritesPagedDateOldest(): PagingSource<Int, ImageEntity>
 
-    /**
-     * Fixed sort PagingSource (kept for compatibility).
-     */
     @Query("SELECT * FROM images WHERE folderId = :folderId ORDER BY parentFolderPath ASC, name ASC")
     fun getImagesByFolderPaged(folderId: String): PagingSource<Int, ImageEntity>
-
-    // --- Sort-specific typed PagingSource queries ---
-    // Room requires separate @Query methods (or a RawQuery) for dynamic ORDER BY.
-    // Using typed queries avoids the overhead of SupportSQLiteQuery construction per page load.
 
     @Query("SELECT * FROM images WHERE folderId = :folderId ORDER BY parentFolderPath ASC, name ASC")
     fun getImagesPagedNameAsc(folderId: String): PagingSource<Int, ImageEntity>
@@ -67,10 +65,6 @@ interface ImageDao {
     @Query("SELECT * FROM images WHERE folderId = :folderId ORDER BY path DESC")
     fun getImagesPagedPathDesc(folderId: String): PagingSource<Int, ImageEntity>
 
-    /**
-     * Sort-aware PagingSource - ORDER BY is injected dynamically by the ViewModel
-     * so the grid and the reader always use an identical sort order.
-     */
     @RawQuery(observedEntities = [ImageEntity::class])
     fun getImagesByFolderPagedRaw(query: SupportSQLiteQuery): PagingSource<Int, ImageEntity>
 
@@ -83,19 +77,25 @@ interface ImageDao {
     @Query("SELECT * FROM images WHERE folderId = :folderId ORDER BY parentFolderPath ASC, name ASC LIMIT 1 OFFSET :index")
     suspend fun getImageByIndex(folderId: String, index: Int): ImageEntity?
 
-    /**
-     * Sort-aware single-image fetch by row offset - must use SAME ORDER BY as getImagesByFolderPagedRaw.
-     */
     @RawQuery
     suspend fun getImageByIndexRaw(query: SupportSQLiteQuery): ImageEntity?
 
     @Query("SELECT COUNT(DISTINCT parentFolderPath) FROM images WHERE folderId = :folderId")
     suspend fun getChapterCount(folderId: String): Int
 
-    @androidx.room.Query("SELECT path FROM images WHERE folderId = :folderId")
+    @Query("SELECT path FROM images WHERE folderId = :folderId")
     suspend fun getAllPathsForFolder(folderId: String): List<String>
 
-    @androidx.room.Query("DELETE FROM images WHERE path IN (:paths)")
-    suspend fun deleteImagesByPaths(paths: List<String>)
+    // Wrapped in @Transaction so the entire batch delete is one atomic DB write,
+    // preventing partial deletes that would leave the DB in an inconsistent state
+    // and also releasing the write lock in a single commit instead of N commits.
+    @Transaction
+    suspend fun deleteImagesByPathsBatched(paths: Collection<String>) {
+        paths.chunked(900).forEach { chunk ->
+            deleteImagesByPaths(chunk)
+        }
+    }
 
+    @Query("DELETE FROM images WHERE path IN (:paths)")
+    suspend fun deleteImagesByPaths(paths: List<String>)
 }

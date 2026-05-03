@@ -16,26 +16,17 @@ import kotlin.coroutines.coroutineContext
 object FolderScanner {
 
     private const val TAG = "FolderScanner"
-    private const val BATCH_SIZE = 2000
+    // Smaller batch = shorter write locks, less heap pressure per commit
+    private const val BATCH_SIZE = 500
     private val imageExtensions = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp")
 
-    // Define folders that should ALWAYS be ignored
     private val ignoredDirNames = setOf(
-        ".thumbnails",
-        ".trash",
-        ".Trashed",
-        ".trashed",
-        ".Trash",
-        "Trash",
-        "\$RECYCLE.BIN",
-        "lost+found"
+        ".thumbnails", ".trash", ".Trashed", ".trashed", ".Trash", "Trash",
+        "\$RECYCLE.BIN", "lost+found"
     )
 
     /**
-     * @param lastScanTime  Epoch-millis of the previous successful scan for this folder.
-     *                      Pass **0L** (default) to force a full scan.
-     *                      Any subdirectory whose [File.lastModified] is older than this
-     *                      value will be skipped entirely - its images are assumed unchanged.
+     * @param lastScanTime Epoch-millis of the previous successful scan. Pass 0L for a full scan.
      */
     suspend fun scanAndInsert(
         context: Context,
@@ -45,9 +36,10 @@ object FolderScanner {
         showHidden: Boolean,
         lastScanTime: Long = 0L
     ) = withContext(Dispatchers.IO) {
-        // Build a path→content:// URI lookup map from MediaStore for O(1) resolution per file.
-        // This avoids per-file ContentResolver queries during the recursive scan.
+        // Build MediaStore URI map strictly on IO; cooperative-yield every 5000 rows
+        // so a huge MediaStore doesn't block cancellation for too long.
         val mediaStoreUriMap = buildMediaStoreUriMap(context)
+
         try {
             val rootPath = getAbsolutePathFromSafUri(folderUri)
             if (rootPath == null) {
@@ -56,59 +48,47 @@ object FolderScanner {
             }
 
             val rootFile = File(rootPath)
-            if (!rootFile.exists() || !rootFile.isDirectory) {
-                return@withContext
-            }
+            if (!rootFile.exists() || !rootFile.isDirectory) return@withContext
 
-            // 1. GET EXISTING FILES (Do NOT call deleteFolderContent anymore!)
-            // We put them in a MutableSet. As we find files, we remove them from this set.
-            // Whatever is left in the set at the end are files that were deleted from storage.
             val existingPaths = imageDao.getAllPathsForFolder(folderId).toMutableSet()
-
-            // 2. Buffer for batch insertion
             val buffer = mutableListOf<ImageEntity>()
 
-            // 3. Recursive Scan
             scanRecursive(rootFile, showHidden, lastScanTime, existingPaths) { file ->
-                // Prefer the native content:// URI from MediaStore so Coil can use
-                // OS-level pre-generated thumbnails via MediaStoreImageThumbnailFetcher.
-                // Fall back to file:// for brand-new files not yet indexed by MediaStore.
                 val contentUri = mediaStoreUriMap[file.absolutePath]
                     ?: Uri.fromFile(file).toString()
 
-                val entity = ImageEntity(
-                    path = file.absolutePath,      // Primary key – unchanged for dedup
-                    folderId = folderId,
-                    name = file.name,
-                    size = file.length(),
-                    formattedSize = formatFileSize(file.length()),
-                    dateModified = file.lastModified(),
-                    parentFolderPath = file.parentFile?.absolutePath ?: "",
-                    parentFolderName = file.parentFile?.name ?: "",
-                    uri = contentUri
+                buffer.add(
+                    ImageEntity(
+                        path = file.absolutePath,
+                        folderId = folderId,
+                        name = file.name,
+                        size = file.length(),
+                        formattedSize = formatFileSize(file.length()),
+                        dateModified = file.lastModified(),
+                        parentFolderPath = file.parentFile?.absolutePath ?: "",
+                        parentFolderName = file.parentFile?.name ?: "",
+                        uri = contentUri
+                    )
                 )
-                buffer.add(entity)
-
-                // Mark as found so we don't delete it
                 existingPaths.remove(file.absolutePath)
 
                 if (buffer.size >= BATCH_SIZE) {
+                    // Each batch is its own transaction; keeps write-lock windows short
                     imageDao.insertImages(buffer.toList())
                     buffer.clear()
+                    // Yield after each DB commit so cancellation is honoured promptly
+                    yield()
                 }
             }
 
-            // 4. Flush remaining items
             if (buffer.isNotEmpty()) {
                 imageDao.insertImages(buffer)
+                buffer.clear()
             }
 
-            // 5. Cleanup: Delete files from DB that no longer exist on disk
+            // Single atomic delete of all stale paths using the DAO's @Transaction helper
             if (existingPaths.isNotEmpty()) {
-                // Batch delete by paths (SQLite limits parameters, so chunk it if it's huge)
-                existingPaths.chunked(900).forEach { chunk ->
-                    imageDao.deleteImagesByPaths(chunk)
-                }
+                imageDao.deleteImagesByPathsBatched(existingPaths)
             }
 
         } catch (e: Exception) {
@@ -117,46 +97,45 @@ object FolderScanner {
     }
 
     /**
-     * Queries MediaStore once and returns a Map<absolutePath, contentUriString>.
-     * This is much cheaper than issuing one ContentResolver query per image file.
+     * Queries MediaStore on IO with cooperative cancellation every 5000 rows.
      */
-    private fun buildMediaStoreUriMap(context: Context): Map<String, String> {
-        val map = mutableMapOf<String, String>()
-        val projection = arrayOf(
-            MediaStore.Images.Media._ID,
-            MediaStore.Images.Media.DATA
-        )
-        try {
-            context.contentResolver.query(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                projection,
-                null,
-                null,
-                null
-            )?.use { cursor ->
-                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
-                val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
-                while (cursor.moveToNext()) {
-                    val id = cursor.getLong(idCol)
-                    val data = cursor.getString(dataCol) ?: continue
-                    val contentUri = Uri.withAppendedPath(
-                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                        id.toString()
-                    ).toString()
-                    map[data] = contentUri
+    private suspend fun buildMediaStoreUriMap(context: Context): Map<String, String> =
+        withContext(Dispatchers.IO) {
+            val map = mutableMapOf<String, String>()
+            val projection = arrayOf(
+                MediaStore.Images.Media._ID,
+                MediaStore.Images.Media.DATA
+            )
+            try {
+                context.contentResolver.query(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    projection, null, null, null
+                )?.use { cursor ->
+                    val idCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+                    val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
+                    var rowCount = 0
+                    while (cursor.moveToNext()) {
+                        if (!coroutineContext.isActive) break
+                        // Yield every 5000 rows to stay cancellation-friendly
+                        if (++rowCount % 5000 == 0) yield()
+                        val id = cursor.getLong(idCol)
+                        val data = cursor.getString(dataCol) ?: continue
+                        map[data] = Uri.withAppendedPath(
+                            MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id.toString()
+                        ).toString()
+                    }
                 }
+            } catch (e: Exception) {
+                Log.w(TAG, "MediaStore query failed, falling back to file:// URIs", e)
             }
-        } catch (e: Exception) {
-            Log.w(TAG, "MediaStore query failed, falling back to file:// URIs", e)
+            map
         }
-        return map
-    }
 
     private suspend fun scanRecursive(
         directory: File,
         showHidden: Boolean,
         lastScanTime: Long,
-        existingPaths: MutableSet<String>, // Pass the set down
+        existingPaths: MutableSet<String>,
         onImageFound: suspend (File) -> Unit
     ) {
         val files = directory.listFiles() ?: return
@@ -169,7 +148,6 @@ object FolderScanner {
             if (!showHidden && file.name.startsWith(".")) continue
 
             if (file.isDirectory) {
-                // Delta-scan optimisation
                 if (lastScanTime > 0L && file.lastModified() < lastScanTime - 1_000L) {
                     Log.d(TAG, "Skipping unchanged dir: ${file.absolutePath}")
                     existingPaths.removeAll { it.startsWith(file.absolutePath + File.separator) }
@@ -183,20 +161,11 @@ object FolderScanner {
     }
 
     private fun isIgnoredDirectory(name: String): Boolean {
-        // Exact matches
         if (name in ignoredDirNames) return true
-
-        // Pattern matches (e.g., .Trash-1000)
         if (name.startsWith(".trash", ignoreCase = true)) return true
-
         return false
     }
 
-    /**
-     * Converts a raw byte count into a human-readable string (e.g. "1.4 MB").
-     * Called once per file at scan time and stored in [ImageEntity.formattedSize]
-     * so that Compose composables never need to perform this calculation.
-     */
     internal fun formatFileSize(bytes: Long): String {
         if (bytes <= 0) return "0 B"
         val units = arrayOf("B", "KB", "MB", "GB")
@@ -241,24 +210,22 @@ object FolderScanner {
             val isDigit2 = s2[i2].isDigit()
 
             if (isDigit1 && isDigit2) {
-                // Find contiguous digits
                 var j1 = i1
                 while (j1 < s1.length && s1[j1].isDigit()) j1++
                 var j2 = i2
                 while (j2 < s2.length && s2[j2].isDigit()) j2++
 
-                // Compare numeric ranges mathematically using lengths or custom trailing big integers
                 val segment1 = s1.substring(i1, j1)
                 val segment2 = s2.substring(i2, j2)
-                
-                val cmp = segment1.toBigDecimalOrNull()?.compareTo(segment2.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO)
+
+                val cmp = segment1.toBigDecimalOrNull()
+                    ?.compareTo(segment2.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO)
                     ?: segment1.compareTo(segment2)
 
                 if (cmp != 0) return cmp
                 i1 = j1
                 i2 = j2
             } else if (!isDigit1 && !isDigit2) {
-                // Find contiguous non-digits
                 var j1 = i1
                 while (j1 < s1.length && !s1[j1].isDigit()) j1++
                 var j2 = i2
@@ -272,7 +239,6 @@ object FolderScanner {
                 i1 = j1
                 i2 = j2
             } else {
-                // One is digit, one is not
                 val cmp = s1[i1].toString().compareTo(s2[i2].toString(), ignoreCase = true)
                 if (cmp != 0) return cmp
                 i1++

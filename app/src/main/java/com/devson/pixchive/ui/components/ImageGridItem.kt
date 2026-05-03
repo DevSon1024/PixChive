@@ -45,18 +45,16 @@ fun ImageGridItem(
     val showDetails = columns <= 2
     val showName = columns <= 4
 
-    // Cap decode size to view bounds; smaller grids get slightly more detail
     val fetchSize = when {
         columns <= 2 -> 400
         columns <= 4 -> 256
         else -> 160
     }
 
-    val formattedSize = image.formattedSize
     val placeholderColor = MaterialTheme.colorScheme.surfaceVariant
+    // Stable painter reference; only recreated if color token changes
     val placeholderPainter = remember(placeholderColor) { ColorPainter(placeholderColor) }
 
-    // allowHardware=false keeps bitmaps in software memory so they can be recycled promptly
     val imageRequest = remember(image.uri, fetchSize) {
         ImageRequest.Builder(context)
             .data(image.uri)
@@ -69,11 +67,16 @@ fun ImageGridItem(
             .build()
     }
 
+    // Stable lambda refs to prevent recomposing combinedClickable on every parent recomposition
+    val stableOnClick = remember(onClick) { onClick }
+    val stableOnLongClick = remember<() -> Unit> {
+        { haptics.performHapticFeedback(HapticFeedbackType.LongPress); showMenu = true }
+    }
+
     val shape = RoundedCornerShape(8.dp)
 
-    // Clear the request reference when the item leaves composition so Coil can GC the bitmap
     DisposableEffect(image.uri) {
-        onDispose { /* imageRequest goes out of scope; Coil's LRU eviction handles the rest */ }
+        onDispose { /* imageRequest goes out of scope; Coil LRU handles eviction */ }
     }
 
     Box {
@@ -83,11 +86,8 @@ fun ImageGridItem(
                 .aspectRatio(0.7f)
                 .clip(shape)
                 .combinedClickable(
-                    onClick = onClick,
-                    onLongClick = {
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        showMenu = true
-                    }
+                    onClick = stableOnClick,
+                    onLongClick = stableOnLongClick
                 )
         ) {
             AsyncImage(
@@ -115,7 +115,7 @@ fun ImageGridItem(
                     )
                     if (showDetails) {
                         Text(
-                            text = formattedSize,
+                            text = image.formattedSize,
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -141,9 +141,7 @@ fun ImageGridItem(
                 leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
                 onClick = {
                     showMenu = false
-                    if (deleteItem(File(image.path))) {
-                        onRefresh()
-                    }
+                    if (deleteItem(File(image.path))) onRefresh()
                 }
             )
         }
@@ -153,11 +151,7 @@ fun ImageGridItem(
 private fun shareItem(context: Context, image: ImageEntity) {
     try {
         val file = File(image.path)
-        val uri = FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.provider",
-            file
-        )
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
             type = "image/*"
             putExtra(Intent.EXTRA_STREAM, uri)

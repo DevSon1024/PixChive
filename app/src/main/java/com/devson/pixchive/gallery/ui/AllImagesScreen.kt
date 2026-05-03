@@ -223,8 +223,10 @@ fun AllImagesScreen(
 
                                      items(
                                         items = images,
-                                        key = { it.id }
+                                        key = { it.id },
+                                        contentType = { "gallery_image" }
                                     ) { image ->
+                                        // Read selectedIds here so only this item recomposes on selection change
                                         val isSelected = image.id in selectedIds
                                         GalleryImageItem(
                                             image = image,
@@ -318,7 +320,8 @@ fun AllImagesScreen(
 
                                     items(
                                         items = images,
-                                        key = { it.id }
+                                        key = { it.id },
+                                        contentType = { "gallery_image" }
                                     ) { image ->
                                         val isSelected = image.id in selectedIds
                                         GalleryImageItem(

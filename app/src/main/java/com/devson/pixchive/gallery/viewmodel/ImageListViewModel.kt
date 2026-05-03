@@ -2,6 +2,8 @@ package com.devson.pixchive.gallery.viewmodel
 
 import android.app.Application
 import android.net.Uri
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.devson.pixchive.gallery.data.MediaStoreRepository
@@ -18,25 +20,30 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Dispatchers
 import com.devson.pixchive.gallery.data.models.GalleryViewSettings
 
+@Stable
 sealed class GalleryState {
+    @Immutable
     object Loading : GalleryState()
+
+    @Immutable
     data class Success(val folders: List<GalleryFolder>) : GalleryState()
+
+    @Immutable
     data class Error(val message: String) : GalleryState()
 }
 
-// Using AndroidViewModel to easily access context for the MediaStoreRepository
 @OptIn(FlowPreview::class)
 class ImageListViewModel(application: Application) : AndroidViewModel(application) {
-    
+
     private val repository = MediaStoreRepository(application)
 
     private val _uiState = MutableStateFlow<GalleryState>(GalleryState.Loading)
     private val _folders = MutableStateFlow<List<GalleryFolder>>(emptyList())
     private val _selectedIds = MutableStateFlow<Set<String>>(emptySet())
     val selectedIds: StateFlow<Set<String>> = _selectedIds
-    
+
     private val preferencesManager = PreferencesManager(application)
-    
+
     val sortOption: StateFlow<String> = preferencesManager.gallerySortOptionFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "name_asc")
 
@@ -76,27 +83,19 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), GalleryViewSettings())
 
     fun setLayoutMode(mode: String) {
-        viewModelScope.launch {
-            preferencesManager.setGalleryLayoutMode(mode)
-        }
+        viewModelScope.launch { preferencesManager.setGalleryLayoutMode(mode) }
     }
 
     fun setGridCellsIndex(index: Int) {
-        viewModelScope.launch {
-            preferencesManager.setGalleryGridCellsIndex(index)
-        }
+        viewModelScope.launch { preferencesManager.setGalleryGridCellsIndex(index) }
     }
 
     fun setSortOption(option: String) {
-        viewModelScope.launch {
-            preferencesManager.setGallerySortOption(option)
-        }
+        viewModelScope.launch { preferencesManager.setGallerySortOption(option) }
     }
 
     fun setShowFolderThumbnail(show: Boolean) {
-        viewModelScope.launch {
-            preferencesManager.setGalleryShowFolderThumbnail(show)
-        }
+        viewModelScope.launch { preferencesManager.setGalleryShowFolderThumbnail(show) }
     }
 
     val galleryViewMode: StateFlow<String> = preferencesManager.galleryViewModeFlow
@@ -141,7 +140,7 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
         val items = state.folders
         val start = minOf(startIndex, endIndex).coerceIn(0, items.lastIndex)
         val end = maxOf(startIndex, endIndex).coerceIn(0, items.lastIndex)
-        
+
         val newSelection = _selectedIds.value.toMutableSet()
         for (i in start..end) {
             newSelection.add(items[i].bucketId)
@@ -166,9 +165,7 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch(Dispatchers.IO) {
             repository.observeMediaStoreChanges()
                 .debounce(500L)
-                .collect {
-                    loadGalleryFolders()
-                }
+                .collect { loadGalleryFolders() }
         }
     }
 
@@ -186,10 +183,6 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun removeFoldersLocally(uris: List<Uri>) {
-        // If a folder has no images left (because they were deleted), we should remove it from the list.
-        // For simplicity, we just trigger a full reload when images are deleted,
-        // because determining if a folder is now completely empty requires checking all remaining MediaStore items.
-        // Alternatively, if we just want to force a refresh:
         loadGalleryFolders()
     }
 

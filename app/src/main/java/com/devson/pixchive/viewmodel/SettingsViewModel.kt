@@ -36,6 +36,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     val isNavBarTransparent: StateFlow<Boolean> = prefs.navBarTransparentFlow
         .stateIn(viewModelScope, SharingStarted.Lazily, false)
 
+    val isBackgroundBlurEnabled: StateFlow<Boolean> = prefs.isBackgroundBlurEnabledFlow
+        .stateIn(viewModelScope, SharingStarted.Lazily, true)
+
     fun setDarkTheme(isDark: Boolean) {
         viewModelScope.launch {
             prefs.saveAppTheme(if (isDark) "dark" else "light")
@@ -63,6 +66,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setNavBarTransparent(transparent: Boolean) {
         viewModelScope.launch {
             prefs.saveNavBarTransparent(transparent)
+        }
+    }
+
+    fun setBackgroundBlurEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            prefs.setBackgroundBlurEnabled(enabled)
         }
     }
 }

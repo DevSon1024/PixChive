@@ -60,6 +60,9 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
     val layoutMode: StateFlow<String> = preferencesManager.galleryLayoutModeFlow
         .stateIn(viewModelScope, SharingStarted.Lazily, "grid")
 
+    val isBackgroundBlurEnabled: StateFlow<Boolean> = preferencesManager.isBackgroundBlurEnabledFlow
+        .stateIn(viewModelScope, SharingStarted.Lazily, true)
+
     val viewSettings: StateFlow<GalleryViewSettings> = combine(
         preferencesManager.galleryShowThumbnail,
         preferencesManager.galleryShowFileExt,
@@ -104,6 +107,15 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
             preferencesManager.setGalleryShowPath(settings.showPath)
             preferencesManager.setGalleryShowSize(settings.showSize)
             preferencesManager.setGalleryShowDate(settings.showDate)
+        }
+    }
+
+    val favorites: StateFlow<Set<String>> = preferencesManager.favoritesFlow
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptySet())
+
+    fun toggleFavorite(uri: Uri) {
+        viewModelScope.launch {
+            preferencesManager.toggleFavorite(uri.toString())
         }
     }
 
@@ -174,6 +186,29 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
         viewModelScope.launch {
             if (repository.renameImage(image.id, newName)) {
                 loadImages(bucketId, forceRefresh = true)
+                clearSelection()
+            }
+        }
+    }
+
+    fun deleteImage(image: GalleryImage, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            if (repository.deleteImage(image.id)) {
+                // MediaStore observer should trigger reload, but we can also manually remove it from local state for immediate feedback
+                removeImagesLocally(listOf(image.uri))
+                onSuccess()
+            }
+        }
+    }
+
+    fun deleteSelectedImages() {
+        val selectedIds = _selectedIds.value.toList()
+        if (selectedIds.isEmpty()) return
+        
+        viewModelScope.launch {
+            if (repository.deleteImages(selectedIds)) {
+                val uris = _images.value.filter { it.id in selectedIds }.map { it.uri }
+                removeImagesLocally(uris)
                 clearSelection()
             }
         }

@@ -67,6 +67,7 @@ class PreferencesManager(private val context: Context) {
         private val GALLERY_SHOW_DATE_KEY = booleanPreferencesKey("gallery_show_date")
         private val GALLERY_SHOW_FOLDER_THUMBNAIL_KEY = booleanPreferencesKey("gallery_show_folder_thumbnail")
         private val GALLERY_VIEW_MODE_KEY = stringPreferencesKey("gallery_view_mode")
+        private val BACKGROUND_BLUR_ENABLED_KEY = booleanPreferencesKey("background_blur_enabled")
     }
 
     // Default to index 2 (which represents 4 columns in our list if index 0 is 2 columns)
@@ -368,4 +369,15 @@ class PreferencesManager(private val context: Context) {
                     .associate { it.key.removePrefix(prefix) to it.value }
             } catch (e: Exception) { emptyMap() }
         }.distinctUntilChanged()
-}
+
+    // --- Blur Settings ---
+    val isBackgroundBlurEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[BACKGROUND_BLUR_ENABLED_KEY] ?: true
+    }.distinctUntilChanged()
+
+    suspend fun setBackgroundBlurEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[BACKGROUND_BLUR_ENABLED_KEY] = enabled
+        }
+    }
+}

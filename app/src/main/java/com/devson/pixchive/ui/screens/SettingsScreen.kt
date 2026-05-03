@@ -52,10 +52,9 @@ fun SettingsScreen(
 
     val showHiddenFiles by preferencesManager.showHiddenFilesFlow.collectAsState(initial = false)
     val appTheme by preferencesManager.appThemeFlow.collectAsState(initial = "system")
-
     val volumeKeysNavigation by preferencesManager.volumeKeysNavigationFlow.collectAsState(initial = true)
+    val isBackgroundBlurEnabled by preferencesManager.isBackgroundBlurEnabledFlow.collectAsState(initial = true)
 
-    // Resolve version name
     val versionName = remember {
         runCatching {
             context.packageManager.getPackageInfo(context.packageName, 0).versionName
@@ -180,6 +179,16 @@ fun SettingsScreen(
                     checked = showHiddenFiles,
                     onCheckedChange = { checked ->
                         scope.launch { preferencesManager.setShowHiddenFiles(checked) }
+                    }
+                )
+                SettingsDivider()
+                SettingsToggleRow(
+                    icon = Icons.Default.BlurOn,
+                    title = "Image Background Blur",
+                    subtitle = "Enable blur effect for image background",
+                    checked = isBackgroundBlurEnabled,
+                    onCheckedChange = { checked ->
+                        scope.launch { preferencesManager.setBackgroundBlurEnabled(checked) }
                     }
                 )
             }

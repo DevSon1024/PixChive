@@ -234,6 +234,25 @@ class MediaStoreRepository(private val context: Context) {
         }
     }
 
+    suspend fun deleteImage(id: Long): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val uri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
+            context.contentResolver.delete(uri, null, null) > 0
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun deleteImages(ids: List<Long>): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+            val selection = "${MediaStore.Images.Media._ID} IN (${ids.joinToString(",")})"
+            context.contentResolver.delete(uri, selection, null) > 0
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     suspend fun renameFolder(folderPath: String, newName: String): Boolean = withContext(Dispatchers.IO) {
         try {
             val oldFolder = File(folderPath)

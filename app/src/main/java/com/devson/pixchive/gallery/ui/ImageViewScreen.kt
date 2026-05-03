@@ -47,6 +47,10 @@ import android.content.Intent
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.widget.Toast
+import com.devson.pixchive.viewmodel.FileOperationsViewModel
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.IntentSenderRequest
 import androidx.compose.ui.draw.BlurredEdgeTreatment
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
@@ -55,7 +59,8 @@ fun ImageViewScreen(
     bucketId: String,
     initialIndex: Int,
     onNavigateBack: () -> Unit,
-    viewModel: GalleryFolderViewModel = viewModel()
+    viewModel: GalleryFolderViewModel = viewModel(),
+    fileOpsViewModel: FileOperationsViewModel = viewModel()
 ) {
     val images by viewModel.images.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -64,6 +69,25 @@ fun ImageViewScreen(
     var showInfoDialog by remember { mutableStateOf<GalleryImage?>(null) }
     var showDeleteSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val pendingIntentSender by fileOpsViewModel.pendingIntentSender.collectAsState()
+
+    val intentSenderLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            fileOpsViewModel.onPermissionGranted(context)
+            onNavigateBack()
+        }
+    }
+
+    LaunchedEffect(pendingIntentSender) {
+        pendingIntentSender?.let { intentSender ->
+            val request = IntentSenderRequest.Builder(intentSender).build()
+            intentSenderLauncher.launch(request)
+            fileOpsViewModel.clearPendingIntentSender()
+        }
+    }
+
     val view = LocalView.current
     val window = (context as Activity).window
     val insetsController = remember { WindowCompat.getInsetsController(window, view) }
@@ -149,6 +173,7 @@ fun ImageViewScreen(
             CoilZoomAsyncImage(
                 model = images[page].uri,
                 contentDescription = null,
+                scrollBar = null,
                 zoomState = zoomState,
                 modifier = Modifier.fillMaxSize(),
                 onTap = { controlsVisible = !controlsVisible }
@@ -313,71 +338,116 @@ fun ImageViewScreen(
     if (showDeleteSheet) {
         ModalBottomSheet(
             onDismissRequest = { showDeleteSheet = false },
-            dragHandle = { BottomSheetDefaults.DragHandle() },
-            containerColor = MaterialTheme.colorScheme.surface
+            dragHandle = {
+                BottomSheetDefaults.DragHandle(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                )
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(top = 16.dp, bottom = 48.dp),
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
+                    .navigationBarsPadding(),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
+                Box(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Delete photo",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.align(Alignment.CenterStart)
+                    )
+
+                    IconButton(
+                        onClick = { showDeleteSheet = false },
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                            )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
                 Text(
-                    text = "Move to Trash?",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "This item will be moved to your device trash.",
+                    text = "Choose what to do with this photo.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
 
                 Surface(
-                    shape = RoundedCornerShape(24.dp),
-                    modifier = Modifier.size(160.dp),
-                    shadowElevation = 4.dp
+                    shape = RoundedCornerShape(18.dp),
+                    shadowElevation = 2.dp,
+                    tonalElevation = 1.dp,
+                    modifier = Modifier.size(96.dp)
                 ) {
                     AsyncImage(
                         model = currentImage.uri,
-                        contentDescription = null,
+                        contentDescription = "Image preview",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    OutlinedButton(
-                        onClick = { showDeleteSheet = false },
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.weight(1f).height(56.dp)
-                    ) {
-                        Text("Cancel")
-                    }
-                    Button(
+                    DeleteActionItem(
+                        icon = Icons.Default.DeleteOutline,
+                        title = "Move to Recycle Bin",
+                        subtitle = "Restore later if needed",
+                        iconTint = MaterialTheme.colorScheme.primary,
                         onClick = {
-                            viewModel.deleteImage(currentImage) {
-                                showDeleteSheet = false
-                                if (images.size <= 1) {
-                                    onNavigateBack()
-                                }
+                            fileOpsViewModel.deleteImages(
+                                context,
+                                listOf(currentImage.uri),
+                                trash = true
+                            )
+                            showDeleteSheet = false
+                            if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) {
+                                onNavigateBack()
                             }
-                        },
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error
-                        ),
-                        modifier = Modifier.weight(1f).height(56.dp)
-                    ) {
-                        Text("Delete", color = MaterialTheme.colorScheme.onError)
-                    }
+                        }
+                    )
+
+                    DeleteActionItem(
+                        icon = Icons.Default.Delete,
+                        title = "Delete Permanently",
+                        subtitle = "This cannot be undone",
+                        iconTint = MaterialTheme.colorScheme.error,
+                        onClick = {
+                            fileOpsViewModel.deleteImages(
+                                context,
+                                listOf(currentImage.uri),
+                                trash = false
+                            )
+                            showDeleteSheet = false
+                            if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) {
+                                onNavigateBack()
+                            }
+                        }
+                    )
                 }
+
+                Spacer(modifier = Modifier.height(6.dp))
             }
         }
     }
@@ -388,6 +458,62 @@ fun ImageViewScreen(
             dragHandle = { BottomSheetDefaults.DragHandle() }
         ) {
             ImageInfoContent(image = currentImage)
+        }
+    }
+}
+
+@Composable
+private fun DeleteActionItem(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    iconTint: Color,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+        tonalElevation = 0.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(iconTint.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }

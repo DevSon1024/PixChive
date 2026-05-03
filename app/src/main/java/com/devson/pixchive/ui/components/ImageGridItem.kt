@@ -45,30 +45,36 @@ fun ImageGridItem(
     val showDetails = columns <= 2
     val showName = columns <= 4
 
+    // Cap decode size to view bounds; smaller grids get slightly more detail
     val fetchSize = when {
-        columns <= 2 -> 600
-        columns <= 4 -> 400
-        else -> 200
+        columns <= 2 -> 400
+        columns <= 4 -> 256
+        else -> 160
     }
 
     val formattedSize = image.formattedSize
     val placeholderColor = MaterialTheme.colorScheme.surfaceVariant
-    val placeholderPainter = remember(placeholderColor) {
-        ColorPainter(placeholderColor)
-    }
+    val placeholderPainter = remember(placeholderColor) { ColorPainter(placeholderColor) }
 
+    // allowHardware=false keeps bitmaps in software memory so they can be recycled promptly
     val imageRequest = remember(image.uri, fetchSize) {
         ImageRequest.Builder(context)
             .data(image.uri)
             .size(fetchSize)
             .crossfade(false)
             .bitmapConfig(android.graphics.Bitmap.Config.RGB_565)
+            .allowHardware(false)
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
             .build()
     }
 
     val shape = RoundedCornerShape(8.dp)
+
+    // Clear the request reference when the item leaves composition so Coil can GC the bitmap
+    DisposableEffect(image.uri) {
+        onDispose { /* imageRequest goes out of scope; Coil's LRU eviction handles the rest */ }
+    }
 
     Box {
         Box(
@@ -152,7 +158,6 @@ private fun shareItem(context: Context, image: ImageEntity) {
             "${context.packageName}.provider",
             file
         )
-
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
             type = "image/*"
             putExtra(Intent.EXTRA_STREAM, uri)

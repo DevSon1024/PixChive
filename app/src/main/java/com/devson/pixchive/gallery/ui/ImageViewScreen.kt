@@ -28,7 +28,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -64,14 +63,25 @@ fun ImageViewScreen(
     var controlsVisible by remember { mutableStateOf(true) }
     var showInfoDialog by remember { mutableStateOf<GalleryImage?>(null) }
     var showDeleteSheet by remember { mutableStateOf(false) }
-
     val context = LocalContext.current
     val view = LocalView.current
     val window = (context as Activity).window
     val insetsController = remember { WindowCompat.getInsetsController(window, view) }
 
-    LaunchedEffect(Unit) {
-        WindowCompat.setDecorFitsSystemWindows(window, false)
+    DisposableEffect(window, view) {
+        val originalLightStatus = insetsController.isAppearanceLightStatusBars
+        val originalLightNav = insetsController.isAppearanceLightNavigationBars
+        val originalBehavior = insetsController.systemBarsBehavior
+
+        insetsController.isAppearanceLightStatusBars = false
+        insetsController.isAppearanceLightNavigationBars = false
+
+        onDispose {
+            insetsController.isAppearanceLightStatusBars = originalLightStatus
+            insetsController.isAppearanceLightNavigationBars = originalLightNav
+            insetsController.systemBarsBehavior = originalBehavior
+            insetsController.show(WindowInsetsCompat.Type.systemBars())
+        }
     }
 
     LaunchedEffect(controlsVisible) {
@@ -82,13 +92,6 @@ fun ImageViewScreen(
             insetsController.hide(WindowInsetsCompat.Type.systemBars())
             insetsController.systemBarsBehavior =
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        }
-    }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            insetsController.show(WindowInsetsCompat.Type.systemBars())
-            WindowCompat.setDecorFitsSystemWindows(window, true)
         }
     }
 

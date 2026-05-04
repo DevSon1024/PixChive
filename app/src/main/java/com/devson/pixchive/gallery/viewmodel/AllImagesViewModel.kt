@@ -112,51 +112,6 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    private var selectionAnchorIndex: Int? = null
-
-    fun selectRange(startIndex: Int, endIndex: Int) {
-        val state = _uiState.value as? AllImagesState.Success ?: return
-        val items = state.gridItems
-        
-        val start = minOf(startIndex, endIndex).coerceIn(0, items.lastIndex)
-        val end = maxOf(startIndex, endIndex).coerceIn(0, items.lastIndex)
-        
-        val newSelection = _selectedIds.value.toMutableSet()
-        for (i in start..end) {
-            val item = items[i]
-            if (item is GalleryImage) {
-                newSelection.add(item.id)
-            }
-        }
-        _selectedIds.value = newSelection
-    }
-
-    fun selectRangeIncremental(startIndex: Int, currentIndex: Int) {
-        val state = _uiState.value as? AllImagesState.Success ?: return
-        val items = state.gridItems
-        
-        val start = minOf(startIndex, currentIndex).coerceIn(0, items.lastIndex)
-        val end = maxOf(startIndex, currentIndex).coerceIn(0, items.lastIndex)
-        
-        val currentRangeIds = mutableSetOf<Long>()
-        for (i in start..end) {
-            val item = items[i]
-            if (item is GalleryImage) {
-                currentRangeIds.add(item.id)
-            }
-        }
-        
-        // When dragging, we want to replace the selection with the range starting from initial anchor
-        // But we should keep the items that were already selected before the drag started if we want "additive" behavior.
-        // Usually drag-select in galleries is additive to whatever was selected or toggles.
-        // For simplicity, let's make it additive for now.
-        _selectedIds.value = _selectedIds.value + currentRangeIds
-    }
-
-    fun enterSelectionMode(id: Long) {
-        _selectedIds.value = setOf(id)
-    }
-
     fun clearSelection() {
         _selectedIds.value = emptySet()
     }

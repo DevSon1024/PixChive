@@ -33,6 +33,8 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
     val sortOption: StateFlow<String> = preferencesManager.gallerySortOptionFlow
         .stateIn(viewModelScope, SharingStarted.Lazily, "date_newest")
     private val _currentBucketId = MutableStateFlow("")
+    private val _folderName = MutableStateFlow("Folder Images")
+    val folderName: StateFlow<String> = _folderName.asStateFlow()
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
@@ -136,9 +138,18 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
 
             try {
                 val newImages = when {
-                    bucketId == "all_images" -> repository.getAllImages()
-                    bucketId.startsWith("search:") -> repository.searchImages(bucketId.removePrefix("search:"))
-                    else -> repository.getImagesForFolder(bucketId)
+                    bucketId == "all_images" -> {
+                        _folderName.value = "All Photos"
+                        repository.getAllImages()
+                    }
+                    bucketId.startsWith("search:") -> {
+                        _folderName.value = "Search Results"
+                        repository.searchImages(bucketId.removePrefix("search:"))
+                    }
+                    else -> {
+                        _folderName.value = repository.getFolderName(bucketId) ?: "Folder Images"
+                        repository.getImagesForFolder(bucketId)
+                    }
                 }
                 _images.value = newImages
             } catch (e: Exception) {

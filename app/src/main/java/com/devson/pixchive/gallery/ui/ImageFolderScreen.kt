@@ -37,6 +37,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.IntentSenderRequest
 import androidx.compose.ui.platform.LocalContext
+import com.devson.pixchive.gallery.ui.components.GlobalSearchAppBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -107,8 +108,10 @@ fun ImageFolderScreen(
         images.filter { it.id in selectedImageIds }
     }
 
+    val folderName by viewModel.folderName.collectAsState()
+
     Box(modifier = Modifier.fillMaxSize()) {
-    Scaffold(
+        Scaffold(
         topBar = {
             if (selectedImageIds.isNotEmpty()) {
                 TopAppBar(
@@ -128,8 +131,8 @@ fun ImageFolderScreen(
                     )
                 )
             } else {
-                com.devson.pixchive.gallery.ui.components.GlobalSearchAppBar(
-                    title = "Folder Images",
+                GlobalSearchAppBar(
+                    title = folderName,
                     searchQuery = searchQuery,
                     suggestions = suggestions,
                     onQueryChange = { searchViewModel.updateSearchQuery(it) },

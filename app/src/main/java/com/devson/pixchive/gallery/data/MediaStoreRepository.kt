@@ -90,6 +90,20 @@ class MediaStoreRepository(private val context: Context) {
 
         return@withContext foldersMap.values.sortedBy { it.folderName }
     }
+    suspend fun getFolderName(bucketId: String): String? = withContext(Dispatchers.IO) {
+        val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        val projection = arrayOf(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
+        val selection = "${MediaStore.Images.Media.BUCKET_ID} = ?"
+        val selectionArgs = arrayOf(bucketId)
+
+        context.contentResolver.query(uri, projection, selection, selectionArgs, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                return@withContext cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_DISPLAY_NAME))
+            }
+        }
+        return@withContext null
+    }
+
     suspend fun getImagesForFolder(bucketId: String): List<GalleryImage> = withContext(Dispatchers.IO) {
         val imageList = mutableListOf<GalleryImage>()
         val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI

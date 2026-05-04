@@ -28,15 +28,28 @@ fun GalleryMainScreen(
 ) {
     val context = LocalContext.current
     val prefsManager = remember { PreferencesManager(context) }
-    val lastTab by prefsManager.lastGalleryTabFlow.collectAsState(initial = 0)
+    val lastTab by prefsManager.lastGalleryTabFlow.collectAsState(initial = null)
+    var isInitialized by remember { mutableStateOf(false) }
     
     val tabs = listOf("Albums", "Photos")
-    val pagerState = rememberPagerState(initialPage = lastTab) { tabs.size }
+    val pagerState = rememberPagerState(initialPage = 0) { tabs.size }
     val scope = rememberCoroutineScope()
 
-    // Sync pager state with preferences
+    // Sync pager state from preferences once
+    LaunchedEffect(lastTab) {
+        if (lastTab != null && !isInitialized) {
+            if (lastTab != pagerState.currentPage) {
+                pagerState.scrollToPage(lastTab!!)
+            }
+            isInitialized = true
+        }
+    }
+
+    // Sync pager state with preferences only after initialization
     LaunchedEffect(pagerState.currentPage) {
-        prefsManager.setLastGalleryTab(pagerState.currentPage)
+        if (isInitialized) {
+            prefsManager.setLastGalleryTab(pagerState.currentPage)
+        }
     }
 
     // We need to know if either screen is in selection mode to hide the capsule nav

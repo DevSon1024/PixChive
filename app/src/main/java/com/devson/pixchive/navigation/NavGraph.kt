@@ -97,59 +97,22 @@ fun NavGraph(
                             )
                         )
                     },
-                    onBrowseGalleryClick = { mode ->
-                        if (mode == "all_images") {
-                            navController.navigate(Screen.AllImages.route)
-                        } else {
-                            navController.navigate(Screen.ImageList.route)
-                        }
+                    onBrowseGalleryClick = { _ ->
+                        navController.navigate(Screen.Gallery.route)
                     }
                 )
             }
-            composable(
-                route = Screen.ImageList.route,
-                enterTransition = {
-                    if (initialState.destination.route == Screen.AllImages.route) {
-                        slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Start, animationSpec = tween(300))
-                    } else {
-                        null
-                    }
-                },
-                exitTransition = {
-                    if (targetState.destination.route == Screen.AllImages.route) {
-                        slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Start, animationSpec = tween(300))
-                    } else {
-                        null
-                    }
-                },
-                popEnterTransition = {
-                    if (initialState.destination.route == Screen.AllImages.route) {
-                        slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.End, animationSpec = tween(300))
-                    } else {
-                        null
-                    }
-                },
-                popExitTransition = {
-                    if (targetState.destination.route == Screen.AllImages.route) {
-                        slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.End, animationSpec = tween(300))
-                    } else {
-                        null
-                    }
-                }
-            ) {
-                ImageListScreen(
+            composable(Screen.Gallery.route) {
+                com.devson.pixchive.gallery.ui.GalleryMainScreen(
                     onNavigateBack = safeNavigateBack,
+                    onSettingsClick = { navController.navigate(Screen.Settings.route) },
+                    onRecycleBinClick = { navController.navigate(Screen.RecycleBin.route) },
                     onFolderClick = { bucketId ->
                         navController.navigate(Screen.ImageFolder.createRoute(bucketId))
                     },
-                    onSettingsClick = { navController.navigate(Screen.Settings.route) },
-                    onAllImagesClick = {
-                        navController.navigate(Screen.AllImages.route) {
-                            popUpTo(Screen.Home.route) { inclusive = false }
-                            launchSingleTop = true
-                        }
+                    onImageClick = { bucketId, index ->
+                        navController.navigate(Screen.GalleryImageViewer.createRoute(bucketId, index))
                     },
-                    onRecycleBinClick = { navController.navigate(Screen.RecycleBin.route) },
                     onSearch = { query ->
                         navController.navigate(Screen.SearchResults.createRoute(query))
                     }
@@ -166,56 +129,6 @@ fun NavGraph(
                     onBack = safeNavigateBack,
                     onImageClick = { index, _ ->
                         navController.navigate(Screen.GalleryImageViewer.createRoute("search:$query", index))
-                    }
-                )
-            }
-
-            composable(
-                route = Screen.AllImages.route,
-                enterTransition = {
-                    if (initialState.destination.route == Screen.ImageList.route) {
-                        slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Start, animationSpec = tween(300))
-                    } else {
-                        null
-                    }
-                },
-                exitTransition = {
-                    if (targetState.destination.route == Screen.ImageList.route) {
-                        slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Start, animationSpec = tween(300))
-                    } else {
-                        null
-                    }
-                },
-                popEnterTransition = {
-                    if (initialState.destination.route == Screen.ImageList.route) {
-                        slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.End, animationSpec = tween(300))
-                    } else {
-                        null
-                    }
-                },
-                popExitTransition = {
-                    if (targetState.destination.route == Screen.ImageList.route) {
-                        slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.End, animationSpec = tween(300))
-                    } else {
-                        null
-                    }
-                }
-            ) {
-                AllImagesScreen(
-                    onNavigateBack = safeNavigateBack,
-                    onSettingsClick = { navController.navigate(Screen.Settings.route) },
-                    onImageClick = { index ->
-                        navController.navigate(Screen.GalleryImageViewer.createRoute("all_images", index))
-                    },
-                    onAlbumsClick = {
-                        navController.navigate(Screen.ImageList.route) {
-                            popUpTo(Screen.Home.route) { inclusive = false }
-                            launchSingleTop = true
-                        }
-                    },
-                    onRecycleBinClick = { navController.navigate(Screen.RecycleBin.route) },
-                    onSearch = { query ->
-                        navController.navigate(Screen.SearchResults.createRoute(query))
                     }
                 )
             }

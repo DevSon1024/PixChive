@@ -34,7 +34,6 @@ sealed class Screen(val route: String) {
         }
     }
 
-    object ImageList : Screen("image_list")
     object ImageFolder : Screen("image_folder/{bucketId}") {
         fun createRoute(bucketId: String): String {
             val encodedId = URLEncoder.encode(bucketId, StandardCharsets.UTF_8.toString())
@@ -47,7 +46,7 @@ sealed class Screen(val route: String) {
             return "gallery_image_viewer/$encodedId/$initialIndex"
         }
     }
-    object AllImages : Screen("all_images")
+    object Gallery : Screen("gallery")
     object RecycleBin : Screen("recycle_bin")
     object SearchResults : Screen("search_results/{query}") {
         fun createRoute(query: String): String {

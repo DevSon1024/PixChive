@@ -68,6 +68,7 @@ class PreferencesManager(private val context: Context) {
         private val GALLERY_SHOW_FOLDER_THUMBNAIL_KEY = booleanPreferencesKey("gallery_show_folder_thumbnail")
         private val GALLERY_VIEW_MODE_KEY = stringPreferencesKey("gallery_view_mode")
         private val BACKGROUND_BLUR_ENABLED_KEY = booleanPreferencesKey("background_blur_enabled")
+        private val LAST_GALLERY_TAB_KEY = intPreferencesKey("last_gallery_tab")
     }
 
     // Default to index 2 (which represents 4 columns in our list if index 0 is 2 columns)
@@ -380,4 +381,14 @@ class PreferencesManager(private val context: Context) {
             preferences[BACKGROUND_BLUR_ENABLED_KEY] = enabled
         }
     }
-}
+
+    val lastGalleryTabFlow: Flow<Int> = context.dataStore.data.map { preferences ->
+        preferences[LAST_GALLERY_TAB_KEY] ?: 0
+    }.distinctUntilChanged()
+
+    suspend fun setLastGalleryTab(tabIndex: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[LAST_GALLERY_TAB_KEY] = tabIndex
+        }
+    }
+}

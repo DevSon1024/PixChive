@@ -233,7 +233,7 @@ fun HomeScreen(
                                 ) {
                                     Icon(imageVector = Icons.Default.PhotoLibrary, contentDescription = null)
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Browse Now (Device Gallery)", fontWeight = FontWeight.SemiBold)
+                                    Text("Browse Gallery", fontWeight = FontWeight.SemiBold)
                                 }
                             }
                             // HISTORY SECTION 

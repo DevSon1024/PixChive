@@ -55,8 +55,8 @@ fun ImageListScreen(
     onFolderClick: (String) -> Unit,
     onSettingsClick: () -> Unit,
     onSearch: (String) -> Unit = {},
-    onAllImagesClick: () -> Unit = {},
     onRecycleBinClick: () -> Unit = {},
+    onSwitchToPhotos: () -> Unit = {},
     viewModel: ImageListViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -145,7 +145,7 @@ fun ImageListScreen(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        containerColor = MaterialTheme.colorScheme.background
                     )
                 )
             } else {
@@ -379,7 +379,7 @@ fun ImageListScreen(
                     viewModel.setGalleryViewMode(mode)
                     if (mode == "all_images") {
                         showSettingsSheet = false
-                        onAllImagesClick()
+                        onSwitchToPhotos()
                     }
                 },
                 onDismiss = { showSettingsSheet = false }

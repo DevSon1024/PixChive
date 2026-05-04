@@ -135,19 +135,6 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
         _selectedIds.value = state.folders.map { it.bucketId }.toSet()
     }
 
-    fun selectRange(startIndex: Int, endIndex: Int) {
-        val state = _uiState.value as? GalleryState.Success ?: return
-        val items = state.folders
-        val start = minOf(startIndex, endIndex).coerceIn(0, items.lastIndex)
-        val end = maxOf(startIndex, endIndex).coerceIn(0, items.lastIndex)
-
-        val newSelection = _selectedIds.value.toMutableSet()
-        for (i in start..end) {
-            newSelection.add(items[i].bucketId)
-        }
-        _selectedIds.value = newSelection
-    }
-
     fun renameSelectedFolder(newName: String) {
         val selectedId = _selectedIds.value.firstOrNull() ?: return
         val folder = _folders.value.find { it.bucketId == selectedId } ?: return

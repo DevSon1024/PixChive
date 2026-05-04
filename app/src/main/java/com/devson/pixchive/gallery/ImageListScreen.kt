@@ -54,6 +54,7 @@ fun ImageListScreen(
     onNavigateBack: () -> Unit,
     onFolderClick: (String) -> Unit,
     onSettingsClick: () -> Unit,
+    onSearch: (String) -> Unit = {},
     onAllImagesClick: () -> Unit = {},
     onRecycleBinClick: () -> Unit = {},
     viewModel: ImageListViewModel = viewModel()
@@ -61,6 +62,9 @@ fun ImageListScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val fileOpsViewModel: FileOperationsViewModel = viewModel()
+    val searchViewModel: com.devson.pixchive.gallery.viewmodel.SearchViewModel = viewModel()
+    val searchQuery by searchViewModel.searchQuery.collectAsState()
+    val suggestions by searchViewModel.suggestions.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     val savedGridCellsIndex by viewModel.gridCellsIndex.collectAsState()
     val layoutMode by viewModel.layoutMode.collectAsState()
@@ -145,13 +149,13 @@ fun ImageListScreen(
                     )
                 )
             } else {
-                TopAppBar(
-                    title = { Text("Device Gallery") },
-                    navigationIcon = {
-                        IconButton(onClick = onNavigateBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Navigate Back")
-                        }
-                    },
+                com.devson.pixchive.gallery.ui.components.GlobalSearchAppBar(
+                    title = "Albums",
+                    searchQuery = searchQuery,
+                    suggestions = suggestions,
+                    onQueryChange = { searchViewModel.updateSearchQuery(it) },
+                    onSearch = onSearch,
+                    onBackClick = onNavigateBack,
                     actions = {
                         IconButton(onClick = onRecycleBinClick) {
                             Icon(Icons.Filled.RestoreFromTrash, contentDescription = "Recycle Bin")
@@ -162,10 +166,7 @@ fun ImageListScreen(
                         IconButton(onClick = onSettingsClick) {
                             Icon(Icons.Default.Settings, contentDescription = "App Settings")
                         }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background
-                    )
+                    }
                 )
             }
         },

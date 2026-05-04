@@ -625,7 +625,7 @@ fun EmptyStateContent(onBrowseGalleryClick: () -> Unit) {
         Button(onClick = onBrowseGalleryClick) {
             Icon(imageVector = Icons.Default.PhotoLibrary, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Browse Device Gallery")
+            Text("Browse Gallery")
         }
     }
 }

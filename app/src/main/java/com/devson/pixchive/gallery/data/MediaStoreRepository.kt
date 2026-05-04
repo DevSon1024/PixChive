@@ -188,8 +188,6 @@ class MediaStoreRepository(private val context: Context) {
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idCol)
                 var realPath = cursor.getString(dataCol) ?: ""
-
-                // Fallback for Android 10+ if DATA is empty, restricted, or incorrectly returning a URI
                 if ((realPath.isBlank() || realPath.startsWith("content://")) && relPathCol != -1 && nameCol != -1) {
                     val rel = cursor.getString(relPathCol) ?: ""
                     val name = cursor.getString(nameCol) ?: ""
@@ -197,7 +195,6 @@ class MediaStoreRepository(private val context: Context) {
                         realPath = "/storage/emulated/0/$rel$name"
                     }
                 }
-
                 val dateAdded = cursor.getLong(dateAddedCol)
                 val dateModified = cursor.getLong(dateModCol)
                 val size = cursor.getLong(sizeCol)
@@ -205,21 +202,68 @@ class MediaStoreRepository(private val context: Context) {
                 val height = cursor.getInt(heightCol)
                 val contentUri = ContentUris.withAppendedId(uri, id)
 
-                imageList.add(
-                    GalleryImage(
-                        id = id,
-                        uri = contentUri,
-                        realPath = realPath,
-                        dateModified = dateModified,
-                        dateAdded = dateAdded,
-                        size = size,
-                        width = width,
-                        height = height
-                    )
-                )
+                imageList.add(GalleryImage(id, contentUri, realPath, dateModified, dateAdded, size, width, height))
             }
         }
         return@withContext imageList
+    }
+
+    suspend fun searchImages(query: String): List<GalleryImage> = withContext(Dispatchers.IO) {
+        val imageList = mutableListOf<GalleryImage>()
+        val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        val projection = arrayOf(
+            MediaStore.Images.Media._ID, MediaStore.Images.Media.DATA, MediaStore.Images.Media.DATE_ADDED,
+            MediaStore.Images.Media.DATE_MODIFIED, MediaStore.Images.Media.SIZE, MediaStore.Images.Media.WIDTH,
+            MediaStore.Images.Media.HEIGHT, MediaStore.Images.Media.RELATIVE_PATH, MediaStore.Images.Media.DISPLAY_NAME
+        )
+        val selection = "${MediaStore.Images.Media.DISPLAY_NAME} LIKE ?"
+        val selectionArgs = arrayOf("%$query%")
+        val sortOrder = "${MediaStore.Images.Media.DATE_MODIFIED} DESC"
+        context.contentResolver.query(uri, projection, selection, selectionArgs, sortOrder)?.use { cursor ->
+            val idCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+            val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
+            val dateAddedCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
+            val dateModCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)
+            val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
+            val widthCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.WIDTH)
+            val heightCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.HEIGHT)
+            val relPathCol = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
+            val nameCol = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+            while (cursor.moveToNext()) {
+                val id = cursor.getLong(idCol)
+                var realPath = cursor.getString(dataCol) ?: ""
+                if ((realPath.isBlank() || realPath.startsWith("content://")) && relPathCol != -1 && nameCol != -1) {
+                    val rel = cursor.getString(relPathCol) ?: ""
+                    val name = cursor.getString(nameCol) ?: ""
+                    if (rel.isNotBlank() && name.isNotBlank()) realPath = "/storage/emulated/0/$rel$name"
+                }
+                val contentUri = ContentUris.withAppendedId(uri, id)
+                imageList.add(GalleryImage(id, contentUri, realPath, cursor.getLong(dateModCol), cursor.getLong(dateAddedCol), cursor.getLong(sizeCol), cursor.getInt(widthCol), cursor.getInt(heightCol)))
+            }
+        }
+        return@withContext imageList
+    }
+
+    suspend fun getSearchSuggestions(query: String): List<GalleryImage> = withContext(Dispatchers.IO) {
+        val suggestions = mutableListOf<GalleryImage>()
+        val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        val projection = arrayOf(MediaStore.Images.Media._ID, MediaStore.Images.Media.DISPLAY_NAME)
+        val selection = "${MediaStore.Images.Media.DISPLAY_NAME} LIKE ?"
+        val selectionArgs = arrayOf("%$query%")
+        val sortOrder = "${MediaStore.Images.Media.DATE_MODIFIED} DESC"
+        context.contentResolver.query(uri, projection, selection, selectionArgs, sortOrder)?.use { cursor ->
+            val idCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+            val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+            var count = 0
+            while (cursor.moveToNext() && count < 5) {
+                val id = cursor.getLong(idCol)
+                val name = cursor.getString(nameCol) ?: ""
+                val contentUri = ContentUris.withAppendedId(uri, id)
+                suggestions.add(GalleryImage(id, contentUri, name, 0, 0, 0, 0, 0))
+                count++
+            }
+        }
+        return@withContext suggestions
     }
 
     suspend fun renameImage(id: Long, newName: String): Boolean = withContext(Dispatchers.IO) {

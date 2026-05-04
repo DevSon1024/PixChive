@@ -48,7 +48,7 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
     }
 
     val images: StateFlow<List<GalleryImage>> = combine(_images, sortOption, _currentBucketId) { imgs, sort, bucket ->
-        if (bucket == "all_images") imgs else sortImages(imgs, sort)
+        if (bucket == "all_images" || bucket.startsWith("search:")) imgs else sortImages(imgs, sort)
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     private val _isLoading = MutableStateFlow(true)
@@ -135,10 +135,10 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
             }
 
             try {
-                val newImages = if (bucketId == "all_images") {
-                    repository.getAllImages()
-                } else {
-                    repository.getImagesForFolder(bucketId)
+                val newImages = when {
+                    bucketId == "all_images" -> repository.getAllImages()
+                    bucketId.startsWith("search:") -> repository.searchImages(bucketId.removePrefix("search:"))
+                    else -> repository.getImagesForFolder(bucketId)
                 }
                 _images.value = newImages
             } catch (e: Exception) {
@@ -157,19 +157,6 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-    fun selectRangeIncremental(startIndex: Int, currentIndex: Int) {
-        val currentImages = images.value
-        val start = minOf(startIndex, currentIndex).coerceIn(0, currentImages.lastIndex)
-        val end = maxOf(startIndex, currentIndex).coerceIn(0, currentImages.lastIndex)
-        
-        val rangeIds = currentImages.subList(start, end + 1).map { it.id }
-        _selectedIds.value = _selectedIds.value + rangeIds
-    }
-
-    fun enterSelectionMode(id: Long) {
-        _selectedIds.value = setOf(id)
-    }
-
     fun clearSelection() {
         _selectedIds.value = emptySet()
     }
@@ -186,29 +173,6 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
         viewModelScope.launch {
             if (repository.renameImage(image.id, newName)) {
                 loadImages(bucketId, forceRefresh = true)
-                clearSelection()
-            }
-        }
-    }
-
-    fun deleteImage(image: GalleryImage, onSuccess: () -> Unit = {}) {
-        viewModelScope.launch {
-            if (repository.deleteImage(image.id)) {
-                // MediaStore observer should trigger reload, but we can also manually remove it from local state for immediate feedback
-                removeImagesLocally(listOf(image.uri))
-                onSuccess()
-            }
-        }
-    }
-
-    fun deleteSelectedImages() {
-        val selectedIds = _selectedIds.value.toList()
-        if (selectedIds.isEmpty()) return
-        
-        viewModelScope.launch {
-            if (repository.deleteImages(selectedIds)) {
-                val uris = _images.value.filter { it.id in selectedIds }.map { it.uri }
-                removeImagesLocally(uris)
                 clearSelection()
             }
         }

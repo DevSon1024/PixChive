@@ -45,6 +45,7 @@ fun ImageFolderScreen(
     onNavigateBack: () -> Unit,
     onImageClick: (Int) -> Unit,
     onSettingsClick: () -> Unit,
+    onSearch: (String) -> Unit = {},
     viewModel: GalleryFolderViewModel = viewModel()
 ) {
     val images by viewModel.images.collectAsState()
@@ -53,6 +54,10 @@ fun ImageFolderScreen(
     val layoutMode by viewModel.layoutMode.collectAsState()
     val viewSettings by viewModel.viewSettings.collectAsState()
     val sortOption by viewModel.sortOption.collectAsState()
+
+    val searchViewModel: com.devson.pixchive.gallery.viewmodel.SearchViewModel = viewModel()
+    val searchQuery by searchViewModel.searchQuery.collectAsState()
+    val suggestions by searchViewModel.suggestions.collectAsState()
 
     val selectedImageIds by viewModel.selectedIds.collectAsState()
     var showSettingsSheet by remember { mutableStateOf(false) }
@@ -123,13 +128,13 @@ fun ImageFolderScreen(
                     )
                 )
             } else {
-                TopAppBar(
-                    title = { Text("Folder Images") },
-                    navigationIcon = {
-                        IconButton(onClick = onNavigateBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                        }
-                    },
+                com.devson.pixchive.gallery.ui.components.GlobalSearchAppBar(
+                    title = "Folder Images",
+                    searchQuery = searchQuery,
+                    suggestions = suggestions,
+                    onQueryChange = { searchViewModel.updateSearchQuery(it) },
+                    onSearch = onSearch,
+                    onBackClick = onNavigateBack,
                     actions = {
                         IconButton(onClick = { showSettingsSheet = true }) {
                             Icon(Icons.Default.Tune, contentDescription = "View Settings")
@@ -137,10 +142,7 @@ fun ImageFolderScreen(
                         IconButton(onClick = onSettingsClick) {
                             Icon(Icons.Default.Settings, contentDescription = "App Settings")
                         }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background
-                    )
+                    }
                 )
             }
         },

@@ -48,6 +48,7 @@ import androidx.compose.ui.platform.LocalContext
 fun AllImagesScreen(
     onNavigateBack: () -> Unit,
     onSettingsClick: () -> Unit,
+    onSearch: (String) -> Unit = {},
     onImageClick: (Int) -> Unit = {},
     onAlbumsClick: () -> Unit = {},
     onRecycleBinClick: () -> Unit = {},
@@ -121,13 +122,17 @@ fun AllImagesScreen(
                     )
                 )
             } else {
-                TopAppBar(
-                    title = { Text("All Images") },
-                    navigationIcon = {
-                        IconButton(onClick = onNavigateBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                        }
-                    },
+                val searchViewModel: com.devson.pixchive.gallery.viewmodel.SearchViewModel = viewModel()
+                val searchQuery by searchViewModel.searchQuery.collectAsState()
+                val suggestions by searchViewModel.suggestions.collectAsState()
+
+                com.devson.pixchive.gallery.ui.components.GlobalSearchAppBar(
+                    title = "Photos",
+                    searchQuery = searchQuery,
+                    suggestions = suggestions,
+                    onQueryChange = { searchViewModel.updateSearchQuery(it) },
+                    onSearch = onSearch,
+                    onBackClick = onNavigateBack,
                     actions = {
                         IconButton(onClick = onRecycleBinClick) {
                             Icon(Icons.Filled.RestoreFromTrash, contentDescription = "Recycle Bin")
@@ -138,10 +143,7 @@ fun AllImagesScreen(
                         IconButton(onClick = onSettingsClick) {
                             Icon(Icons.Default.Settings, contentDescription = "App Settings")
                         }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background
-                    )
+                    }
                 )
             }
         },

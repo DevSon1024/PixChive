@@ -149,7 +149,24 @@ fun NavGraph(
                             launchSingleTop = true
                         }
                     },
-                    onRecycleBinClick = { navController.navigate(Screen.RecycleBin.route) }
+                    onRecycleBinClick = { navController.navigate(Screen.RecycleBin.route) },
+                    onSearch = { query ->
+                        navController.navigate(Screen.SearchResults.createRoute(query))
+                    }
+                )
+            }
+
+            composable(
+                route = Screen.SearchResults.route,
+                arguments = listOf(navArgument("query") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val query = backStackEntry.arguments?.getString("query") ?: ""
+                com.devson.pixchive.gallery.ui.SearchResultsScreen(
+                    query = query,
+                    onBack = safeNavigateBack,
+                    onImageClick = { index, _ ->
+                        navController.navigate(Screen.GalleryImageViewer.createRoute("search:$query", index))
+                    }
                 )
             }
 
@@ -196,7 +213,10 @@ fun NavGraph(
                             launchSingleTop = true
                         }
                     },
-                    onRecycleBinClick = { navController.navigate(Screen.RecycleBin.route) }
+                    onRecycleBinClick = { navController.navigate(Screen.RecycleBin.route) },
+                    onSearch = { query ->
+                        navController.navigate(Screen.SearchResults.createRoute(query))
+                    }
                 )
             }
 
@@ -217,7 +237,10 @@ fun NavGraph(
                         // FIX: Use the Gallery specific route here
                         navController.navigate(Screen.GalleryImageViewer.createRoute(bucketId, index))
                     },
-                    onSettingsClick = { navController.navigate(Screen.Settings.route) }
+                    onSettingsClick = { navController.navigate(Screen.Settings.route) },
+                    onSearch = { query ->
+                        navController.navigate(Screen.SearchResults.createRoute(query))
+                    }
                 )
             }
 

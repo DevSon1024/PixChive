@@ -108,7 +108,7 @@ fun GalleryViewSettingsBottomSheet(
                         onClick = { onGalleryViewModeChange("albums") }
                     )
                     GalleryIconToggleButton(
-                        label = "All Images",
+                        label = "Photos",
                         selected = galleryViewMode == "all_images",
                         selectedIcon = Icons.Filled.Collections,
                         unselectedIcon = Icons.Outlined.Collections,

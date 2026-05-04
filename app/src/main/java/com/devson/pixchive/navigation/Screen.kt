@@ -36,11 +36,23 @@ sealed class Screen(val route: String) {
 
     object ImageList : Screen("image_list")
     object ImageFolder : Screen("image_folder/{bucketId}") {
-        fun createRoute(bucketId: String) = "image_folder/$bucketId"
+        fun createRoute(bucketId: String): String {
+            val encodedId = URLEncoder.encode(bucketId, StandardCharsets.UTF_8.toString())
+            return "image_folder/$encodedId"
+        }
     }
     object GalleryImageViewer : Screen("gallery_image_viewer/{bucketId}/{initialIndex}") {
-        fun createRoute(bucketId: String, initialIndex: Int) = "gallery_image_viewer/$bucketId/$initialIndex"
+        fun createRoute(bucketId: String, initialIndex: Int): String {
+            val encodedId = URLEncoder.encode(bucketId, StandardCharsets.UTF_8.toString())
+            return "gallery_image_viewer/$encodedId/$initialIndex"
+        }
     }
     object AllImages : Screen("all_images")
     object RecycleBin : Screen("recycle_bin")
+    object SearchResults : Screen("search_results/{query}") {
+        fun createRoute(query: String): String {
+            val encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8.toString())
+            return "search_results/$encodedQuery"
+        }
+    }
 }

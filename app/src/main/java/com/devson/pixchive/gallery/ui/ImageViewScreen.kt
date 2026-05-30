@@ -35,6 +35,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.devson.pixchive.gallery.data.models.GalleryImage
 import com.devson.pixchive.gallery.viewmodel.GalleryFolderViewModel
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
+import com.devson.pixchive.ui.reader.components.ImageDetailsDialog
+import com.devson.pixchive.data.ImageFile
 import com.github.panpf.zoomimage.CoilZoomAsyncImage
 import com.github.panpf.zoomimage.rememberCoilZoomState
 import androidx.compose.ui.draw.blur
@@ -148,14 +152,20 @@ fun ImageViewScreen(
             ) { controlsVisible = !controlsVisible }
     ) {
         if (isBackgroundBlurEnabled) {
-            AsyncImage(
-                model = currentImage.uri,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .blur(radius = 32.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
-            )
+            Crossfade(
+                targetState = currentImage,
+                animationSpec = tween(durationMillis = 500),
+                label = "backgroundBlurCrossfade"
+            ) { image ->
+                AsyncImage(
+                    model = image.uri,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .blur(radius = 32.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+                )
+            }
             // Dim layer
             Box(
                 modifier = Modifier
@@ -453,12 +463,16 @@ fun ImageViewScreen(
     }
 
     if (showInfoDialog != null) {
-        ModalBottomSheet(
-            onDismissRequest = { showInfoDialog = null },
-            dragHandle = { BottomSheetDefaults.DragHandle() }
-        ) {
-            ImageInfoContent(image = currentImage)
-        }
+        ImageDetailsDialog(
+            image = ImageFile(
+                name = currentImage.realPath.substringAfterLast('/'),
+                path = currentImage.realPath,
+                uri = currentImage.uri,
+                size = currentImage.size,
+                dateModified = currentImage.dateModified
+            ),
+            onDismiss = { showInfoDialog = null }
+        )
     }
 }
 
@@ -536,55 +550,4 @@ private fun ActionIconButton(
             modifier = Modifier.size(24.dp)
         )
     }
-}
-
-@Composable
-private fun ImageInfoContent(image: GalleryImage) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp)
-            .padding(bottom = 48.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
-    ) {
-        Text(
-            text = "Information",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold
-        )
-
-        InfoRow(label = "Filename", value = image.realPath.substringAfterLast('/'))
-        InfoRow(label = "Path", value = image.realPath)
-        InfoRow(label = "Resolution", value = "${image.width} x ${image.height}")
-        InfoRow(label = "Size", value = formatFileSize(image.size))
-        InfoRow(
-            label = "Date Modified",
-            value = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                .format(Date(image.dateModified * 1000L))
-        )
-    }
-}
-
-@Composable
-private fun InfoRow(label: String, value: String) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.SemiBold
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-    }
-}
-
-private fun formatFileSize(size: Long): String {
-    if (size <= 0) return "0 B"
-    val units = arrayOf("B", "KB", "MB", "GB", "TB")
-    val digitGroups = (Math.log10(size.toDouble()) / Math.log10(1024.0)).toInt()
-    return String.format("%.1f %s", size / Math.pow(1024.0, digitGroups.toDouble()), units[digitGroups])
 }

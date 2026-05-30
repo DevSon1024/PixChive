@@ -250,7 +250,8 @@ fun AllImagesScreen(
                                             if (selectedIds.isNotEmpty()) {
                                                 viewModel.toggleSelection(item)
                                             } else {
-                                                onImageClick(index)
+                                                val imageIndex = pagedGridItems.itemSnapshotList.take(index).count { it is GalleryImage }
+                                                onImageClick(imageIndex)
                                             }
                                         },
                                         onLongClick = {
@@ -357,7 +358,8 @@ fun AllImagesScreen(
                                             if (selectedIds.isNotEmpty()) {
                                                 viewModel.toggleSelection(item)
                                             } else {
-                                                onImageClick(index)
+                                                val imageIndex = pagedGridItems.itemSnapshotList.take(index).count { it is GalleryImage }
+                                                onImageClick(imageIndex)
                                             }
                                         },
                                         onLongClick = {

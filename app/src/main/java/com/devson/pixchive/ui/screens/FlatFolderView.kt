@@ -30,16 +30,6 @@ import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.tween
 
-/**
- * Self-contained Flat view composable.
- *
- * Flow collection happens HERE, inside the composable, so Compose automatically
- * cancels the [FolderViewModel.flatImages] paging collection the moment this
- * composable leaves the composition (i.e. when the user switches to All_Folders mode).
- *
- * This prevents the Pager from loading pages in the background while the All_Folders
- * view is active, saving both RAM and CPU.
- */
 @Composable
 fun FlatFolderView(
     folderId: String,
@@ -60,13 +50,8 @@ fun FlatFolderView(
 
     if (isStaleState) return
 
-    // Collected here - cancelled automatically when FlatFolderView leaves composition.
     val images = viewModel.flatImages.collectAsLazyPagingItems()
 
-    // Only show the empty state once the initial load has completed.
-    // If we return early while loadState.refresh is still Loading, the
-    // LazyGrid is never added to the composition, the Pager never receives
-    // a collector, and no pages are ever fetched - causing a blank screen.
     val isPagingRefreshing = images.loadState.refresh is LoadState.Loading
     if (!isPagingRefreshing && images.itemCount == 0) { EmptyImagesView(); return }
 

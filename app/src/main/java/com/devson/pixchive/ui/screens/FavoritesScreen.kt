@@ -26,6 +26,12 @@ import com.devson.pixchive.ui.components.EmptyFavoritesView
 import com.devson.pixchive.ui.components.ImageGridItem
 import com.devson.pixchive.ui.components.ImageListItem
 import com.devson.pixchive.viewmodel.FolderViewModel
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.tween
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,7 +88,8 @@ fun FavoritesScreen(
                             columns = gridColumns,
                             onImageClick = onImageClick,
                             onRefresh = {}, // No manual refresh needed for favorites
-                            paddingValues = padding
+                            paddingValues = padding,
+                            viewModel = viewModel
                         )
                     } else {
                         FavoritesListView(
@@ -117,19 +124,65 @@ fun FavoritesGridView(
     columns: Int,
     onImageClick: (Int) -> Unit,
     onRefresh: () -> Unit,
-    paddingValues: PaddingValues
+    paddingValues: PaddingValues,
+    viewModel: FolderViewModel
 ) {
     val gridState = rememberLazyGridState()
+    var localColumns by remember(columns) { mutableStateOf(columns) }
+    var accumulatedZoom by remember { mutableFloatStateOf(1f) }
+
+    val animatedColumns by animateIntAsState(
+        targetValue = localColumns,
+        animationSpec = tween(300),
+        label = "columns_anim"
+    )
 
     LazyVerticalGrid(
         state = gridState,
-        columns = GridCells.Fixed(columns),
+        columns = GridCells.Fixed(animatedColumns.coerceIn(1, 6)),
         contentPadding = PaddingValues(
             top = paddingValues.calculateTopPadding() + 8.dp,
             bottom = paddingValues.calculateBottomPadding() + 16.dp
         ),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    var hasChangedInThisGesture = false
+                    do {
+                        val event = awaitPointerEvent()
+                        if (event.changes.size >= 2) {
+                            val zoom = event.calculateZoom()
+                            accumulatedZoom *= zoom
+                            
+                            if (!hasChangedInThisGesture) {
+                                if (accumulatedZoom > 1.25f) {
+                                    val newCols = (localColumns - 1).coerceIn(1, 6)
+                                    if (newCols != localColumns) {
+                                        localColumns = newCols
+                                        viewModel.setGridColumns(newCols)
+                                    }
+                                    hasChangedInThisGesture = true
+                                } else if (accumulatedZoom < 0.75f) {
+                                    val newCols = (localColumns + 1).coerceIn(1, 6)
+                                    if (newCols != localColumns) {
+                                        localColumns = newCols
+                                        viewModel.setGridColumns(newCols)
+                                    }
+                                    hasChangedInThisGesture = true
+                                }
+                            }
+                            event.changes.forEach { if (it.pressed) it.consume() }
+                        } else {
+                            accumulatedZoom = 1f
+                            hasChangedInThisGesture = false
+                        }
+                    } while (event.changes.any { it.pressed })
+                }
+            }
     ) {
         items(
             count = images.itemCount,
@@ -140,7 +193,7 @@ fun FavoritesGridView(
             if (image != null) {
                 ImageGridItem(
                     image = image,
-                    columns = columns,
+                    columns = animatedColumns.coerceIn(1, 6),
                     onClick = { onImageClick(index) },
                     onRefresh = onRefresh
                 )

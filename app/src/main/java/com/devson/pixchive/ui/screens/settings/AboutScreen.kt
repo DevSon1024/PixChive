@@ -1,10 +1,12 @@
-package com.devson.pixchive.ui.screens
+package com.devson.pixchive.ui.screens.settings
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -203,16 +205,16 @@ private fun MainAboutScreen(
         }
     }
     val versionName = packageInfo?.versionName ?: "Unknown"
-    val versionCode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+    val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
         packageInfo?.longVersionCode?.toString() ?: "Unknown"
     } else {
         @Suppress("DEPRECATION")
         packageInfo?.versionCode?.toString() ?: "Unknown"
     }
     
-    val androidVersion = android.os.Build.VERSION.RELEASE
-    val apiLevel = android.os.Build.VERSION.SDK_INT
-    val abis = android.os.Build.SUPPORTED_ABIS.joinToString(", ")
+    val androidVersion = Build.VERSION.RELEASE
+    val apiLevel = Build.VERSION.SDK_INT
+    val abis = Build.SUPPORTED_ABIS.joinToString(", ")
 
     Scaffold(
         topBar = {
@@ -585,7 +587,7 @@ private fun LibraryCard(
                 Surface(
                     shape = RoundedCornerShape(50),
                     color = catColor.copy(alpha = 0.12f),
-                    border = androidx.compose.foundation.BorderStroke(
+                    border = BorderStroke(
                         0.5.dp, catColor.copy(alpha = 0.4f)
                     )
                 ) {

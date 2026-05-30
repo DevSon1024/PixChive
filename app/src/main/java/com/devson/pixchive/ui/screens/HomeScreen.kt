@@ -15,26 +15,20 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -61,6 +55,13 @@ import com.devson.pixchive.viewmodel.HomeViewModel
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
 import androidx.compose.material3.carousel.rememberCarouselState
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.tween
+import com.devson.pixchive.utils.PermissionState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -221,7 +222,54 @@ fun HomeScreen(
                     }
                 }
                 else -> {
-                    val gridCols = if (layoutMode == "grid") gridColumns else 1
+                    var localColumns by remember(gridColumns) { mutableStateOf(gridColumns) }
+                    var accumulatedZoom by remember { mutableFloatStateOf(1f) }
+
+                    val animatedColumns by animateIntAsState(
+                        targetValue = localColumns,
+                        animationSpec = tween(300),
+                        label = "columns_anim"
+                    )
+
+                    val gridCols = if (layoutMode == "grid") animatedColumns.coerceIn(1, 6) else 1
+
+                    val zoomModifier = if (layoutMode == "grid") {
+                        Modifier.pointerInput(Unit) {
+                            awaitEachGesture {
+                                awaitFirstDown(requireUnconsumed = false)
+                                var hasChangedInThisGesture = false
+                                do {
+                                    val event = awaitPointerEvent()
+                                    if (event.changes.size >= 2) {
+                                        val zoom = event.calculateZoom()
+                                        accumulatedZoom *= zoom
+                                        
+                                        if (!hasChangedInThisGesture) {
+                                            if (accumulatedZoom > 1.25f) {
+                                                val newCols = (localColumns - 1).coerceIn(1, 6)
+                                                if (newCols != localColumns) {
+                                                    localColumns = newCols
+                                                    viewModel.setGridColumns(newCols)
+                                                }
+                                                hasChangedInThisGesture = true
+                                            } else if (accumulatedZoom < 0.75f) {
+                                                val newCols = (localColumns + 1).coerceIn(1, 6)
+                                                if (newCols != localColumns) {
+                                                    localColumns = newCols
+                                                    viewModel.setGridColumns(newCols)
+                                                }
+                                                hasChangedInThisGesture = true
+                                            }
+                                        }
+                                        event.changes.forEach { if (it.pressed) it.consume() }
+                                    } else {
+                                        accumulatedZoom = 1f
+                                        hasChangedInThisGesture = false
+                                    }
+                                } while (event.changes.any { it.pressed })
+                            }
+                        }
+                    } else Modifier
 
                     PullToRefreshBox(
                         isRefreshing = isRefreshing,
@@ -237,7 +285,9 @@ fun HomeScreen(
                                 top = paddingValues.calculateTopPadding() + 8.dp,
                                 bottom = paddingValues.calculateBottomPadding() + 88.dp // FAB clearance
                             ),
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .then(zoomModifier)
                         ) {
                             // NEW BROWSE GALLERY CARD BUTTON
                             item(span = { GridItemSpan(maxLineSpan) }) {

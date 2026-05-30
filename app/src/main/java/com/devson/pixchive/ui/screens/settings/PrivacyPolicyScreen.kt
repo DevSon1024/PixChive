@@ -1,4 +1,4 @@
-package com.devson.pixchive.ui.screens
+package com.devson.pixchive.ui.screens.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement

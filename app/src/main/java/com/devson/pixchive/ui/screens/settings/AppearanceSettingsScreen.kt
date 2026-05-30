@@ -1,4 +1,4 @@
-package com.devson.pixchive.ui.screens
+package com.devson.pixchive.ui.screens.settings
 
 import android.os.Build
 import androidx.compose.animation.animateColorAsState
@@ -30,15 +30,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.platform.LocalContext
 import com.devson.pixchive.R
 import com.devson.pixchive.ui.theme.AppThemePalette
-import com.devson.pixchive.ui.theme.*
 import com.devson.pixchive.viewmodel.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)

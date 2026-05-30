@@ -21,6 +21,12 @@ import com.devson.pixchive.viewmodel.FolderViewModel
 import kotlinx.coroutines.flow.filter
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.tween
 
 /**
  * Self-contained Flat view composable.
@@ -73,6 +79,15 @@ fun FlatFolderView(
                     .filter { !it }
                     .collect { onSaveScroll(gridState.firstVisibleItemIndex, 0) }
             }
+            var localColumns by remember(gridColumns) { mutableStateOf(gridColumns) }
+            var accumulatedZoom by remember { mutableFloatStateOf(1f) }
+
+            val animatedColumns by animateIntAsState(
+                targetValue = localColumns,
+                animationSpec = tween(300),
+                label = "columns_anim"
+            )
+
             PullToRefreshBox(
                 isRefreshing = isRefreshing,
                 onRefresh = { viewModel.refreshCurrentFolder() },
@@ -80,14 +95,50 @@ fun FlatFolderView(
             ) {
                 LazyVerticalGrid(
                     state = gridState,
-                    columns = GridCells.Fixed(gridColumns),
+                    columns = GridCells.Fixed(animatedColumns.coerceIn(1, 6)),
                     contentPadding = PaddingValues(
                         top = paddingValues.calculateTopPadding() + 8.dp,
                         bottom = paddingValues.calculateBottomPadding() + 16.dp
                     ),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(Unit) {
+                            awaitEachGesture {
+                                awaitFirstDown(requireUnconsumed = false)
+                                var hasChangedInThisGesture = false
+                                do {
+                                    val event = awaitPointerEvent()
+                                    if (event.changes.size >= 2) {
+                                        val zoom = event.calculateZoom()
+                                        accumulatedZoom *= zoom
+                                        
+                                        if (!hasChangedInThisGesture) {
+                                            if (accumulatedZoom > 1.25f) {
+                                                val newCols = (localColumns - 1).coerceIn(1, 6)
+                                                if (newCols != localColumns) {
+                                                    localColumns = newCols
+                                                    viewModel.setGridColumns(newCols)
+                                                }
+                                                hasChangedInThisGesture = true
+                                            } else if (accumulatedZoom < 0.75f) {
+                                                val newCols = (localColumns + 1).coerceIn(1, 6)
+                                                if (newCols != localColumns) {
+                                                    localColumns = newCols
+                                                    viewModel.setGridColumns(newCols)
+                                                }
+                                                hasChangedInThisGesture = true
+                                            }
+                                        }
+                                        event.changes.forEach { if (it.pressed) it.consume() }
+                                    } else {
+                                        accumulatedZoom = 1f
+                                        hasChangedInThisGesture = false
+                                    }
+                                } while (event.changes.any { it.pressed })
+                            }
+                        }
                 ) {
                     items(
                         count = images.itemCount,
@@ -96,7 +147,7 @@ fun FlatFolderView(
                     ) { index ->
                         val image = images[index]
                         if (image != null) {
-                            ImageGridItem(image, gridColumns, { onImageClick(index) }, {
+                            ImageGridItem(image, animatedColumns.coerceIn(1, 6), { onImageClick(index) }, {
                                 viewModel.refreshFolder(folderId)
                             })
                         }

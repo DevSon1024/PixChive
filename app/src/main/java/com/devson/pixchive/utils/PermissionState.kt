@@ -1,4 +1,4 @@
-package com.devson.pixchive.ui.screens
+package com.devson.pixchive.utils
 
 sealed class PermissionState {
     object Granted : PermissionState()

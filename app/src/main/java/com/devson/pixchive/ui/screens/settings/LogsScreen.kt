@@ -1,4 +1,4 @@
-package com.devson.pixchive.ui.screens
+package com.devson.pixchive.ui.screens.settings
 
 import android.content.ClipData
 import android.content.ClipboardManager

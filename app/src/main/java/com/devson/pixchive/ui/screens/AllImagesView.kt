@@ -84,7 +84,7 @@ fun AllImagesView(
             ) {
                 LazyVerticalGrid(
                     state = gridState,
-                    columns = GridCells.Fixed(animatedColumns.coerceIn(1, 6)),
+                    columns = GridCells.Fixed(animatedColumns.coerceIn(1, 4)),
                     contentPadding = PaddingValues(
                         top = paddingValues.calculateTopPadding() + 8.dp,
                         bottom = paddingValues.calculateBottomPadding() + 16.dp,
@@ -107,14 +107,14 @@ fun AllImagesView(
                                         
                                         if (!hasChangedInThisGesture) {
                                             if (accumulatedZoom > 1.25f) {
-                                                val newCols = (localColumns - 1).coerceIn(1, 6)
+                                                val newCols = (localColumns - 1).coerceIn(1, 4)
                                                 if (newCols != localColumns) {
                                                     localColumns = newCols
                                                     viewModel.setGridColumns(newCols)
                                                 }
                                                 hasChangedInThisGesture = true
                                             } else if (accumulatedZoom < 0.75f) {
-                                                val newCols = (localColumns + 1).coerceIn(1, 6)
+                                                val newCols = (localColumns + 1).coerceIn(1, 4)
                                                 if (newCols != localColumns) {
                                                     localColumns = newCols
                                                     viewModel.setGridColumns(newCols)
@@ -140,7 +140,7 @@ fun AllImagesView(
                         if (image != null) {
                             ImageGridItem(
                                 image = image,
-                                columns = animatedColumns.coerceIn(1, 6),
+                                columns = animatedColumns.coerceIn(1, 4),
                                 onClick = { onImageClick(index) },
                                 onShareClick = {
                                     fileOpsViewModel.sharePhysicalFile(context, image.path)

@@ -133,8 +133,8 @@ fun ViewSettingsBottomSheet(
                 Slider(
                     value = gridColumns.toFloat(),
                     onValueChange = { onGridColumnsChange(it.toInt()) },
-                    valueRange = 1f..6f,
-                    steps = 4,
+                    valueRange = 1f..4f,
+                    steps = 2,
                     colors = SliderDefaults.colors(
                         thumbColor = MaterialTheme.colorScheme.primary,
                         activeTrackColor = MaterialTheme.colorScheme.primary,

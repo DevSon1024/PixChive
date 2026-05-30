@@ -213,7 +213,7 @@ fun AllFoldersView(
         ) {
             LazyVerticalGrid(
                 state = gridState,
-                columns = GridCells.Fixed(animatedColumns.coerceIn(1, 6)),
+                columns = GridCells.Fixed(animatedColumns.coerceIn(1, 4)),
                 contentPadding = PaddingValues(
                     top = paddingValues.calculateTopPadding() + 8.dp,
                     bottom = paddingValues.calculateBottomPadding() + 16.dp,
@@ -236,14 +236,14 @@ fun AllFoldersView(
 
                                     if (!hasChangedInThisGesture) {
                                         if (accumulatedZoom > 1.25f) {
-                                            val newCols = (localColumns - 1).coerceIn(1, 6)
+                                            val newCols = (localColumns - 1).coerceIn(1, 4)
                                             if (newCols != localColumns) {
                                                 localColumns = newCols
                                                 viewModel.setGridColumns(newCols)
                                             }
                                             hasChangedInThisGesture = true
                                         } else if (accumulatedZoom < 0.75f) {
-                                            val newCols = (localColumns + 1).coerceIn(1, 6)
+                                            val newCols = (localColumns + 1).coerceIn(1, 4)
                                             if (newCols != localColumns) {
                                                 localColumns = newCols
                                                 viewModel.setGridColumns(newCols)
@@ -263,7 +263,7 @@ fun AllFoldersView(
                 items(chapters, key = { it.path }) { chapter ->
                     ChapterGridItem(
                         chapter = chapter,
-                        columns = animatedColumns.coerceIn(1, 6),
+                        columns = animatedColumns.coerceIn(1, 4),
                         savedPage = readProgressMap[chapter.path] ?: 0,
                         onClick = { onChapterClick(chapter.path) },
                         onRemove = { viewModel.removeFolder(chapter.path) }

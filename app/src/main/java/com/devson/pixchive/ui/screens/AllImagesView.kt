@@ -31,7 +31,7 @@ import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.tween
 
 @Composable
-fun FlatFolderView(
+fun AllImagesView(
     folderId: String,
     layoutMode: String,
     gridColumns: Int,

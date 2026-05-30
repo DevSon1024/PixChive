@@ -112,19 +112,12 @@ fun FolderViewScreen(
                    (currentFolder != null && isLoading)
 
             if (isLoading || isStaleState) {
-                // Show skeleton while loadFolder is running - add top padding
                 Box(modifier = Modifier.padding(top = padding.calculateTopPadding())) {
                     if (layoutMode == "grid") SkeletonGrid(columns = gridColumns) else SkeletonList()
                 }
             } else {
-                //  KEY DESIGN POINT 
-                // Each branch renders ONE composable. When the user switches modes,
-                // Compose removes the old branch and adds the new one. The leaving
-                // composable's internal collectAsState / collectAsLazyPagingItems call
-                // is automatically cancelled - no manual cleanup needed.
-                // 
                 when (effectiveViewMode) {
-                    "flat" -> FlatFolderView(
+                    "flat" -> AllImagesView(
                         folderId = folderId,
                         layoutMode = layoutMode,
                         gridColumns = gridColumns,

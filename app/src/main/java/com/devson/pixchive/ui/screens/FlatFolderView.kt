@@ -18,6 +18,8 @@ import com.devson.pixchive.ui.components.EmptyImagesView
 import com.devson.pixchive.ui.components.ImageGridItem
 import com.devson.pixchive.ui.components.ImageListItem
 import com.devson.pixchive.viewmodel.FolderViewModel
+import com.devson.pixchive.viewmodel.FileOperationsViewModel
+import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.flow.filter
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -48,8 +50,10 @@ fun FlatFolderView(
     onSaveScroll: (Int, Int) -> Unit = { _, _ -> },
     onImageClick: (Int) -> Unit,
     viewModel: FolderViewModel = viewModel(),
+    fileOpsViewModel: FileOperationsViewModel = viewModel(),
     paddingValues: PaddingValues = PaddingValues(0.dp)
 ) {
+    val context = LocalContext.current
     val currentFolder by viewModel.currentFolder.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val isStaleState = currentFolder?.id != folderId
@@ -147,9 +151,19 @@ fun FlatFolderView(
                     ) { index ->
                         val image = images[index]
                         if (image != null) {
-                            ImageGridItem(image, animatedColumns.coerceIn(1, 6), { onImageClick(index) }, {
-                                viewModel.refreshFolder(folderId)
-                            })
+                            ImageGridItem(
+                                image = image,
+                                columns = animatedColumns.coerceIn(1, 6),
+                                onClick = { onImageClick(index) },
+                                onShareClick = {
+                                    fileOpsViewModel.sharePhysicalFile(context, image.path)
+                                },
+                                onDeleteClick = {
+                                    fileOpsViewModel.deletePhysicalFile(context, image.path) {
+                                        viewModel.refreshFolder(folderId)
+                                    }
+                                }
+                            )
                         }
                     }
                 }
@@ -178,9 +192,18 @@ fun FlatFolderView(
                     ) { index ->
                         val image = images[index]
                         if (image != null) {
-                            ImageListItem(image, { onImageClick(index) }, {
-                                viewModel.refreshFolder(folderId)
-                            })
+                            ImageListItem(
+                                image = image,
+                                onClick = { onImageClick(index) },
+                                onShareClick = {
+                                    fileOpsViewModel.sharePhysicalFile(context, image.path)
+                                },
+                                onDeleteClick = {
+                                    fileOpsViewModel.deletePhysicalFile(context, image.path) {
+                                        viewModel.refreshFolder(folderId)
+                                    }
+                                }
+                            )
                         }
                     }
                 }

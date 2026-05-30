@@ -3,12 +3,13 @@ package com.devson.pixchive.navigation
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.navArgument
+import androidx.navigation.compose.navigation
+import androidx.navigation.toRoute
 import com.devson.pixchive.ui.screens.settings.AboutScreen
 import com.devson.pixchive.ui.screens.settings.PrivacyPolicyScreen
 import com.devson.pixchive.ui.screens.ChapterViewScreen
@@ -21,8 +22,6 @@ import com.devson.pixchive.ui.screens.settings.DeveloperOptionsScreen
 import com.devson.pixchive.ui.screens.settings.LogsScreen
 import com.devson.pixchive.ui.screens.settings.AppearanceSettingsScreen
 import com.devson.pixchive.viewmodel.FolderViewModel
-import java.net.URLDecoder
-import java.nio.charset.StandardCharsets
 import com.devson.pixchive.gallery.ui.ImageViewScreen
 import com.devson.pixchive.gallery.ui.ImageFolderScreen
 import com.devson.pixchive.ui.screens.settings.RecycleBinScreen
@@ -33,10 +32,8 @@ import androidx.compose.animation.SharedTransitionLayout
 @Composable
 fun NavGraph(
     navController: NavHostController,
-    startDestination: String = Screen.Home.route
+    startDestination: Any = HomeDestination
 ) {
-    val folderViewModel: FolderViewModel = viewModel()
-
     val safeNavigateBack: () -> Unit = {
         if (navController.previousBackStackEntry != null) {
             navController.popBackStack()
@@ -47,48 +44,44 @@ fun NavGraph(
             navController = navController,
             startDestination = startDestination,
             enterTransition = {
-                // Slide in from right to left when opening a new screen
                 slideIntoContainer(
                     AnimatedContentTransitionScope.SlideDirection.Left,
                     animationSpec = tween(300)
                 )
             },
             exitTransition = {
-                // Slide current screen to the left when opening a new screen
                 slideOutOfContainer(
                     AnimatedContentTransitionScope.SlideDirection.Left,
                     animationSpec = tween(300)
                 )
             },
             popEnterTransition = {
-                // Slide previous screen in from left to right when pressing back
                 slideIntoContainer(
                     AnimatedContentTransitionScope.SlideDirection.Right,
                     animationSpec = tween(300)
                 )
             },
             popExitTransition = {
-                // Slide current screen out left to right when pressing back
                 slideOutOfContainer(
                     AnimatedContentTransitionScope.SlideDirection.Right,
                     animationSpec = tween(300)
                 )
             }
         ) {
-            composable(Screen.Home.route) {
+            composable<HomeDestination> {
                 HomeScreen(
                     onFolderClick = { folderId ->
-                        navController.navigate(Screen.FolderView.createRoute(folderId))
+                        navController.navigate(FolderViewDestination(folderId))
                     },
                     onSettingsClick = {
-                        navController.navigate(Screen.Settings.route)
+                        navController.navigate(SettingsDestination)
                     },
                     onFavoritesClick = {
-                        navController.navigate("favorites")
+                        navController.navigate(FavoritesDestination)
                     },
                     onResumeChapter = { folderId, chapterPath, initialPage ->
                         navController.navigate(
-                            Screen.ImageViewer.createRoute(
+                            ImageViewerDestination(
                                 folderId,
                                 chapterPath,
                                 initialPage
@@ -96,229 +89,181 @@ fun NavGraph(
                         )
                     },
                     onBrowseGalleryClick = { _ ->
-                        navController.navigate(Screen.Gallery.route)
+                        navController.navigate(GalleryDestination)
                     }
                 )
             }
-            composable(Screen.Gallery.route) {
+
+            composable<GalleryDestination> {
                 com.devson.pixchive.gallery.ui.GalleryMainScreen(
                     onNavigateBack = safeNavigateBack,
-                    onSettingsClick = { navController.navigate(Screen.Settings.route) },
-                    onRecycleBinClick = { navController.navigate(Screen.RecycleBin.route) },
+                    onSettingsClick = { navController.navigate(SettingsDestination) },
+                    onRecycleBinClick = { navController.navigate(RecycleBinDestination) },
                     onFolderClick = { bucketId ->
-                        navController.navigate(Screen.ImageFolder.createRoute(bucketId))
+                        navController.navigate(ImageFolderDestination(bucketId))
                     },
                     onImageClick = { bucketId, index ->
-                        navController.navigate(Screen.GalleryImageViewer.createRoute(bucketId, index))
+                        navController.navigate(GalleryImageViewerDestination(bucketId, index))
                     },
                     onSearch = { query ->
-                        navController.navigate(Screen.SearchResults.createRoute(query))
+                        navController.navigate(SearchResultsDestination(query))
                     }
                 )
             }
 
-            composable(
-                route = Screen.SearchResults.route,
-                arguments = listOf(navArgument("query") { type = NavType.StringType })
-            ) { backStackEntry ->
-                val query = backStackEntry.arguments?.getString("query") ?: ""
+            composable<SearchResultsDestination> { backStackEntry ->
+                val destination: SearchResultsDestination = backStackEntry.toRoute()
                 com.devson.pixchive.gallery.ui.SearchResultsScreen(
-                    query = query,
+                    query = destination.query,
                     onBack = safeNavigateBack,
                     onImageClick = { index, _ ->
-                        navController.navigate(Screen.GalleryImageViewer.createRoute("search:$query", index))
+                        navController.navigate(GalleryImageViewerDestination("search:${destination.query}", index))
                     }
                 )
             }
 
-            composable(Screen.RecycleBin.route) {
+            composable<RecycleBinDestination> {
                 RecycleBinScreen(onBack = safeNavigateBack)
             }
 
-            // 1. Inside your ImageFolder composable block:
-            composable(
-                route = Screen.ImageFolder.route,
-                arguments = listOf(navArgument("bucketId") { type = NavType.StringType })
-            ) { backStackEntry ->
-                val bucketId = backStackEntry.arguments?.getString("bucketId") ?: ""
+            composable<ImageFolderDestination> { backStackEntry ->
+                val destination: ImageFolderDestination = backStackEntry.toRoute()
                 ImageFolderScreen(
-                    bucketId = bucketId,
+                    bucketId = destination.bucketId,
                     onNavigateBack = safeNavigateBack,
                     onImageClick = { index ->
-                        // FIX: Use the Gallery specific route here
-                        navController.navigate(Screen.GalleryImageViewer.createRoute(bucketId, index))
+                        navController.navigate(GalleryImageViewerDestination(destination.bucketId, index))
                     },
-                    onSettingsClick = { navController.navigate(Screen.Settings.route) },
+                    onSettingsClick = { navController.navigate(SettingsDestination) },
                     onSearch = { query ->
-                        navController.navigate(Screen.SearchResults.createRoute(query))
+                        navController.navigate(SearchResultsDestination(query))
                     }
                 )
             }
 
-            // 2. The Viewer composable block:
-            // FIX: Use Screen.GalleryImageViewer.route
-            composable(
-                route = Screen.GalleryImageViewer.route,
-                arguments = listOf(
-                    navArgument("bucketId") { type = NavType.StringType },
-                    navArgument("initialIndex") { type = NavType.IntType }
-                )
-            ) { backStackEntry ->
-                val bucketId = backStackEntry.arguments?.getString("bucketId") ?: ""
-                val initialIndex = backStackEntry.arguments?.getInt("initialIndex") ?: 0
-
+            composable<GalleryImageViewerDestination> { backStackEntry ->
+                val destination: GalleryImageViewerDestination = backStackEntry.toRoute()
                 ImageViewScreen(
-                    bucketId = bucketId,
-                    initialIndex = initialIndex,
+                    bucketId = destination.bucketId,
+                    initialIndex = destination.initialIndex,
                     onNavigateBack = safeNavigateBack
                 )
             }
 
-            // Favorites Route - Now uses shared folderViewModel
-            composable("favorites") {
-                FavoritesScreen(
-                    onNavigateBack = safeNavigateBack, // Use safe pop
-                    onImageClick = { index ->
-                        // Pass "favorites" as ID so Reader knows what to load
-                        navController.navigate(
-                            Screen.ImageViewer.createRoute(
-                                "favorites",
-                                "favorites_view",
-                                index
-                            )
-                        )
-                    },
-                    viewModel = folderViewModel // PASS SHARED VIEWMODEL HERE
-                )
-            }
-
-            composable(Screen.Settings.route) {
+            composable<SettingsDestination> {
                 SettingsScreen(
                     onNavigateBack = safeNavigateBack,
-                    onNavigateToAbout = { navController.navigate(Screen.About.route) },
-                    onNavigateToPrivacyPolicy = { navController.navigate(Screen.PrivacyPolicy.route) },
-                    onNavigateToDeveloperOptions = { navController.navigate(Screen.DeveloperOptions.route) },
-                    onNavigateToAppearance = { navController.navigate(Screen.AppearanceSettings.route) }
+                    onNavigateToAbout = { navController.navigate(AboutDestination) },
+                    onNavigateToPrivacyPolicy = { navController.navigate(PrivacyPolicyDestination) },
+                    onNavigateToDeveloperOptions = { navController.navigate(DeveloperOptionsDestination) },
+                    onNavigateToAppearance = { navController.navigate(AppearanceSettingsDestination) }
                 )
             }
 
-            composable(Screen.AppearanceSettings.route) {
+            composable<AppearanceSettingsDestination> {
                 AppearanceSettingsScreen(
                     onNavigateBack = safeNavigateBack
                 )
             }
 
-            composable(Screen.DeveloperOptions.route) {
+            composable<DeveloperOptionsDestination> {
                 DeveloperOptionsScreen(
                     onNavigateBack = safeNavigateBack,
-                    onNavigateToLogs = { navController.navigate(Screen.Logs.route) }
+                    onNavigateToLogs = { navController.navigate(LogsDestination) }
                 )
             }
 
-            composable(Screen.Logs.route) {
+            composable<LogsDestination> {
                 LogsScreen(onNavigateBack = safeNavigateBack)
             }
 
-            composable(Screen.About.route) {
+            composable<AboutDestination> {
                 AboutScreen(
-                    onNavigateBack = safeNavigateBack // Use safe pop
+                    onNavigateBack = safeNavigateBack
                 )
             }
 
-            composable(Screen.PrivacyPolicy.route) {
+            composable<PrivacyPolicyDestination> {
                 PrivacyPolicyScreen(
-                    onNavigateBack = safeNavigateBack // Use safe pop
+                    onNavigateBack = safeNavigateBack
                 )
             }
 
-            composable(
-                route = Screen.FolderView.route,
-                arguments = listOf(
-                    navArgument("folderId") { type = NavType.StringType }
-                )
-            ) { backStackEntry ->
-                val folderId = backStackEntry.arguments?.getString("folderId") ?: ""
-
-                FolderViewScreen(
-                    folderId = folderId,
-                    onNavigateBack = safeNavigateBack, // Use safe pop
-                    onChapterClick = { chapterPath ->
-                        navController.navigate(
-                            Screen.ChapterView.createRoute(
-                                folderId,
-                                chapterPath
+            navigation<ComicFlow>(
+                startDestination = FolderViewDestination(folderId = "")
+            ) {
+                composable<FolderViewDestination> { backStackEntry ->
+                    val destination: FolderViewDestination = backStackEntry.toRoute()
+                    val parentEntry = remember(backStackEntry) {
+                        navController.getBackStackEntry<ComicFlow>()
+                    }
+                    val folderViewModel: FolderViewModel = viewModel(parentEntry)
+                    FolderViewScreen(
+                        folderId = destination.folderId,
+                        onNavigateBack = safeNavigateBack,
+                        onChapterClick = { chapterPath ->
+                            navController.navigate(
+                                ChapterViewDestination(destination.folderId, chapterPath)
                             )
-                        )
-                    },
-                    onImageClick = { imageIndex ->
-                        navController.navigate(
-                            Screen.ImageViewer.createRoute(
-                                folderId,
-                                "flat_view",
-                                imageIndex
+                        },
+                        onImageClick = { imageIndex ->
+                            navController.navigate(
+                                ImageViewerDestination(destination.folderId, "flat_view", imageIndex)
                             )
-                        )
-                    },
-                    viewModel = folderViewModel
-                )
-            }
-
-            composable(
-                route = Screen.ChapterView.route,
-                arguments = listOf(
-                    navArgument("folderId") { type = NavType.StringType },
-                    navArgument("chapterPath") { type = NavType.StringType }
-                )
-            ) { backStackEntry ->
-                val folderId = backStackEntry.arguments?.getString("folderId") ?: ""
-                val encodedPath = backStackEntry.arguments?.getString("chapterPath") ?: ""
-                val chapterPath = try {
-                    URLDecoder.decode(encodedPath, StandardCharsets.UTF_8.toString())
-                } catch (e: Exception) {
-                    encodedPath
+                        },
+                        viewModel = folderViewModel
+                    )
                 }
 
-                ChapterViewScreen(
-                    folderId = folderId,
-                    chapterPath = chapterPath,
-                    onNavigateBack = safeNavigateBack, // Use safe pop
-                    onImageClick = { imageIndex ->
-                        navController.navigate(
-                            Screen.ImageViewer.createRoute(
-                                folderId,
-                                chapterPath,
-                                imageIndex
+                composable<ChapterViewDestination> { backStackEntry ->
+                    val destination: ChapterViewDestination = backStackEntry.toRoute()
+                    val parentEntry = remember(backStackEntry) {
+                        navController.getBackStackEntry<ComicFlow>()
+                    }
+                    val folderViewModel: FolderViewModel = viewModel(parentEntry)
+                    ChapterViewScreen(
+                        folderId = destination.folderId,
+                        chapterPath = destination.chapterPath,
+                        onNavigateBack = safeNavigateBack,
+                        onImageClick = { imageIndex ->
+                            navController.navigate(
+                                ImageViewerDestination(destination.folderId, destination.chapterPath, imageIndex)
                             )
-                        )
-                    },
-                    viewModel = folderViewModel
-                )
-            }
-
-            composable(
-                route = Screen.ImageViewer.route,
-                arguments = listOf(
-                    navArgument("folderId") { type = NavType.StringType },
-                    navArgument("chapterPath") { type = NavType.StringType },
-                    navArgument("imageIndex") { type = NavType.IntType }
-                )
-            ) { backStackEntry ->
-                val folderId = backStackEntry.arguments?.getString("folderId") ?: ""
-                val encodedPath = backStackEntry.arguments?.getString("chapterPath") ?: ""
-                val chapterPath = try {
-                    URLDecoder.decode(encodedPath, StandardCharsets.UTF_8.toString())
-                } catch (e: Exception) {
-                    encodedPath
+                        },
+                        viewModel = folderViewModel
+                    )
                 }
-                val imageIndex = backStackEntry.arguments?.getInt("imageIndex") ?: 0
 
-                ReaderScreen(
-                    folderId = folderId,
-                    chapterPath = chapterPath,
-                    initialIndex = imageIndex,
-                    onNavigateBack = safeNavigateBack, // Use safe pop
-                    viewModel = folderViewModel
-                )
+                composable<ImageViewerDestination> { backStackEntry ->
+                    val destination: ImageViewerDestination = backStackEntry.toRoute()
+                    val parentEntry = remember(backStackEntry) {
+                        navController.getBackStackEntry<ComicFlow>()
+                    }
+                    val folderViewModel: FolderViewModel = viewModel(parentEntry)
+                    ReaderScreen(
+                        folderId = destination.folderId,
+                        chapterPath = destination.chapterPath,
+                        initialIndex = destination.imageIndex,
+                        onNavigateBack = safeNavigateBack,
+                        viewModel = folderViewModel
+                    )
+                }
+
+                composable<FavoritesDestination> { backStackEntry ->
+                    val parentEntry = remember(backStackEntry) {
+                        navController.getBackStackEntry<ComicFlow>()
+                    }
+                    val folderViewModel: FolderViewModel = viewModel(parentEntry)
+                    FavoritesScreen(
+                        onNavigateBack = safeNavigateBack,
+                        onImageClick = { index ->
+                            navController.navigate(
+                                ImageViewerDestination("favorites", "favorites_view", index)
+                            )
+                        },
+                        viewModel = folderViewModel
+                    )
+                }
             }
         }
     }

@@ -1,9 +1,5 @@
 package com.devson.pixchive.ui.components
 
-import android.content.Context
-import android.content.Intent
-import android.net.Uri
-import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -21,12 +17,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.devson.pixchive.data.Chapter
 import com.devson.pixchive.data.local.ImageEntity
-import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -99,16 +93,20 @@ fun ChapterListItem(
 fun ChapterImageListItem(
     image: ImageEntity,
     onClick: () -> Unit,
-    onRefresh: () -> Unit
+    onShareClick: () -> Unit,
+    onDeleteClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
+    val currentOnClick by rememberUpdatedState(onClick)
+    val currentOnShareClick by rememberUpdatedState(onShareClick)
+    val currentOnDeleteClick by rememberUpdatedState(onDeleteClick)
 
-    Column {
+    Column(modifier = modifier) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick)
+                .clickable(onClick = { currentOnClick() })
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -149,55 +147,20 @@ fun ChapterImageListItem(
                     DropdownMenuItem(
                         text = { Text("Share") },
                         leadingIcon = { Icon(Icons.Default.Share, null) },
-                        onClick = { showMenu = false; shareFile(context, image) }
+                        onClick = { showMenu = false; currentOnShareClick() }
                     )
                     DropdownMenuItem(
                         text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
                         leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
                         onClick = {
                             showMenu = false
-                            if (deleteFile(context, File(image.path))) onRefresh()
+                            currentOnDeleteClick()
                         }
                     )
                 }
             }
         }
         HorizontalDivider(modifier = Modifier.padding(start = 80.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
-    }
-}
-
-// Helpers for ListItems
-private fun shareFile(context: Context, image: ImageEntity) {
-    try {
-        val file = File(image.path)
-        val uri = FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.provider",
-            file
-        )
-
-        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-            type = "image/*"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-        context.startActivity(Intent.createChooser(shareIntent, "Share Image"))
-    } catch (e: Exception) {
-        Toast.makeText(context, "Failed to share: ${e.message}", Toast.LENGTH_SHORT).show()
-    }
-}
-
-private fun deleteFile(context: Context, file: File): Boolean {
-    return try {
-        if (file.delete()) {
-            Toast.makeText(context, "Image deleted", Toast.LENGTH_SHORT).show()
-            true
-        } else {
-            Toast.makeText(context, "Failed to delete image", Toast.LENGTH_SHORT).show()
-            false
-        }
-    } catch (e: Exception) {
-        false
     }
 }
 

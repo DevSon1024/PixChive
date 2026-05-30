@@ -17,6 +17,7 @@ import androidx.lifecycle.asFlow
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.devson.pixchive.workers.FolderSyncWorker
+import com.devson.pixchive.workers.FolderValidationWorker
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -91,34 +92,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private suspend fun validateFolders() {
-        val currentFolders = preferencesManager.foldersFlow.first()
-        if (currentFolders.isEmpty()) return
-
-        val validFolders = mutableListOf<ComicFolder>()
-        var changed = false
-        val contentResolver = getApplication<Application>().contentResolver
-
-        for (folder in currentFolders) {
-            val uri = Uri.parse(folder.uri)
-            val hasPermission = contentResolver.persistedUriPermissions.any { it.uri == uri }
-            
-            val exists = try {
-                 DocumentFile.fromTreeUri(getApplication(), uri)?.exists() == true
-            } catch (e: Exception) { false }
-            
-            if (hasPermission && exists) {
-                validFolders.add(folder)
-            } else {
-                changed = true
-                imageDao.deleteFolderContent(folder.id)
-                historyDao.deleteHistoryForFolder(folder.id)
-            }
-        }
-        
-        if (changed) {
-             preferencesManager.saveFolders(validFolders)
-        }
+    private fun validateFolders() {
+        val workManager = WorkManager.getInstance(getApplication())
+        val workRequest = androidx.work.OneTimeWorkRequestBuilder<FolderValidationWorker>()
+            .build()
+        workManager.enqueueUniqueWork(
+            "validate_folders",
+            androidx.work.ExistingWorkPolicy.KEEP,
+            workRequest
+        )
     }
 
     fun refreshFolders() {

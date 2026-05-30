@@ -27,6 +27,8 @@ import com.devson.pixchive.ui.components.EmptyChapterImagesView
 import com.devson.pixchive.ui.components.SkeletonGrid
 import com.devson.pixchive.ui.components.SkeletonList
 import com.devson.pixchive.viewmodel.FolderViewModel
+import com.devson.pixchive.viewmodel.FileOperationsViewModel
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -43,8 +45,10 @@ fun ChapterViewScreen(
     chapterPath: String,
     onNavigateBack: () -> Unit,
     onImageClick: (Int) -> Unit,
-    viewModel: FolderViewModel = viewModel()
+    viewModel: FolderViewModel = viewModel(),
+    fileOpsViewModel: FileOperationsViewModel = viewModel()
 ) {
+    val context = LocalContext.current
     val layoutMode by viewModel.layoutMode.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val chapters by viewModel.chapters.collectAsState()
@@ -145,7 +149,19 @@ fun ChapterViewScreen(
                             }
                     ) {
                         itemsIndexed(chapterImages) { index, image ->
-                            ImageGridItem(image, animatedColumns.coerceIn(1, 6), { onImageClick(index) }, onRefresh)
+                            ImageGridItem(
+                                image = image,
+                                columns = animatedColumns.coerceIn(1, 6),
+                                onClick = { onImageClick(index) },
+                                onShareClick = {
+                                    fileOpsViewModel.sharePhysicalFile(context, image.path)
+                                },
+                                onDeleteClick = {
+                                    fileOpsViewModel.deletePhysicalFile(context, image.path) {
+                                        onRefresh()
+                                    }
+                                }
+                            )
                         }
                     }
                 } else {
@@ -156,7 +172,18 @@ fun ChapterViewScreen(
                         )
                     ) {
                         itemsIndexed(chapterImages) { index, image ->
-                            ChapterImageListItem(image, { onImageClick(index) }, onRefresh)
+                            ChapterImageListItem(
+                                image = image,
+                                onClick = { onImageClick(index) },
+                                onShareClick = {
+                                    fileOpsViewModel.sharePhysicalFile(context, image.path)
+                                },
+                                onDeleteClick = {
+                                    fileOpsViewModel.deletePhysicalFile(context, image.path) {
+                                        onRefresh()
+                                    }
+                                }
+                            )
                         }
                     }
                 }

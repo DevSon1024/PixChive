@@ -4,21 +4,28 @@ import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
+import androidx.paging.insertSeparators
 import com.devson.pixchive.data.PreferencesManager
+import com.devson.pixchive.gallery.data.MediaStorePagingSource
 import com.devson.pixchive.gallery.data.MediaStoreRepository
 import com.devson.pixchive.gallery.data.models.GalleryImage
 import com.devson.pixchive.gallery.data.models.GalleryViewSettings
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.FlowPreview
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -43,8 +50,15 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
     private val _uiState = MutableStateFlow<AllImagesState>(AllImagesState.Loading)
     val uiState: StateFlow<AllImagesState> = _uiState.asStateFlow()
 
-    private val _selectedIds = MutableStateFlow<Set<Long>>(emptySet())
-    val selectedIds: StateFlow<Set<Long>> = _selectedIds.asStateFlow()
+    private val _selectedImagesMap = MutableStateFlow<Map<Long, GalleryImage>>(emptyMap())
+
+    val selectedIds: StateFlow<Set<Long>> = _selectedImagesMap
+        .map { it.keys }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    val selectedImages: StateFlow<List<GalleryImage>> = _selectedImagesMap
+        .map { it.values.toList() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val layoutMode: StateFlow<String> = preferencesManager.galleryLayoutModeFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "grid")
@@ -70,55 +84,70 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), GalleryViewSettings())
 
+    private var pagingSource: MediaStorePagingSource? = null
+
+    val pagedGridItems: Flow<PagingData<Any>> = Pager(
+        config = PagingConfig(
+            pageSize = 60,
+            prefetchDistance = 20,
+            enablePlaceholders = false
+        ),
+        pagingSourceFactory = {
+            MediaStorePagingSource(repository).also { pagingSource = it }
+        }
+    ).flow
+        .map { pagingData ->
+            pagingData.insertSeparators { before: GalleryImage?, after: GalleryImage? ->
+                if (after == null) {
+                    null
+                } else if (before == null) {
+                    getDateLabel(after)
+                } else {
+                    val labelBefore = getDateLabel(before)
+                    val labelAfter = getDateLabel(after)
+                    if (labelBefore != labelAfter) labelAfter else null
+                }
+            }
+        }
+        .cachedIn(viewModelScope)
+
     init {
-        loadAllImages()
         viewModelScope.launch(Dispatchers.IO) {
             repository.observeMediaStoreChanges()
                 .debounce(500L)
                 .collect {
-                    loadAllImages()
+                    refresh()
                 }
         }
     }
 
-    fun loadAllImages() {
-        viewModelScope.launch {
-            if (_uiState.value !is AllImagesState.Success) {
-                _uiState.value = AllImagesState.Loading
-            }
-            try {
-                val images = repository.getAllImages()
-                val (grouped, gridItems) = withContext(Dispatchers.Default) { 
-                    val g = groupByDate(images)
-                    val items = mutableListOf<Any>()
-                    g.forEach { (label, imgs) ->
-                        items.add(label)
-                        items.addAll(imgs)
-                    }
-                    g to items
-                }
-                _uiState.value = AllImagesState.Success(grouped, images, gridItems)
-            } catch (e: Exception) {
-                if (_uiState.value !is AllImagesState.Success) {
-                    _uiState.value = AllImagesState.Error(e.message ?: "Failed to load images")
-                }
-            }
-        }
+    fun refresh() {
+        pagingSource?.invalidate()
     }
 
-    fun toggleSelection(id: Long) {
-        _selectedIds.value = _selectedIds.value.toMutableSet().apply {
-            if (!add(id)) remove(id)
+    fun toggleSelection(image: GalleryImage) {
+        val current = _selectedImagesMap.value.toMutableMap()
+        if (current.containsKey(image.id)) {
+            current.remove(image.id)
+        } else {
+            current[image.id] = image
         }
+        _selectedImagesMap.value = current
     }
 
     fun clearSelection() {
-        _selectedIds.value = emptySet()
+        _selectedImagesMap.value = emptyMap()
     }
 
     fun selectAll() {
-        val state = _uiState.value as? AllImagesState.Success ?: return
-        _selectedIds.value = state.flatImages.map { it.id }.toSet()
+        viewModelScope.launch {
+            try {
+                val allImages = repository.getAllImages()
+                _selectedImagesMap.value = allImages.associateBy { it.id }
+            } catch (e: Exception) {
+                // Ignore failure
+            }
+        }
     }
 
     fun setLayoutMode(mode: String) = viewModelScope.launch {
@@ -146,39 +175,24 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun renameSelectedImage(newName: String) {
-        val selectedId = _selectedIds.value.firstOrNull() ?: return
-        val state = _uiState.value as? AllImagesState.Success ?: return
-        val image = state.flatImages.find { it.id == selectedId } ?: return
+        val selectedId = selectedIds.value.firstOrNull() ?: return
+        val image = _selectedImagesMap.value[selectedId] ?: return
 
         viewModelScope.launch {
             if (repository.renameImage(image.id, newName)) {
-                loadAllImages()
+                refresh()
                 clearSelection()
             }
         }
     }
 
     fun removeImagesLocally(uris: List<Uri>) {
-        val uriSet = uris.toSet()
-        val current = _uiState.value as? AllImagesState.Success ?: return
-        val newFlat = current.flatImages.filter { it.uri !in uriSet }
-        val newGrouped = groupByDate(newFlat)
-        
-        val items = mutableListOf<Any>()
-        newGrouped.forEach { (label, imgs) ->
-            items.add(label)
-            items.addAll(imgs)
-        }
-        
-        _uiState.value = AllImagesState.Success(
-            grouped = newGrouped,
-            flatImages = newFlat,
-            gridItems = items
-        )
-        _selectedIds.value = _selectedIds.value.filter { id -> newFlat.any { it.id == id } }.toSet()
+        refresh()
     }
 
-    private fun groupByDate(images: List<GalleryImage>): Map<String, List<GalleryImage>> {
+    private fun getDateLabel(image: GalleryImage): String {
+        val ts = if (image.dateAdded > 0L) image.dateAdded * 1000L else image.dateModified * 1000L
+        val imageDate = calendarMidnight(Calendar.getInstance().apply { timeInMillis = ts })
         val now = Calendar.getInstance()
         val today = calendarMidnight(now)
         val yesterday = calendarMidnight(now).apply { add(Calendar.DAY_OF_YEAR, -1) }
@@ -187,21 +201,12 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
         val dayOfWeekFmt = SimpleDateFormat("EEEE", Locale.getDefault())
         val olderFmt = SimpleDateFormat("dd-MMM-yyyy", Locale.getDefault())
 
-        val result = linkedMapOf<String, MutableList<GalleryImage>>()
-
-        for (image in images) {
-            val ts = if (image.dateAdded > 0L) image.dateAdded * 1000L else image.dateModified * 1000L
-            val imageDate = calendarMidnight(Calendar.getInstance().apply { timeInMillis = ts })
-
-            val key = when {
-                !imageDate.before(today) -> "Today"
-                !imageDate.before(yesterday) -> "Yesterday"
-                !imageDate.before(sevenDaysAgo) -> dayOfWeekFmt.format(Date(ts))
-                else -> olderFmt.format(Date(ts))
-            }
-            result.getOrPut(key) { mutableListOf() }.add(image)
+        return when {
+            !imageDate.before(today) -> "Today"
+            !imageDate.before(yesterday) -> "Yesterday"
+            !imageDate.before(sevenDaysAgo) -> dayOfWeekFmt.format(Date(ts))
+            else -> olderFmt.format(Date(ts))
         }
-        return result
     }
 
     private fun calendarMidnight(source: Calendar): Calendar =

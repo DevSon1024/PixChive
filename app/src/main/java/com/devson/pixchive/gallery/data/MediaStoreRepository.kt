@@ -1,8 +1,12 @@
 package com.devson.pixchive.gallery.data
 
+import android.content.ContentResolver
 import android.content.ContentValues
 import android.content.ContentUris
 import android.content.Context
+import android.net.Uri
+import android.os.Build
+import android.os.Bundle
 import android.provider.MediaStore
 import com.devson.pixchive.gallery.data.models.GalleryFolder
 import com.devson.pixchive.gallery.data.models.GalleryImage
@@ -217,6 +221,160 @@ class MediaStoreRepository(private val context: Context) {
                 val contentUri = ContentUris.withAppendedId(uri, id)
 
                 imageList.add(GalleryImage(id, contentUri, realPath, dateModified, dateAdded, size, width, height))
+            }
+        }
+        return@withContext imageList
+    }
+
+    private fun queryMediaStore(
+        uri: Uri,
+        projection: Array<String>,
+        selection: String?,
+        selectionArgs: Array<String>?,
+        sortOrder: String,
+        limit: Int,
+        offset: Int
+    ): android.database.Cursor? {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val queryArgs = Bundle().apply {
+                putInt(ContentResolver.QUERY_ARG_LIMIT, limit)
+                putInt(ContentResolver.QUERY_ARG_OFFSET, offset)
+                if (selection != null) {
+                    putString(ContentResolver.QUERY_ARG_SQL_SELECTION, selection)
+                    putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS, selectionArgs)
+                }
+                putString(ContentResolver.QUERY_ARG_SQL_SORT_ORDER, sortOrder)
+            }
+            context.contentResolver.query(uri, projection, queryArgs, null)
+        } else {
+            val sortWithLimit = "$sortOrder LIMIT $limit OFFSET $offset"
+            context.contentResolver.query(uri, projection, selection, selectionArgs, sortWithLimit)
+        }
+    }
+
+    suspend fun getAllImagesPaged(limit: Int, offset: Int): List<GalleryImage> = withContext(Dispatchers.IO) {
+        val imageList = mutableListOf<GalleryImage>()
+        val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+
+        val projection = arrayOf(
+            MediaStore.Images.Media._ID,
+            MediaStore.Images.Media.DATA,
+            MediaStore.Images.Media.DATE_ADDED,
+            MediaStore.Images.Media.DATE_MODIFIED,
+            MediaStore.Images.Media.SIZE,
+            MediaStore.Images.Media.WIDTH,
+            MediaStore.Images.Media.HEIGHT,
+            MediaStore.Images.Media.RELATIVE_PATH,
+            MediaStore.Images.Media.DISPLAY_NAME
+        )
+
+        queryMediaStore(
+            uri = uri,
+            projection = projection,
+            selection = null,
+            selectionArgs = null,
+            sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC",
+            limit = limit,
+            offset = offset
+        )?.use { cursor ->
+            val idCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+            val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
+            val dateAddedCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
+            val dateModCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)
+            val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
+            val widthCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.WIDTH)
+            val heightCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.HEIGHT)
+            val relPathCol = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
+            val nameCol = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+
+            while (cursor.moveToNext()) {
+                val id = cursor.getLong(idCol)
+                var realPath = cursor.getString(dataCol) ?: ""
+                if ((realPath.isBlank() || realPath.startsWith("content://")) && relPathCol != -1 && nameCol != -1) {
+                    val rel = cursor.getString(relPathCol) ?: ""
+                    val name = cursor.getString(nameCol) ?: ""
+                    if (rel.isNotBlank() && name.isNotBlank()) {
+                        realPath = "/storage/emulated/0/$rel$name"
+                    }
+                }
+                val dateAdded = cursor.getLong(dateAddedCol)
+                val dateModified = cursor.getLong(dateModCol)
+                val size = cursor.getLong(sizeCol)
+                val width = cursor.getInt(widthCol)
+                val height = cursor.getInt(heightCol)
+                val contentUri = ContentUris.withAppendedId(uri, id)
+
+                imageList.add(GalleryImage(id, contentUri, realPath, dateModified, dateAdded, size, width, height))
+            }
+        }
+        return@withContext imageList
+    }
+
+    suspend fun getImagesForFolderPaged(bucketId: String, limit: Int, offset: Int): List<GalleryImage> = withContext(Dispatchers.IO) {
+        val imageList = mutableListOf<GalleryImage>()
+        val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+
+        val projection = arrayOf(
+            MediaStore.Images.Media._ID,
+            MediaStore.Images.Media.DATA,
+            MediaStore.Images.Media.DATE_MODIFIED,
+            MediaStore.Images.Media.SIZE,
+            MediaStore.Images.Media.WIDTH,
+            MediaStore.Images.Media.HEIGHT,
+            MediaStore.Images.Media.RELATIVE_PATH,
+            MediaStore.Images.Media.DISPLAY_NAME
+        )
+
+        val selection = "${MediaStore.Images.Media.BUCKET_ID} = ?"
+        val selectionArgs = arrayOf(bucketId)
+
+        queryMediaStore(
+            uri = uri,
+            projection = projection,
+            selection = selection,
+            selectionArgs = selectionArgs,
+            sortOrder = "${MediaStore.Images.Media.DATE_MODIFIED} DESC",
+            limit = limit,
+            offset = offset
+        )?.use { cursor ->
+            val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+            val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
+            val dateColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)
+            val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
+            val widthColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.WIDTH)
+            val heightColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.HEIGHT)
+            val relativePathColumn = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
+            val displayNameColumn = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+
+            while (cursor.moveToNext()) {
+                val id = cursor.getLong(idColumn)
+                var realPath = cursor.getString(dataColumn) ?: ""
+                
+                if ((realPath.isBlank() || realPath.startsWith("content://")) && relativePathColumn != -1 && displayNameColumn != -1) {
+                    val relPath = cursor.getString(relativePathColumn) ?: ""
+                    val name = cursor.getString(displayNameColumn) ?: ""
+                    if (relPath.isNotBlank() && name.isNotBlank()) {
+                        realPath = "/storage/emulated/0/$relPath$name"
+                    }
+                }
+
+                val dateModified = cursor.getLong(dateColumn)
+                val size = cursor.getLong(sizeColumn)
+                val width = cursor.getInt(widthColumn)
+                val height = cursor.getInt(heightColumn)
+                val contentUri = ContentUris.withAppendedId(uri, id)
+
+                imageList.add(
+                    GalleryImage(
+                        id = id,
+                        uri = contentUri,
+                        realPath = realPath,
+                        dateModified = dateModified,
+                        size = size,
+                        width = width,
+                        height = height
+                    )
+                )
             }
         }
         return@withContext imageList

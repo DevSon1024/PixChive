@@ -1,8 +1,5 @@
 package com.devson.pixchive.ui.components
 
-import android.content.Context
-import android.content.Intent
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -23,12 +20,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.devson.pixchive.data.local.ImageEntity
-import java.io.File
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -36,7 +31,9 @@ fun ImageGridItem(
     image: ImageEntity,
     columns: Int,
     onClick: () -> Unit,
-    onRefresh: () -> Unit
+    onShareClick: () -> Unit,
+    onDeleteClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
@@ -52,7 +49,6 @@ fun ImageGridItem(
     }
 
     val placeholderColor = MaterialTheme.colorScheme.surfaceVariant
-    // Stable painter reference; only recreated if color token changes
     val placeholderPainter = remember(placeholderColor) { ColorPainter(placeholderColor) }
 
     val imageRequest = remember(image.uri, fetchSize) {
@@ -67,26 +63,24 @@ fun ImageGridItem(
             .build()
     }
 
-    // Stable lambda refs to prevent recomposing combinedClickable on every parent recomposition
-    val stableOnClick = remember(onClick) { onClick }
+    val currentOnClick by rememberUpdatedState(onClick)
+    val currentOnShareClick by rememberUpdatedState(onShareClick)
+    val currentOnDeleteClick by rememberUpdatedState(onDeleteClick)
+
     val stableOnLongClick = remember<() -> Unit> {
         { haptics.performHapticFeedback(HapticFeedbackType.LongPress); showMenu = true }
     }
 
     val shape = RoundedCornerShape(8.dp)
 
-    DisposableEffect(image.uri) {
-        onDispose { /* imageRequest goes out of scope; Coil LRU handles eviction */ }
-    }
-
-    Box {
+    Box(modifier = modifier) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(0.7f)
                 .clip(shape)
                 .combinedClickable(
-                    onClick = stableOnClick,
+                    onClick = { currentOnClick() },
                     onLongClick = stableOnLongClick
                 )
         ) {
@@ -133,7 +127,7 @@ fun ImageGridItem(
                 leadingIcon = { Icon(Icons.Default.Share, null) },
                 onClick = {
                     showMenu = false
-                    shareItem(context, image)
+                    currentOnShareClick()
                 }
             )
             DropdownMenuItem(
@@ -141,32 +135,9 @@ fun ImageGridItem(
                 leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
                 onClick = {
                     showMenu = false
-                    if (deleteItem(File(image.path))) onRefresh()
+                    currentOnDeleteClick()
                 }
             )
         }
-    }
-}
-
-private fun shareItem(context: Context, image: ImageEntity) {
-    try {
-        val file = File(image.path)
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
-        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-            type = "image/*"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-        context.startActivity(Intent.createChooser(shareIntent, "Share Image"))
-    } catch (e: Exception) {
-        Toast.makeText(context, "Failed to share: ${e.message}", Toast.LENGTH_SHORT).show()
-    }
-}
-
-private fun deleteItem(file: File): Boolean {
-    return try {
-        if (file.isDirectory) file.deleteRecursively() else file.delete()
-    } catch (e: Exception) {
-        false
     }
 }

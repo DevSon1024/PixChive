@@ -1,8 +1,5 @@
 package com.devson.pixchive.ui.components
 
-import android.content.Context
-import android.content.Intent
-import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
@@ -24,7 +21,6 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
@@ -41,7 +37,9 @@ private val listItemDateFormat = SimpleDateFormat("d MMM yyyy", Locale.getDefaul
 fun ImageListItem(
     image: ImageEntity,
     onClick: () -> Unit,
-    onRefresh: () -> Unit
+    onShareClick: () -> Unit,
+    onDeleteClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
@@ -63,11 +61,15 @@ fun ImageListItem(
             .build()
     }
 
+    val currentOnClick by rememberUpdatedState(onClick)
+    val currentOnShareClick by rememberUpdatedState(onShareClick)
+    val currentOnDeleteClick by rememberUpdatedState(onDeleteClick)
+
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .combinedClickable(
-                onClick = onClick,
+                onClick = { currentOnClick() },
                 onLongClick = {
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                 }
@@ -125,7 +127,7 @@ fun ImageListItem(
                     leadingIcon = { Icon(Icons.Default.Share, null) },
                     onClick = {
                         showMenu = false
-                        shareItem(context, image)
+                        currentOnShareClick()
                     }
                 )
                 DropdownMenuItem(
@@ -133,50 +135,11 @@ fun ImageListItem(
                     leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
                     onClick = {
                         showMenu = false
-                        if (deleteItem(context, File(image.path))) {
-                            onRefresh()
-                        }
+                        currentOnDeleteClick()
                     }
                 )
             }
         }
-    }
-}
-
-private fun shareItem(context: Context, image: ImageEntity) {
-    try {
-        val file = File(image.path)
-        val uri = FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.provider",
-            file
-        )
-
-        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-            type = "image/*"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-        context.startActivity(Intent.createChooser(shareIntent, "Share Image"))
-    } catch (e: Exception) {
-        e.printStackTrace()
-        Toast.makeText(context, "Failed to share: ${e.message}", Toast.LENGTH_SHORT).show()
-    }
-}
-
-private fun deleteItem(context: Context, file: File): Boolean {
-    return try {
-        val deleted = if (file.isDirectory) file.deleteRecursively() else file.delete()
-        if (deleted) {
-            Toast.makeText(context, "Item deleted", Toast.LENGTH_SHORT).show()
-            true
-        } else {
-            Toast.makeText(context, "Failed to delete item", Toast.LENGTH_SHORT).show()
-            false
-        }
-    } catch (e: Exception) {
-        Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
-        false
     }
 }
 

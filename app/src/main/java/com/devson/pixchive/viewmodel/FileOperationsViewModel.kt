@@ -20,6 +20,9 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.content.Intent
+import android.widget.Toast
+import androidx.core.content.FileProvider
 
 /**
  * Tracks which file action is waiting for a system permission grant (IntentSender result).
@@ -498,6 +501,48 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
             null, null, null
         )?.use { cursor ->
             if (cursor.moveToFirst()) cursor.getString(0) else null
+        }
+    }
+
+    fun deletePhysicalFile(context: Context, filePath: String, onCompleted: () -> Unit) {
+        viewModelScope.launch {
+            val success = withContext(Dispatchers.IO) {
+                try {
+                    val file = java.io.File(filePath)
+                    if (file.isDirectory) file.deleteRecursively() else file.delete()
+                } catch (e: java.lang.Exception) {
+                    false
+                }
+            }
+            if (success) {
+                _operationResult.value = "Item deleted successfully"
+                onCompleted()
+            } else {
+                _operationResult.value = "Failed to delete item"
+            }
+        }
+    }
+
+    fun sharePhysicalFile(context: Context, filePath: String) {
+        viewModelScope.launch {
+            try {
+                val shareIntent = withContext(Dispatchers.IO) {
+                    val file = java.io.File(filePath)
+                    val uri = FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.provider",
+                        file
+                    )
+                    Intent(Intent.ACTION_SEND).apply {
+                        type = "image/*"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                }
+                context.startActivity(Intent.createChooser(shareIntent, "Share Image"))
+            } catch (e: java.lang.Exception) {
+                _operationResult.value = "Failed to share: ${e.localizedMessage}"
+            }
         }
     }
 

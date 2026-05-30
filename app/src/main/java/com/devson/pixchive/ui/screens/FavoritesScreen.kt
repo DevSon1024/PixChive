@@ -26,6 +26,9 @@ import com.devson.pixchive.ui.components.EmptyFavoritesView
 import com.devson.pixchive.ui.components.ImageGridItem
 import com.devson.pixchive.ui.components.ImageListItem
 import com.devson.pixchive.viewmodel.FolderViewModel
+import com.devson.pixchive.viewmodel.FileOperationsViewModel
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -38,7 +41,8 @@ import androidx.compose.animation.core.tween
 fun FavoritesScreen(
     onNavigateBack: () -> Unit,
     onImageClick: (Int) -> Unit,
-    viewModel: FolderViewModel
+    viewModel: FolderViewModel,
+    fileOpsViewModel: FileOperationsViewModel = viewModel()
 ) {
     val folderId = "favorites"
 
@@ -87,16 +91,18 @@ fun FavoritesScreen(
                             images = lazyImages,
                             columns = gridColumns,
                             onImageClick = onImageClick,
-                            onRefresh = {}, // No manual refresh needed for favorites
+                            onRefresh = { lazyImages.refresh() },
                             paddingValues = padding,
-                            viewModel = viewModel
+                            viewModel = viewModel,
+                            fileOpsViewModel = fileOpsViewModel
                         )
                     } else {
                         FavoritesListView(
                             images = lazyImages,
                             onImageClick = onImageClick,
-                            onRefresh = {},
-                            paddingValues = padding
+                            onRefresh = { lazyImages.refresh() },
+                            paddingValues = padding,
+                            fileOpsViewModel = fileOpsViewModel
                         )
                     }
                 }
@@ -125,8 +131,10 @@ fun FavoritesGridView(
     onImageClick: (Int) -> Unit,
     onRefresh: () -> Unit,
     paddingValues: PaddingValues,
-    viewModel: FolderViewModel
+    viewModel: FolderViewModel,
+    fileOpsViewModel: FileOperationsViewModel
 ) {
+    val context = LocalContext.current
     val gridState = rememberLazyGridState()
     var localColumns by remember(columns) { mutableStateOf(columns) }
     var accumulatedZoom by remember { mutableFloatStateOf(1f) }
@@ -159,21 +167,21 @@ fun FavoritesGridView(
                             accumulatedZoom *= zoom
                             
                             if (!hasChangedInThisGesture) {
-                                if (accumulatedZoom > 1.25f) {
-                                    val newCols = (localColumns - 1).coerceIn(1, 6)
-                                    if (newCols != localColumns) {
-                                        localColumns = newCols
-                                        viewModel.setGridColumns(newCols)
-                                    }
-                                    hasChangedInThisGesture = true
-                                } else if (accumulatedZoom < 0.75f) {
-                                    val newCols = (localColumns + 1).coerceIn(1, 6)
-                                    if (newCols != localColumns) {
-                                        localColumns = newCols
-                                        viewModel.setGridColumns(newCols)
-                                    }
-                                    hasChangedInThisGesture = true
-                                }
+                                  if (accumulatedZoom > 1.25f) {
+                                      val newCols = (localColumns - 1).coerceIn(1, 6)
+                                      if (newCols != localColumns) {
+                                          localColumns = newCols
+                                          viewModel.setGridColumns(newCols)
+                                      }
+                                      hasChangedInThisGesture = true
+                                  } else if (accumulatedZoom < 0.75f) {
+                                      val newCols = (localColumns + 1).coerceIn(1, 6)
+                                      if (newCols != localColumns) {
+                                          localColumns = newCols
+                                          viewModel.setGridColumns(newCols)
+                                      }
+                                      hasChangedInThisGesture = true
+                                  }
                             }
                             event.changes.forEach { if (it.pressed) it.consume() }
                         } else {
@@ -195,7 +203,14 @@ fun FavoritesGridView(
                     image = image,
                     columns = animatedColumns.coerceIn(1, 6),
                     onClick = { onImageClick(index) },
-                    onRefresh = onRefresh
+                    onShareClick = {
+                        fileOpsViewModel.sharePhysicalFile(context, image.path)
+                    },
+                    onDeleteClick = {
+                        fileOpsViewModel.deletePhysicalFile(context, image.path) {
+                            onRefresh()
+                        }
+                    }
                 )
             }
         }
@@ -207,8 +222,10 @@ fun FavoritesListView(
     images: LazyPagingItems<ImageEntity>,
     onImageClick: (Int) -> Unit,
     onRefresh: () -> Unit,
-    paddingValues: PaddingValues
+    paddingValues: PaddingValues,
+    fileOpsViewModel: FileOperationsViewModel
 ) {
+    val context = LocalContext.current
     LazyColumn(
         contentPadding = PaddingValues(
             top = paddingValues.calculateTopPadding(),
@@ -225,7 +242,14 @@ fun FavoritesListView(
                 ImageListItem(
                     image = image,
                     onClick = { onImageClick(index) },
-                    onRefresh = onRefresh
+                    onShareClick = {
+                        fileOpsViewModel.sharePhysicalFile(context, image.path)
+                    },
+                    onDeleteClick = {
+                        fileOpsViewModel.deletePhysicalFile(context, image.path) {
+                            onRefresh()
+                        }
+                    }
                 )
             }
         }

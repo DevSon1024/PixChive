@@ -43,7 +43,7 @@ import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AllImagesScreen(
+fun PhotosScreen(
     onNavigateBack: () -> Unit,
     onSettingsClick: () -> Unit,
     onSearch: (String) -> Unit = {},

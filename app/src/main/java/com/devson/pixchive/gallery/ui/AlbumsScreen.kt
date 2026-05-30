@@ -1,4 +1,4 @@
-package com.devson.pixchive.gallery
+package com.devson.pixchive.gallery.ui
 
 import android.os.Build
 import androidx.activity.compose.BackHandler
@@ -17,7 +17,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.RestoreFromTrash
@@ -36,7 +35,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.devson.pixchive.gallery.data.models.GalleryFolder
 import com.devson.pixchive.gallery.ui.components.DetailsDialog
 import com.devson.pixchive.gallery.ui.components.GalleryFolderItem
 import com.devson.pixchive.gallery.ui.components.GallerySelectionBottomBar
@@ -46,11 +44,12 @@ import com.devson.pixchive.gallery.viewmodel.GalleryState
 import com.devson.pixchive.gallery.viewmodel.ImageListViewModel
 import com.devson.pixchive.utils.PermissionHelper
 import com.devson.pixchive.viewmodel.FileOperationsViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
+import com.devson.pixchive.gallery.ui.components.GlobalSearchAppBar
+import com.devson.pixchive.gallery.viewmodel.SearchViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ImageListScreen(
+fun AlbumsScreen(
     onNavigateBack: () -> Unit,
     onFolderClick: (String) -> Unit,
     onSettingsClick: () -> Unit,
@@ -62,7 +61,7 @@ fun ImageListScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val fileOpsViewModel: FileOperationsViewModel = viewModel()
-    val searchViewModel: com.devson.pixchive.gallery.viewmodel.SearchViewModel = viewModel()
+    val searchViewModel: SearchViewModel = viewModel()
     val searchQuery by searchViewModel.searchQuery.collectAsState()
     val suggestions by searchViewModel.suggestions.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
@@ -149,7 +148,7 @@ fun ImageListScreen(
                     )
                 )
             } else {
-                com.devson.pixchive.gallery.ui.components.GlobalSearchAppBar(
+                GlobalSearchAppBar(
                     title = "Albums",
                     searchQuery = searchQuery,
                     suggestions = suggestions,

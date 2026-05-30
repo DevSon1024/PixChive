@@ -3,14 +3,12 @@ package com.devson.pixchive.gallery.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.pixchive.data.PreferencesManager
-import com.devson.pixchive.gallery.ImageListScreen
 import com.devson.pixchive.gallery.ui.components.CapsuleBottomNavigation
 import com.devson.pixchive.gallery.viewmodel.AllImagesViewModel
 import com.devson.pixchive.gallery.viewmodel.ImageListViewModel
@@ -70,7 +68,7 @@ fun GalleryMainScreen(
             userScrollEnabled = !isInSelectionMode
         ) { page ->
             when (page) {
-                0 -> ImageListScreen(
+                0 -> AlbumsScreen(
                     onNavigateBack = onNavigateBack,
                     onFolderClick = onFolderClick,
                     onSettingsClick = onSettingsClick,
@@ -81,7 +79,7 @@ fun GalleryMainScreen(
                     onSearch = onSearch,
                     viewModel = imageListViewModel
                 )
-                1 -> AllImagesScreen(
+                1 -> PhotosScreen(
                     onNavigateBack = onNavigateBack,
                     onSettingsClick = onSettingsClick,
                     onSearch = onSearch,

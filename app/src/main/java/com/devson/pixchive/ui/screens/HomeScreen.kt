@@ -52,6 +52,8 @@ import coil.request.ImageRequest
 import com.devson.pixchive.data.local.ImageEntity
 import com.devson.pixchive.ui.components.ViewSettingsBottomSheet
 import com.devson.pixchive.ui.components.PermissionDeniedDialog
+import com.devson.pixchive.ui.components.OptionsBottomSheet
+import com.devson.pixchive.ui.components.OptionItem
 import com.devson.pixchive.ui.components.PermissionRationaleDialog
 import com.devson.pixchive.ui.components.SkeletonHome
 import com.devson.pixchive.utils.PermissionHelper
@@ -702,36 +704,24 @@ fun HistoryCard(
                         )
                     }
 
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Go to Folder") },
-                            onClick = {
-                                showMenu = false
-                                onGoToFolder()
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Folder,
-                                    contentDescription = null
+                    if (showMenu) {
+                        OptionsBottomSheet(
+                            title = entry.title,
+                            subtitle = if (mainFolderName.isNotEmpty()) "/$mainFolderName" else null,
+                            options = listOf(
+                                OptionItem(
+                                    label = "Go to Folder",
+                                    icon = Icons.Default.Folder,
+                                    onClick = onGoToFolder
+                                ),
+                                OptionItem(
+                                    label = "Remove from History",
+                                    icon = Icons.Default.Delete,
+                                    isDestructive = true,
+                                    onClick = onDeleteClick
                                 )
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Remove from History", color = MaterialTheme.colorScheme.error) },
-                            onClick = {
-                                showMenu = false
-                                onDeleteClick()
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.error
-                                )
-                            }
+                            ),
+                            onDismiss = { showMenu = false }
                         )
                     }
                 }
@@ -954,11 +944,19 @@ fun FolderGridItem(
                 }
             }
         }
-        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-            DropdownMenuItem(
-                text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
-                onClick = { showMenu = false; onDelete() },
-                leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) }
+        if (showMenu) {
+            OptionsBottomSheet(
+                title = folder.displayName,
+                subtitle = "${folder.imageCount} items",
+                options = listOf(
+                    OptionItem(
+                        label = "Delete",
+                        icon = Icons.Default.Delete,
+                        isDestructive = true,
+                        onClick = onDelete
+                    )
+                ),
+                onDismiss = { showMenu = false }
             )
         }
     }

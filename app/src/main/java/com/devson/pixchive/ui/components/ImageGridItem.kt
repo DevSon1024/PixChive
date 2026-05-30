@@ -142,25 +142,24 @@ fun ImageGridItem(
             }
         }
 
-        DropdownMenu(
-            expanded = showMenu,
-            onDismissRequest = { showMenu = false }
-        ) {
-            DropdownMenuItem(
-                text = { Text("Share") },
-                leadingIcon = { Icon(Icons.Default.Share, null) },
-                onClick = {
-                    showMenu = false
-                    currentOnShareClick()
-                }
-            )
-            DropdownMenuItem(
-                text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
-                leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
-                onClick = {
-                    showMenu = false
-                    currentOnDeleteClick()
-                }
+        if (showMenu) {
+            OptionsBottomSheet(
+                title = image.name,
+                subtitle = image.formattedSize,
+                options = listOf(
+                    OptionItem(
+                        label = "Share",
+                        icon = Icons.Default.Share,
+                        onClick = currentOnShareClick
+                    ),
+                    OptionItem(
+                        label = "Delete",
+                        icon = Icons.Default.Delete,
+                        isDestructive = true,
+                        onClick = currentOnDeleteClick
+                    )
+                ),
+                onDismiss = { showMenu = false }
             )
         }
     }

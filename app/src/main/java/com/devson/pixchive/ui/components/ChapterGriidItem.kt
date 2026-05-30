@@ -1,3 +1,5 @@
+import com.devson.pixchive.ui.components.OptionsBottomSheet
+import com.devson.pixchive.ui.components.OptionItem
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -177,11 +179,19 @@ fun ChapterGridItem(
                 }
             }
         }
-        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-            DropdownMenuItem(
-                text = { Text("Remove") },
-                onClick = { showMenu = false; onRemove() },
-                leadingIcon = { Icon(Icons.Default.Close, null) }
+        if (showMenu) {
+            OptionsBottomSheet(
+                title = chapter.displayName,
+                subtitle = "${chapter.imageCount} images",
+                options = listOf(
+                    OptionItem(
+                        label = "Remove",
+                        icon = Icons.Default.Close,
+                        isDestructive = true,
+                        onClick = onRemove
+                    )
+                ),
+                onDismiss = { showMenu = false }
             )
         }
     }

@@ -52,3 +52,6 @@ data class SearchResultsDestination(val query: String)
 
 @Serializable
 object FavoritesDestination
+
+@Serializable
+object CustomHomeSettingsDestination

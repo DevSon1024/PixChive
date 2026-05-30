@@ -27,6 +27,8 @@ class PreferencesManager(private val context: Context) {
         private val FAVORITES_KEY = stringSetPreferencesKey("favorite_images")
         private val FAVORITES_SORT_OPTION_KEY = stringPreferencesKey("favorites_sort_option")
         private val DEVELOPER_OPTIONS_ENABLED_KEY = booleanPreferencesKey("developer_options_enabled")
+        private val SHOW_HISTORY_KEY = booleanPreferencesKey("show_history")
+        private val SHOW_FOLDER_CARD_KEY = booleanPreferencesKey("show_folder_card")
 
         // Folder Screen Prefs
         private val VIEW_MODE_KEY = stringPreferencesKey("view_mode")
@@ -389,6 +391,26 @@ class PreferencesManager(private val context: Context) {
     suspend fun setLastGalleryTab(tabIndex: Int) {
         context.dataStore.edit { preferences ->
             preferences[LAST_GALLERY_TAB_KEY] = tabIndex
+        }
+    }
+
+    val showHistoryFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[SHOW_HISTORY_KEY] ?: true
+    }.distinctUntilChanged()
+
+    suspend fun setShowHistory(show: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[SHOW_HISTORY_KEY] = show
+        }
+    }
+
+    val showFolderCardFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[SHOW_FOLDER_CARD_KEY] ?: true
+    }.distinctUntilChanged()
+
+    suspend fun setShowFolderCard(show: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[SHOW_FOLDER_CARD_KEY] = show
         }
     }
 }

@@ -16,6 +16,7 @@ import com.devson.pixchive.ui.screens.ChapterViewScreen
 import com.devson.pixchive.ui.screens.FolderViewScreen
 import com.devson.pixchive.ui.screens.HomeScreen
 import com.devson.pixchive.ui.screens.SettingsScreen
+import com.devson.pixchive.ui.screens.settings.CustomHomeSettingsScreen
 import com.devson.pixchive.ui.screens.FavoritesScreen
 import com.devson.pixchive.ui.reader.ReaderScreen
 import com.devson.pixchive.ui.screens.settings.DeveloperOptionsScreen
@@ -156,7 +157,14 @@ fun NavGraph(
                     onNavigateToAbout = { navController.navigate(AboutDestination) },
                     onNavigateToPrivacyPolicy = { navController.navigate(PrivacyPolicyDestination) },
                     onNavigateToDeveloperOptions = { navController.navigate(DeveloperOptionsDestination) },
-                    onNavigateToAppearance = { navController.navigate(AppearanceSettingsDestination) }
+                    onNavigateToAppearance = { navController.navigate(AppearanceSettingsDestination) },
+                    onNavigateToCustomHome = { navController.navigate(CustomHomeSettingsDestination) }
+                )
+            }
+
+            composable<CustomHomeSettingsDestination> {
+                CustomHomeSettingsScreen(
+                    onNavigateBack = safeNavigateBack
                 )
             }
 

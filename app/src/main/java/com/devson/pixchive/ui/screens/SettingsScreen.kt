@@ -40,7 +40,8 @@ fun SettingsScreen(
     onNavigateToAbout: () -> Unit = {},
     onNavigateToPrivacyPolicy: () -> Unit = {},
     onNavigateToDeveloperOptions: () -> Unit = {},
-    onNavigateToAppearance: () -> Unit = {}
+    onNavigateToAppearance: () -> Unit = {},
+    onNavigateToCustomHome: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -154,6 +155,19 @@ fun SettingsScreen(
                     title = "Display",
                     subtitle = "Theme, language, and more",
                     onClick = onNavigateToAppearance
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            //  Custom Home
+            SettingsSectionLabel("Custom Home")
+            SettingsCard {
+                SettingsRow(
+                    icon = Icons.Default.Home,
+                    title = "Customize Home",
+                    subtitle = "History cards, Folder card visibility",
+                    onClick = onNavigateToCustomHome
                 )
             }
 

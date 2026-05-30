@@ -45,6 +45,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.devson.pixchive.data.ComicFolder
+import com.devson.pixchive.data.PreferencesManager
 import com.devson.pixchive.data.local.HistoryEntity
 import kotlinx.coroutines.flow.Flow
 import coil.request.ImageRequest
@@ -91,6 +92,10 @@ fun HomeScreen(
     val sortOption by viewModel.sortOption.collectAsState()
     val gridColumns by viewModel.gridColumns.collectAsState()
     val galleryViewMode by viewModel.galleryViewMode.collectAsState()
+
+    val preferencesManager = remember { PreferencesManager(context) }
+    val showHistory by preferencesManager.showHistoryFlow.collectAsState(initial = true)
+    val showFolderCard by preferencesManager.showFolderCardFlow.collectAsState(initial = true)
 
     val gridState = rememberLazyGridState()
     val isFabExpanded by remember {
@@ -183,8 +188,10 @@ fun HomeScreen(
                     IconButton(onClick = onFavoritesClick) {
                         Icon(Icons.Default.Favorite, contentDescription = "Favorites", tint = MaterialTheme.colorScheme.error)
                     }
-                    IconButton(onClick = { showDisplayOptions = true }) {
-                        Icon(Icons.Default.Tune, contentDescription = "Display Options")
+                    if (showFolderCard) {
+                        IconButton(onClick = { showDisplayOptions = true }) {
+                            Icon(Icons.Default.Tune, contentDescription = "Display Options")
+                        }
                     }
                     IconButton(onClick = onSettingsClick) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
@@ -353,7 +360,7 @@ fun HomeScreen(
                                 }
                             }
                             // HISTORY SECTION 
-                            if (recentHistory.isNotEmpty()) {
+                            if (showHistory && recentHistory.isNotEmpty()) {
                                 item(span = { GridItemSpan(maxLineSpan) }) {
                                     SectionHeader(
                                         title = "Jump Back In",
@@ -399,33 +406,35 @@ fun HomeScreen(
                             }
 
                             // FOLDERS SECTION
-                            item(span = { GridItemSpan(maxLineSpan) }) {
-                                SectionHeader(
-                                    title = "My Folders",
-                                    icon = Icons.Default.FolderOpen
-                                )
-                            }
-
-                            if (layoutMode == "grid") {
-                                items(folders, key = { it.id }, contentType = { "folder_grid" }) { folder ->
-                                    Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
-                                        FolderGridItem(
-                                            folder = folder,
-                                            latestImageFlow = remember(folder.id) { viewModel.getLatestImageFlow(folder.id) },
-                                            onDelete = { viewModel.removeFolder(folder.id) },
-                                            onClick = { onFolderClick(folder.id) }
-                                        )
-                                    }
+                            if (showFolderCard) {
+                                item(span = { GridItemSpan(maxLineSpan) }) {
+                                    SectionHeader(
+                                        title = "My Folders",
+                                        icon = Icons.Default.FolderOpen
+                                    )
                                 }
-                            } else {
-                                items(folders, key = { it.id }, contentType = { "folder_list" }) { folder ->
-                                    Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
-                                        FolderCard(
-                                            folder = folder,
-                                            latestImageFlow = remember(folder.id) { viewModel.getLatestImageFlow(folder.id) },
-                                            onDelete = { viewModel.removeFolder(folder.id) },
-                                            onClick = { onFolderClick(folder.id) }
-                                        )
+
+                                if (layoutMode == "grid") {
+                                    items(folders, key = { it.id }, contentType = { "folder_grid" }) { folder ->
+                                        Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+                                            FolderGridItem(
+                                                folder = folder,
+                                                latestImageFlow = remember(folder.id) { viewModel.getLatestImageFlow(folder.id) },
+                                                onDelete = { viewModel.removeFolder(folder.id) },
+                                                onClick = { onFolderClick(folder.id) }
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    items(folders, key = { it.id }, contentType = { "folder_list" }) { folder ->
+                                        Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                                            FolderCard(
+                                                folder = folder,
+                                                latestImageFlow = remember(folder.id) { viewModel.getLatestImageFlow(folder.id) },
+                                                onDelete = { viewModel.removeFolder(folder.id) },
+                                                onClick = { onFolderClick(folder.id) }
+                                            )
+                                        }
                                     }
                                 }
                             }

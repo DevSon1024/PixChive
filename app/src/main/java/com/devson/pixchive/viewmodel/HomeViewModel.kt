@@ -18,6 +18,7 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.devson.pixchive.workers.FolderSyncWorker
 import com.devson.pixchive.workers.FolderValidationWorker
+import com.devson.pixchive.data.local.ImageEntity
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -136,6 +137,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             kotlinx.coroutines.delay(1000)
             _isRefreshing.value = false
         }
+    }
+
+    fun getLatestImageFlow(folderId: String): Flow<ImageEntity?> {
+        return imageDao.getLatestImageFlow(folderId)
     }
 
     fun addFolder(uri: Uri, name: String) {

@@ -21,6 +21,9 @@ interface ImageDao {
     @Query("SELECT * FROM images WHERE folderId = :folderId")
     fun getImagesFlow(folderId: String): Flow<List<ImageEntity>>
 
+    @Query("SELECT * FROM images WHERE folderId = :folderId ORDER BY dateModified DESC LIMIT 1")
+    fun getLatestImageFlow(folderId: String): Flow<ImageEntity?>
+
     // Chunked non-Paging fetch to avoid loading the entire table in one allocation.
     // Use limit/offset loops on the call site to stream results incrementally.
     @Query("SELECT * FROM images WHERE folderId = :folderId ORDER BY parentFolderPath ASC, name ASC LIMIT :limit OFFSET :offset")

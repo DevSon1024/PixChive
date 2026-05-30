@@ -46,6 +46,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.devson.pixchive.data.ComicFolder
 import com.devson.pixchive.data.local.HistoryEntity
+import kotlinx.coroutines.flow.Flow
+import coil.request.ImageRequest
+import com.devson.pixchive.data.local.ImageEntity
 import com.devson.pixchive.ui.components.ViewSettingsBottomSheet
 import com.devson.pixchive.ui.components.PermissionDeniedDialog
 import com.devson.pixchive.ui.components.PermissionRationaleDialog
@@ -408,6 +411,7 @@ fun HomeScreen(
                                     Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
                                         FolderGridItem(
                                             folder = folder,
+                                            latestImageFlow = remember(folder.id) { viewModel.getLatestImageFlow(folder.id) },
                                             onDelete = { viewModel.removeFolder(folder.id) },
                                             onClick = { onFolderClick(folder.id) }
                                         )
@@ -418,6 +422,7 @@ fun HomeScreen(
                                     Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
                                         FolderCard(
                                             folder = folder,
+                                            latestImageFlow = remember(folder.id) { viewModel.getLatestImageFlow(folder.id) },
                                             onDelete = { viewModel.removeFolder(folder.id) },
                                             onClick = { onFolderClick(folder.id) }
                                         )
@@ -726,9 +731,15 @@ fun HistoryCard(
     }
 }
 
-// Folder Views
 @Composable
-fun FolderCard(folder: ComicFolder, onDelete: () -> Unit, onClick: () -> Unit) {
+fun FolderCard(
+    folder: ComicFolder,
+    latestImageFlow: Flow<ImageEntity?>,
+    onDelete: () -> Unit,
+    onClick: () -> Unit
+) {
+    val latestImage by latestImageFlow.collectAsState(initial = null)
+
     OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
@@ -760,12 +771,27 @@ fun FolderCard(folder: ComicFolder, onDelete: () -> Unit, onClick: () -> Unit) {
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Folder,
-                    contentDescription = null,
-                    modifier = Modifier.size(28.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
+                if (latestImage != null) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(latestImage!!.uri)
+                            .size(128) // Thumbnail size
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(12.dp))
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Folder,
+                        contentDescription = null,
+                        modifier = Modifier.size(28.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
@@ -819,9 +845,15 @@ fun FolderCard(folder: ComicFolder, onDelete: () -> Unit, onClick: () -> Unit) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun FolderGridItem(folder: ComicFolder, onDelete: () -> Unit, onClick: () -> Unit) {
+fun FolderGridItem(
+    folder: ComicFolder,
+    latestImageFlow: Flow<ImageEntity?>,
+    onDelete: () -> Unit,
+    onClick: () -> Unit
+) {
     val haptics = LocalHapticFeedback.current
     var showMenu by remember { mutableStateOf(false) }
+    val latestImage by latestImageFlow.collectAsState(initial = null)
 
     Box {
         OutlinedCard(
@@ -841,51 +873,76 @@ fun FolderGridItem(folder: ComicFolder, onDelete: () -> Unit, onClick: () -> Uni
                 )
             )
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .combinedClickable(
-                        onClick = onClick,
-                        onLongClick = { 
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            showMenu = true 
-                        }
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (latestImage != null) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(latestImage!!.uri)
+                            .size(256) // Thumbnail size to prevent memory crash
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
                     )
-                    .padding(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .background(
-                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
-                            RoundedCornerShape(16.dp)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Folder, 
-                        contentDescription = null, 
-                        modifier = Modifier.size(32.dp), 
-                        tint = MaterialTheme.colorScheme.primary
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.4f))
                     )
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = folder.displayName, 
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold), 
-                    maxLines = 1, 
-                    overflow = TextOverflow.Ellipsis, 
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "${folder.imageCount} items", 
-                    style = MaterialTheme.typography.bodySmall, 
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, 
-                    textAlign = TextAlign.Center
-                )
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .combinedClickable(
+                            onClick = onClick,
+                            onLongClick = { 
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                showMenu = true 
+                            }
+                        )
+                        .padding(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .background(
+                                if (latestImage != null) {
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f)
+                                } else {
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                                },
+                                RoundedCornerShape(16.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Folder, 
+                            contentDescription = null, 
+                            modifier = Modifier.size(32.dp), 
+                            tint = if (latestImage != null) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = folder.displayName, 
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold), 
+                        color = if (latestImage != null) Color.White else MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1, 
+                        overflow = TextOverflow.Ellipsis, 
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "${folder.imageCount} items", 
+                        style = MaterialTheme.typography.bodySmall, 
+                        color = if (latestImage != null) Color.White.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant, 
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
         }
         DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {

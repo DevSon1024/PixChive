@@ -7,6 +7,8 @@ import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
@@ -72,6 +74,9 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.BlurredEdgeTreatment
 import coil.compose.AsyncImage
+import androidx.compose.foundation.BorderStroke
+import coil.size.Precision
+import androidx.compose.ui.text.font.FontWeight
 
 @Composable
 fun ReaderScreen(
@@ -472,11 +477,10 @@ fun ReaderScreen(
                     chapterFolderName = chapterName,
                     currentImageName = when (currentImage) {
                         is ImageEntity -> currentImage.name
-                        is com.devson.pixchive.data.ImageFile -> currentImage.name
                         else -> ""
                     },
                     showMoreMenu = false,
-                    currentImage = currentImage as? com.devson.pixchive.data.ImageFile,
+                    currentImage = null,
                     currentImageEntity = currentImage as? ImageEntity,
                     onNavigateBack = onNavigateBack,
                     onMoreMenuToggle = {},
@@ -485,10 +489,95 @@ fun ReaderScreen(
                     onToggleFavorite = {
                         currentImage?.let {
                             if (it is ImageEntity) viewModel.toggleFavorite(it.uri)
-                            else if (it is com.devson.pixchive.data.ImageFile) viewModel.toggleFavorite(it.uri.toString())
                         }
                     }
                 )
+            }
+        }
+
+        // --- Live Scrubbing Preview ---
+        AnimatedVisibility(
+            visible = showUI && sliderDragging,
+            enter = fadeIn() + scaleIn(initialScale = 0.8f),
+            exit = fadeOut() + scaleOut(targetScale = 0.8f),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 180.dp)
+        ) {
+            val scrubPage = sliderDragValue.toInt().coerceIn(0, pageCount - 1)
+            
+            // For flat view, load preview on-demand
+            if (isFlatView && !flatImageCache.containsKey(scrubPage)) {
+                LaunchedEffect(scrubPage) {
+                    delay(50) // small debounce
+                    flatImageCache[scrubPage] = viewModel.getFlatImageAt(scrubPage, folderId)
+                }
+            }
+            
+            val previewImage = if (isFlatView) {
+                flatImageCache[scrubPage]
+            } else {
+                chapterImages.getOrNull(scrubPage)
+            }
+            
+            val model = when (previewImage) {
+                is ImageEntity -> previewImage.uri
+                else -> null
+            }
+            
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.9f)
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                border = BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f)
+                ),
+                modifier = Modifier
+                    .width(160.dp)
+                    .height(220.dp)
+            ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    if (model != null) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(model)
+                                .size(300, 400) // Small preview size to prevent OOM
+                                .precision(Precision.INEXACT)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "Scrub Preview",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .align(Alignment.Center),
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 3.dp
+                        )
+                    }
+                    
+                    // Page indicator badge
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color.Black.copy(alpha = 0.65f),
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 8.dp)
+                    ) {
+                        Text(
+                            text = "${scrubPage + 1} / $pageCount",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = Color.White,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
             }
         }
 
@@ -537,7 +626,6 @@ fun ReaderScreen(
                         try {
                             val path = when (image) {
                                 is ImageEntity -> image.path
-                                is com.devson.pixchive.data.ImageFile -> image.path
                                 else -> return@let
                             }
                             val file = File(path)

@@ -136,7 +136,7 @@ fun SkeletonHistoryCard() {
         modifier = Modifier
             .width(140.dp)
             .aspectRatio(0.7f),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
     ) {
         Box(modifier = Modifier.fillMaxSize().background(shimmerBrush()))

@@ -100,13 +100,14 @@ fun ChapterViewScreen(
                         label = "columns_anim"
                     )
 
-                    // REMOVED VerticalFastScroller wrapper
                     LazyVerticalGrid(
                         state = gridState,
                         columns = GridCells.Fixed(animatedColumns.coerceIn(1, 6)),
                         contentPadding = PaddingValues(
                             top = padding.calculateTopPadding() + 8.dp,
-                            bottom = padding.calculateBottomPadding() + 16.dp
+                            bottom = padding.calculateBottomPadding() + 16.dp,
+                            start = 8.dp,
+                            end = 8.dp
                         ),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -167,8 +168,10 @@ fun ChapterViewScreen(
                 } else {
                     LazyColumn(
                         contentPadding = PaddingValues(
-                            top = padding.calculateTopPadding(),
-                            bottom = padding.calculateBottomPadding() + 16.dp
+                            top = padding.calculateTopPadding() + 4.dp,
+                            bottom = padding.calculateBottomPadding() + 16.dp,
+                            start = 8.dp,
+                            end = 8.dp
                         )
                     ) {
                         itemsIndexed(chapterImages) { index, image ->

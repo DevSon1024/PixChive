@@ -19,6 +19,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -73,7 +75,6 @@ fun AllFoldersView(
             initialFirstVisibleItemIndex = initialScrollIndex,
             initialFirstVisibleItemScrollOffset = initialScrollOffset
         )
-        // Save only when scrolling fully stops - avoids per-pixel coroutine spam that causes ANR
         LaunchedEffect(gridState) {
             snapshotFlow { gridState.isScrollInProgress }
                 .filter { !it }
@@ -98,7 +99,9 @@ fun AllFoldersView(
                 columns = GridCells.Fixed(animatedColumns.coerceIn(1, 6)),
                 contentPadding = PaddingValues(
                     top = paddingValues.calculateTopPadding() + 8.dp,
-                    bottom = paddingValues.calculateBottomPadding() + 16.dp
+                    bottom = paddingValues.calculateBottomPadding() + 16.dp,
+                    start = 8.dp,
+                    end = 8.dp
                 ),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -140,7 +143,6 @@ fun AllFoldersView(
                         }
                     }
             ) {
-                // The keys are correct here
                 items(chapters, key = { it.path }) { chapter ->
                     ChapterGridItem(
                         chapter = chapter,
@@ -219,73 +221,109 @@ fun ChapterGridItem(
         } else null
     }
 
-    Box {
-        Box(
+    val shape = RoundedCornerShape(12.dp)
+
+    Box(modifier = Modifier.padding(2.dp)) {
+        OutlinedCard(
+            shape = shape,
+            colors = CardDefaults.outlinedCardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            ),
+            border = CardDefaults.outlinedCardBorder().copy(
+                width = 1.dp
+            ),
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(0.75f)
-                .graphicsLayer {
-                    clip = true
-                    shape = RoundedCornerShape(8.dp)
-                }
-                .combinedClickable(
-                    onClick = onClick,
-                    onLongClick = {
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        showMenu = true
-                    }
-                )
         ) {
-            if (firstImagePath != null) {
-                AsyncImage(
-                    model = imageRequest,
-                    contentDescription = chapter.displayName,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Icon(
-                    Icons.Default.Folder,
-                    null,
-                    modifier = Modifier.align(Alignment.Center).size(64.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            if (showName) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
-                        .padding(8.dp)
-                ) {
-                    Text(
-                        chapter.displayName,
-                        style = MaterialTheme.typography.labelMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .combinedClickable(
+                        onClick = onClick,
+                        onLongClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            showMenu = true
+                        }
                     )
-                    if (showDetails) {
-                        Text(
-                            "${chapter.imageCount} images",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+            ) {
+                if (firstImagePath != null) {
+                    AsyncImage(
+                        model = imageRequest,
+                        contentDescription = chapter.displayName,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Folder,
+                            null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
-            }
 
-            if (savedPage > 0 && chapter.imageCount > 0) {
-                LinearProgressIndicator(
-                    progress = { savedPage.toFloat() / chapter.imageCount },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(3.dp)
-                        .align(Alignment.BottomCenter),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = Color.Transparent
-                )
+                if (showName) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.BottomCenter)
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        Color.Black.copy(alpha = 0.5f),
+                                        Color.Black.copy(alpha = 0.85f)
+                                    )
+                                )
+                            )
+                            .padding(horizontal = 8.dp, vertical = 8.dp)
+                    ) {
+                        Column {
+                            Text(
+                                chapter.displayName,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (showDetails) {
+                                Text(
+                                    "${chapter.imageCount} images",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.White.copy(alpha = 0.8f)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (savedPage > 0 && chapter.imageCount > 0) {
+                    val progressPercent = ((savedPage.toFloat() / chapter.imageCount) * 100).toInt().coerceIn(0, 100)
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(8.dp),
+                        shadowElevation = 2.dp
+                    ) {
+                        Text(
+                            text = "$progressPercent%",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
         }
         DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {

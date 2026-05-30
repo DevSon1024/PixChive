@@ -13,6 +13,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
@@ -71,48 +73,70 @@ fun ImageGridItem(
         { haptics.performHapticFeedback(HapticFeedbackType.LongPress); showMenu = true }
     }
 
-    val shape = RoundedCornerShape(8.dp)
+    val shape = RoundedCornerShape(12.dp)
 
     Box(modifier = modifier) {
-        Box(
+        OutlinedCard(
+            shape = shape,
+            colors = CardDefaults.outlinedCardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            ),
+            border = CardDefaults.outlinedCardBorder().copy(
+                width = 1.dp
+            ),
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(0.7f)
-                .clip(shape)
-                .combinedClickable(
-                    onClick = { currentOnClick() },
-                    onLongClick = stableOnLongClick
-                )
         ) {
-            AsyncImage(
-                model = imageRequest,
-                contentDescription = image.name,
-                placeholder = placeholderPainter,
-                error = placeholderPainter,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-
-            if (showName) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = image.name,
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .combinedClickable(
+                        onClick = { currentOnClick() },
+                        onLongClick = stableOnLongClick
                     )
-                    if (showDetails) {
-                        Text(
-                            text = image.formattedSize,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+            ) {
+                AsyncImage(
+                    model = imageRequest,
+                    contentDescription = image.name,
+                    placeholder = placeholderPainter,
+                    error = placeholderPainter,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+
+                if (showName) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.BottomCenter)
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        Color.Black.copy(alpha = 0.5f),
+                                        Color.Black.copy(alpha = 0.85f)
+                                    )
+                                )
+                            )
+                            .padding(horizontal = 8.dp, vertical = 8.dp)
+                    ) {
+                        Column {
+                            Text(
+                                text = image.name,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (showDetails) {
+                                Text(
+                                    text = image.formattedSize,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.White.copy(alpha = 0.8f)
+                                )
+                            }
+                        }
                     }
                 }
             }

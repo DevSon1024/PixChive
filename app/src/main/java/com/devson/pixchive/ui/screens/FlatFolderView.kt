@@ -102,7 +102,9 @@ fun FlatFolderView(
                     columns = GridCells.Fixed(animatedColumns.coerceIn(1, 6)),
                     contentPadding = PaddingValues(
                         top = paddingValues.calculateTopPadding() + 8.dp,
-                        bottom = paddingValues.calculateBottomPadding() + 16.dp
+                        bottom = paddingValues.calculateBottomPadding() + 16.dp,
+                        start = 8.dp,
+                        end = 8.dp
                     ),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -173,7 +175,6 @@ fun FlatFolderView(
                 initialFirstVisibleItemIndex = initialScrollIndex,
                 initialFirstVisibleItemScrollOffset = initialScrollOffset
             )
-            // Save only when scrolling fully stops - avoids per-pixel coroutine spam that causes ANR
             LaunchedEffect(listState) {
                 snapshotFlow { listState.isScrollInProgress }
                     .filter { !it }
@@ -184,7 +185,16 @@ fun FlatFolderView(
                 onRefresh = { viewModel.refreshCurrentFolder() },
                 modifier = Modifier.fillMaxSize()
             ) {
-                LazyColumn(state = listState, contentPadding = PaddingValues(bottom = 16.dp), modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    state = listState,
+                    contentPadding = PaddingValues(
+                        top = paddingValues.calculateTopPadding() + 4.dp,
+                        bottom = paddingValues.calculateBottomPadding() + 16.dp,
+                        start = 8.dp,
+                        end = 8.dp
+                    ),
+                    modifier = Modifier.fillMaxSize()
+                ) {
                     items(
                         count = images.itemCount,
                         key = images.itemKey { it.path },

@@ -602,7 +602,7 @@ fun HistoryCard(
                     Column {
                         if (mainFolderName.isNotEmpty()) {
                             Text(
-                                text = mainFolderName.uppercase(),
+                                text = "/$mainFolderName",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     letterSpacing = 1.sp,

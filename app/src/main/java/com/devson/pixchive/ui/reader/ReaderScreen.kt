@@ -55,7 +55,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.request.ImageRequest
 import coil.size.Scale
 import com.devson.pixchive.data.PreferencesManager
-import com.devson.pixchive.ui.reader.components.ReaderActionButton
+import com.devson.pixchive.ui.reader.components.ReaderBottomBar
 import com.devson.pixchive.ui.reader.components.ReaderTopBar
 import com.devson.pixchive.ui.reader.utils.urisMatch
 import com.devson.pixchive.viewmodel.FolderViewModel
@@ -68,6 +68,10 @@ import me.saket.telephoto.zoomable.rememberZoomableImageState
 import me.saket.telephoto.zoomable.rememberZoomableState
 import me.saket.telephoto.zoomable.ZoomSpec
 import java.io.File
+import androidx.compose.animation.Crossfade
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import coil.compose.AsyncImage
 
 @Composable
 fun ReaderScreen(
@@ -90,6 +94,7 @@ fun ReaderScreen(
     val readerScrollMode by viewModel.readerScrollMode.collectAsState()
     val mangaMode by viewModel.mangaMode.collectAsState()
     val volumeKeysNavigation by viewModel.volumeKeysNavigation.collectAsState()
+    val isBackgroundBlurEnabled by prefs.isBackgroundBlurEnabledFlow.collectAsState(initial = true)
 
     // --- FLAT VIEW: use true DB total instead of paging snapshot ---
     val flatImageCount by viewModel.flatImageCount.collectAsState()
@@ -191,20 +196,37 @@ fun ReaderScreen(
         else -> false
     }
 
-    //  TRUE IMMERSIVE MODE 
-    // System bars are ALWAYS hidden for the full reader session.
-    // The center-tap only toggles the Compose UI overlay, NOT the system bars.
-    DisposableEffect(Unit) {
-        val window = activity?.window
-        val insets = window?.let { WindowCompat.getInsetsController(it, view) }
+    // SYSTEM BARS BEHAVIOR
+    // Dynamically show/hide status and navigation bars to match ImageViewScreen behavior
+    val window = activity?.window
+    val insetsController = remember(window, view) {
+        window?.let { WindowCompat.getInsetsController(it, view) }
+    }
 
-        // Bars auto-show transiently on edge-swipe, then re-hide themselves
-        insets?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        insets?.hide(WindowInsetsCompat.Type.systemBars())
+    DisposableEffect(window, view) {
+        val originalLightStatus = insetsController?.isAppearanceLightStatusBars ?: true
+        val originalLightNav = insetsController?.isAppearanceLightNavigationBars ?: true
+        val originalBehavior = insetsController?.systemBarsBehavior ?: WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
+
+        insetsController?.isAppearanceLightStatusBars = false
+        insetsController?.isAppearanceLightNavigationBars = false
 
         onDispose {
-            // Restore bars when leaving the reader
-            insets?.show(WindowInsetsCompat.Type.systemBars())
+            insetsController?.isAppearanceLightStatusBars = originalLightStatus
+            insetsController?.isAppearanceLightNavigationBars = originalLightNav
+            insetsController?.systemBarsBehavior = originalBehavior
+            insetsController?.show(WindowInsetsCompat.Type.systemBars())
+        }
+    }
+
+    LaunchedEffect(showUI) {
+        if (showUI) {
+            insetsController?.show(WindowInsetsCompat.Type.systemBars())
+            insetsController?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
+        } else {
+            insetsController?.hide(WindowInsetsCompat.Type.systemBars())
+            insetsController?.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
     }
 
@@ -311,6 +333,36 @@ fun ReaderScreen(
                 }
             }
     ) {
+        if (isBackgroundBlurEnabled && currentImage != null) {
+            Crossfade(
+                targetState = currentImage,
+                animationSpec = tween(durationMillis = 500),
+                label = "backgroundBlurCrossfade"
+            ) { image ->
+                val imageUri = when (image) {
+                    is ImageEntity -> image.uri
+                    is com.devson.pixchive.data.ImageFile -> image.uri
+                    else -> null
+                }
+                if (imageUri != null) {
+                    AsyncImage(
+                        model = imageUri,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .blur(radius = 32.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+                    )
+                }
+            }
+            // Dim layer
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.55f))
+            )
+        }
+
         if (isLoading && pageCount == 0) {
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = Color.White)
         } else if (pageCount > 0) {
@@ -445,207 +497,91 @@ fun ReaderScreen(
             visible = showUI,
             enter = slideInVertically { it } + fadeIn(),
             exit = slideOutVertically { it } + fadeOut(),
-            modifier = Modifier.align(Alignment.BottomCenter)
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 32.dp, start = 16.dp, end = 16.dp)
+                .pointerInput(Unit) {
+                    detectVerticalDragGestures { _, dragAmount ->
+                        if (dragAmount < -10f) {
+                            showBottomOptions = true
+                        } else if (dragAmount > 10f) {
+                            showBottomOptions = false
+                        }
+                    }
+                }
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 32.dp, start = 16.dp, end = 16.dp)
-                    .pointerInput(Unit) {
-                        detectVerticalDragGestures { _, dragAmount ->
-                            if (dragAmount < -10f) {
-                                showBottomOptions = true
-                            } else if (dragAmount > 10f) {
-                                showBottomOptions = false
+            ReaderBottomBar(
+                pageCount = pageCount,
+                currentPage = currentPage,
+                sliderDragging = sliderDragging,
+                sliderDragValue = sliderDragValue,
+                showBottomOptions = showBottomOptions,
+                readingMode = readingMode,
+                readerScrollMode = readerScrollMode,
+                mangaMode = mangaMode,
+                volumeKeysNavigation = volumeKeysNavigation,
+                onRotate = {
+                    val currentRot = rotationStates[currentPage] ?: 0f
+                    rotationStates[currentPage] = currentRot + 90f
+                },
+                onChangeReadingMode = {
+                    readingMode = when (readingMode) {
+                        "fit" -> "fill"
+                        "fill" -> "original"
+                        else -> "fit"
+                    }
+                },
+                onShare = {
+                    currentImage?.let { image ->
+                        try {
+                            val path = when (image) {
+                                is ImageEntity -> image.path
+                                is com.devson.pixchive.data.ImageFile -> image.path
+                                else -> return@let
                             }
+                            val file = File(path)
+                            val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+                            val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                type = "image/*"
+                                putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            context.startActivity(android.content.Intent.createChooser(shareIntent, "Share"))
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Error sharing", Toast.LENGTH_SHORT).show()
                         }
                     }
-            ) {
-                // Floating Arrow (Separate Pill)
-                Surface(
-                    onClick = { showBottomOptions = !showBottomOptions },
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.9f),
-                    modifier = Modifier.size(40.dp).padding(bottom = 8.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = if (showBottomOptions) Icons.Default.ExpandMore else Icons.Default.ExpandLess,
-                            contentDescription = "Options",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Floating "Dynamic" Panel
-                Surface(
-                    shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.95f),
-                    tonalElevation = 6.dp,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = {}
-                        )
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        // Options Row
-                        AnimatedVisibility(
-                            visible = showBottomOptions,
-                            enter = androidx.compose.animation.expandVertically(),
-                            exit = androidx.compose.animation.shrinkVertically()
-                        ) {
-                            Column {
-                                // Row 1: Core actions
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 12.dp),
-                                    horizontalArrangement = Arrangement.SpaceEvenly
-                                ) {
-                                    ReaderActionButton(
-                                        icon = Icons.AutoMirrored.Filled.RotateRight,
-                                        label = "ROTATE",
-                                        onClick = {
-                                            val currentRot = rotationStates[currentPage] ?: 0f
-                                            rotationStates[currentPage] = currentRot + 90f
-                                        }
-                                    )
-                                    ReaderActionButton(
-                                        icon = when (readingMode) {
-                                            "fill" -> Icons.Default.CropSquare
-                                            "original" -> Icons.Default.PhotoSizeSelectActual
-                                            else -> Icons.Default.FitScreen
-                                        },
-                                        label = readingMode.uppercase(),
-                                        onClick = {
-                                            readingMode = when (readingMode) {
-                                                "fit" -> "fill"
-                                                "fill" -> "original"
-                                                else -> "fit"
-                                            }
-                                        }
-                                    )
-                                    ReaderActionButton(
-                                        icon = Icons.Default.Share,
-                                        label = "SHARE",
-                                        onClick = {
-                                            currentImage?.let { image ->
-                                                try {
-                                                    val path = when (image) {
-                                                        is ImageEntity -> image.path
-                                                        is com.devson.pixchive.data.ImageFile -> image.path
-                                                        else -> return@let
-                                                    }
-                                                    val file = File(path)
-                                                    val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
-                                                    val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                                                        type = "image/*"
-                                                        putExtra(android.content.Intent.EXTRA_STREAM, uri)
-                                                        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                                    }
-                                                    context.startActivity(android.content.Intent.createChooser(shareIntent, "Share"))
-                                                } catch (e: Exception) {
-                                                    Toast.makeText(context, "Error sharing", Toast.LENGTH_SHORT).show()
-                                                }
-                                            }
-                                        }
-                                    )
-                                }
-
-                                // Row 2: Reading mode toggles (Webtoon + Manga)
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 16.dp),
-                                    horizontalArrangement = Arrangement.SpaceEvenly
-                                ) {
-                                    // Webtoon / Pager toggle
-                                    ReaderActionButton(
-                                        icon = if (readerScrollMode == "webtoon")
-                                            Icons.Default.ViewDay
-                                        else
-                                            Icons.Default.SwapVert,
-                                        label = if (readerScrollMode == "webtoon") "PAGER" else "WEBTOON",
-                                        isActive = readerScrollMode == "webtoon",
-                                        onClick = {
-                                            val newMode = if (readerScrollMode == "webtoon") "pager" else "webtoon"
-                                            viewModel.setReaderScrollMode(newMode)
-                                        }
-                                    )
-                                    // Manga RTL toggle
-                                    ReaderActionButton(
-                                        icon = Icons.AutoMirrored.Filled.CompareArrows,
-                                        label = if (mangaMode) "LTR" else "MANGA",
-                                        isActive = mangaMode,
-                                        onClick = { viewModel.setMangaMode(!mangaMode) }
-                                    )
-                                    // Volume Keys toggle
-                                    ReaderActionButton(
-                                        icon = if (volumeKeysNavigation) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
-                                        label = "VOL NAV",
-                                        isActive = volumeKeysNavigation,
-                                        onClick = { viewModel.setVolumeKeysNavigation(!volumeKeysNavigation) }
-                                    )
-                                }
-                            }
-                        }
-
-                        // Slider Row
-                        CompositionLocalProvider(
-                            LocalLayoutDirection provides if (mangaMode) LayoutDirection.Rtl else LayoutDirection.Ltr
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
-                                    text = "${currentPage + 1}",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Slider(
-                                    value = if (sliderDragging) sliderDragValue else currentPage.toFloat(),
-                                    onValueChange = { target ->
-                                        sliderDragging = true
-                                        sliderDragValue = target
-                                    },
-                                    onValueChangeFinished = {
-                                        sliderDragging = false
-                                        val target = sliderDragValue.toInt()
-                                        scope.launch {
-                                            if (readerScrollMode == "webtoon") {
-                                                webtoonListState.scrollToItem(target)
-                                            } else {
-                                                pagerState.scrollToPage(target)
-                                            }
-                                        }
-                                    },
-                                    valueRange = 0f..maxOf(0f, (pageCount - 1).toFloat()),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .padding(horizontal = 8.dp),
-                                    colors = SliderDefaults.colors(
-                                        thumbColor = MaterialTheme.colorScheme.primary,
-                                        activeTrackColor = MaterialTheme.colorScheme.primary,
-                                        inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant
-                                    )
-                                )
-                                Text(
-                                    text = "$pageCount",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
+                },
+                onToggleScrollMode = {
+                    val newMode = if (readerScrollMode == "webtoon") "pager" else "webtoon"
+                    viewModel.setReaderScrollMode(newMode)
+                },
+                onToggleMangaMode = {
+                    viewModel.setMangaMode(!mangaMode)
+                },
+                onToggleVolumeNav = {
+                    viewModel.setVolumeKeysNavigation(!volumeKeysNavigation)
+                },
+                onToggleBottomOptions = {
+                    showBottomOptions = !showBottomOptions
+                },
+                onSliderValueChange = { target ->
+                    sliderDragging = true
+                    sliderDragValue = target
+                },
+                onSliderValueFinished = { target ->
+                    sliderDragging = false
+                    val targetInt = target.toInt()
+                    scope.launch {
+                        if (readerScrollMode == "webtoon") {
+                            webtoonListState.scrollToItem(targetInt)
+                        } else {
+                            pagerState.scrollToPage(targetInt)
                         }
                     }
                 }
-            }
+            )
         }
     }
 }

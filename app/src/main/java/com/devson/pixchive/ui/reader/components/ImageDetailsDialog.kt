@@ -4,19 +4,22 @@ import android.content.Context
 import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.exifinterface.media.ExifInterface
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import android.content.ClipData
 import androidx.compose.ui.platform.ClipEntry
@@ -65,8 +68,6 @@ fun ImageDetailsDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    val clipboard = LocalClipboard.current
-    val scope = rememberCoroutineScope()
     var metadata by remember { mutableStateOf<ImageMetadata?>(null) }
     var isLoading by remember { mutableStateOf(true) }
 
@@ -75,184 +76,42 @@ fun ImageDetailsDialog(
         isLoading = false
     }
 
-    BasicAlertDialog(
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        modifier = Modifier.fillMaxHeight(0.8f)
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        dragHandle = { BottomSheetDefaults.DragHandle() },
+        containerColor = MaterialTheme.colorScheme.surfaceContainer
     ) {
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.surface
-        ) {
-            Column(
-                modifier = Modifier.fillMaxWidth()
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(250.dp),
+                contentAlignment = Alignment.Center
             ) {
-                // Header
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Image Details",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
-                    }
-                }
-
-                HorizontalDivider()
-
-                // Content
-                if (isLoading) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                } else {
-                    metadata?.let { data ->
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            // Basic Info Section
-                            item {
-                                SectionHeader("Basic Information")
-                            }
-
-                            item {
-                                DetailRow("Name", data.name)
-                                DetailRow("Size", data.size)
-                                DetailRow("Dimensions", data.dimensions)
-                                DetailRow("Type", data.mimeType ?: "Unknown")
-                                DetailRow("Orientation", data.orientation ?: "Normal")
-                            }
-
-                            // Date Information
-                            item {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                SectionHeader("Date Information")
-                            }
-
-                            item {
-                                data.dateTaken?.let { DetailRow("Date Taken", it) }
-                                data.dateModified?.let { DetailRow("Date Modified", it) }
-                            }
-
-                            // Location Section
-                            if (data.gpsLocation != null) {
-                                item {
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    SectionHeader("Location")
-                                }
-                                item {
-                                    DetailRow("GPS Coordinates", data.gpsLocation)
-                                }
-                            }
-
-                            // Camera Information
-                            data.camera?.let { camera ->
-                                if (camera.make != null || camera.model != null) {
-                                    item {
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        SectionHeader("Camera Information")
-                                    }
-
-                                    item {
-                                        camera.make?.let { DetailRow("Camera Make", it) }
-                                        camera.model?.let { DetailRow("Camera Model", it) }
-                                        camera.iso?.let { DetailRow("ISO", it) }
-                                        camera.focalLength?.let { DetailRow("Focal Length", it) }
-                                        camera.aperture?.let { DetailRow("Aperture", "f/$it") }
-                                        camera.exposureTime?.let { DetailRow("Exposure Time", "${it}s") }
-                                        camera.flash?.let { DetailRow("Flash", it) }
-                                        camera.whiteBalance?.let { DetailRow("White Balance", it) }
-                                    }
-                                }
-                            }
-
-                            // Software/Editor
-                            if (data.software != null) {
-                                item {
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    SectionHeader("Software")
-                                }
-                                item {
-                                    DetailRow("Edited With", data.software)
-                                }
-                            }
-
-                            // File Path (HUMAN READABLE)
-                            item {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                SectionHeader("File Location")
-                            }
-                            item {
-                                Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.Top
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = "Path",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                            Text(
-                                                text = data.readablePath,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                        }
-                                        IconButton(
-                                            onClick = {
-                                                scope.launch {
-                                                    clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Path", data.readablePath)))
-                                                }
-                                            }
-                                        ) {
-                                            Icon(
-                                                Icons.Default.ContentCopy,
-                                                contentDescription = "Copy path",
-                                                tint = MaterialTheme.colorScheme.primary
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                CircularProgressIndicator()
+            }
+        } else {
+            metadata?.let { data ->
+                ImageDetailsSheetContent(data = data, onDismiss = onDismiss)
+            } ?: Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("Failed to load metadata")
             }
         }
     }
 }
 
-/**
- * Overload for the modern [ImageEntity] type used by FolderScanner.
- * Reads the file via its absolute path (file:// URI), so no contentResolver is needed.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ImageDetailsDialog(
     entity: ImageEntity,
     onDismiss: () -> Unit
 ) {
-    val context = LocalContext.current
-    val clipboard = LocalClipboard.current
-    val scope = rememberCoroutineScope()
     var metadata by remember { mutableStateOf<ImageMetadata?>(null) }
     var isLoading by remember { mutableStateOf(true) }
 
@@ -261,137 +120,302 @@ fun ImageDetailsDialog(
         isLoading = false
     }
 
-    BasicAlertDialog(
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        modifier = Modifier.fillMaxHeight(0.8f)
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        dragHandle = { BottomSheetDefaults.DragHandle() },
+        containerColor = MaterialTheme.colorScheme.surfaceContainer
     ) {
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.surface
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(250.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else {
+            metadata?.let { data ->
+                ImageDetailsSheetContent(data = data, onDismiss = onDismiss)
+            } ?: Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("Failed to load metadata")
+            }
+        }
+    }
+}
+
+@Composable
+private fun ImageDetailsSheetContent(
+    data: ImageMetadata,
+    onDismiss: () -> Unit
+) {
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .navigationBarsPadding()
+    ) {
+        // Header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                // Header
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Image Details",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = data.name,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            IconButton(
+                onClick = onDismiss,
+                colors = IconButtonDefaults.iconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                )
+            ) {
+                Icon(Icons.Default.Close, contentDescription = "Close")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(bottom = 24.dp)
+        ) {
+            // Card 1: File Specs
+            item {
+                MetadataCategoryCard(
+                    title = "File Specifications",
+                    icon = Icons.Default.Description
                 ) {
-                    Text(
-                        text = "Image Details",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
-                    }
-                }
-
-                HorizontalDivider()
-
-                if (isLoading) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) { CircularProgressIndicator() }
-                } else {
-                    metadata?.let { data ->
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            item { SectionHeader("Basic Information") }
-                            item {
-                                DetailRow("Name", data.name)
-                                DetailRow("Size", data.size)
-                                DetailRow("Dimensions", data.dimensions)
-                                DetailRow("Type", data.mimeType ?: "Unknown")
-                                DetailRow("Orientation", data.orientation ?: "Normal")
-                            }
-                            item {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                SectionHeader("Date Information")
-                            }
-                            item {
-                                data.dateTaken?.let { DetailRow("Date Taken", it) }
-                                data.dateModified?.let { DetailRow("Date Modified", it) }
-                            }
-                            if (data.gpsLocation != null) {
-                                item {
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    SectionHeader("Location")
-                                }
-                                item { DetailRow("GPS Coordinates", data.gpsLocation) }
-                            }
-                            data.camera?.let { camera ->
-                                if (camera.make != null || camera.model != null) {
-                                    item {
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        SectionHeader("Camera Information")
-                                    }
-                                    item {
-                                        camera.make?.let { DetailRow("Camera Make", it) }
-                                        camera.model?.let { DetailRow("Camera Model", it) }
-                                        camera.iso?.let { DetailRow("ISO", it) }
-                                        camera.focalLength?.let { DetailRow("Focal Length", it) }
-                                        camera.aperture?.let { DetailRow("Aperture", "f/$it") }
-                                        camera.exposureTime?.let { DetailRow("Exposure Time", "${it}s") }
-                                        camera.flash?.let { DetailRow("Flash", it) }
-                                        camera.whiteBalance?.let { DetailRow("White Balance", it) }
-                                    }
-                                }
-                            }
-                            if (data.software != null) {
-                                item {
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    SectionHeader("Software")
-                                }
-                                item { DetailRow("Edited With", data.software) }
-                            }
-                            item {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                SectionHeader("File Location")
-                            }
-                            item {
-                                Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.Top
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = "Path",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                            Text(
-                                                text = data.readablePath,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                        }
-                                        IconButton(onClick = {
-                                            scope.launch {
-                                                clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Path", data.readablePath)))
-                                            }
-                                        }) {
-                                            Icon(
-                                                Icons.Default.ContentCopy,
-                                                contentDescription = "Copy path",
-                                                tint = MaterialTheme.colorScheme.primary
-                                            )
-                                        }
-                                    }
-                                }
+                    DetailRow(
+                        icon = Icons.Default.Info,
+                        label = "File Name",
+                        value = data.name,
+                        onCopyClick = {
+                            scope.launch {
+                                clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("File Name", data.name)))
                             }
                         }
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    DetailRow(
+                        icon = Icons.Default.Storage,
+                        label = "Size",
+                        value = data.size
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    DetailRow(
+                        icon = Icons.Default.AspectRatio,
+                        label = "Dimensions",
+                        value = data.dimensions
+                    )
+                    data.mimeType?.let {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        DetailRow(
+                            icon = Icons.Default.Extension,
+                            label = "Format",
+                            value = it
+                        )
+                    }
+                    data.orientation?.let {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        DetailRow(
+                            icon = Icons.Default.ScreenRotation,
+                            label = "Orientation",
+                            value = it
+                        )
+                    }
+                }
+            }
+
+            // Card 2: Dates
+            if (data.dateTaken != null || data.dateModified != null) {
+                item {
+                    MetadataCategoryCard(
+                        title = "Timestamps",
+                        icon = Icons.Default.CalendarToday
+                    ) {
+                        data.dateTaken?.let {
+                            DetailRow(
+                                icon = Icons.Default.PhotoCamera,
+                                label = "Date Taken",
+                                value = it
+                            )
+                        }
+                        if (data.dateTaken != null && data.dateModified != null) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        }
+                        data.dateModified?.let {
+                            DetailRow(
+                                icon = Icons.Default.EditCalendar,
+                                label = "Date Modified",
+                                value = it
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Card 3: Camera details (EXIF)
+            data.camera?.let { camera ->
+                if (camera.make != null || camera.model != null || camera.iso != null) {
+                    item {
+                        MetadataCategoryCard(
+                            title = "Camera Specifications",
+                            icon = Icons.Default.PhotoCamera
+                        ) {
+                            var needsDivider = false
+
+                            camera.make?.let {
+                                DetailRow(
+                                    icon = Icons.Default.Settings,
+                                    label = "Camera Manufacturer",
+                                    value = it
+                                )
+                                needsDivider = true
+                            }
+
+                            camera.model?.let {
+                                if (needsDivider) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                DetailRow(
+                                    icon = Icons.Default.CameraAlt,
+                                    label = "Camera Model",
+                                    value = it
+                                )
+                                needsDivider = true
+                            }
+
+                            camera.iso?.let {
+                                if (needsDivider) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                DetailRow(
+                                    icon = Icons.Default.Speed,
+                                    label = "ISO Sensitivity",
+                                    value = it
+                                )
+                                needsDivider = true
+                            }
+
+                            camera.aperture?.let {
+                                if (needsDivider) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                DetailRow(
+                                    icon = Icons.Default.Lens,
+                                    label = "Aperture",
+                                    value = "f/$it"
+                                )
+                                needsDivider = true
+                            }
+
+                            camera.focalLength?.let {
+                                if (needsDivider) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                DetailRow(
+                                    icon = Icons.Default.FilterCenterFocus,
+                                    label = "Focal Length",
+                                    value = it
+                                )
+                                needsDivider = true
+                            }
+
+                            camera.exposureTime?.let {
+                                if (needsDivider) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                DetailRow(
+                                    icon = Icons.Default.Timer,
+                                    label = "Exposure Time",
+                                    value = "${it}s"
+                                )
+                                needsDivider = true
+                            }
+
+                            camera.flash?.let {
+                                if (needsDivider) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                DetailRow(
+                                    icon = Icons.Default.FlashOn,
+                                    label = "Flash Mode",
+                                    value = it
+                                )
+                                needsDivider = true
+                            }
+
+                            camera.whiteBalance?.let {
+                                if (needsDivider) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                DetailRow(
+                                    icon = Icons.Default.WbSunny,
+                                    label = "White Balance",
+                                    value = it
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Card 4: Location
+            data.gpsLocation?.let { gps ->
+                item {
+                    MetadataCategoryCard(
+                        title = "Location Data",
+                        icon = Icons.Default.LocationOn
+                    ) {
+                        DetailRow(
+                            icon = Icons.Default.Map,
+                            label = "GPS Coordinates",
+                            value = gps,
+                            onCopyClick = {
+                                scope.launch {
+                                    clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Coordinates", gps)))
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+
+            // Card 5: Path & Software info
+            item {
+                MetadataCategoryCard(
+                    title = "File Location & Software",
+                    icon = Icons.Default.FolderOpen
+                ) {
+                    DetailRow(
+                        icon = Icons.Default.Folder,
+                        label = "Directory Path",
+                        value = data.readablePath,
+                        onCopyClick = {
+                            scope.launch {
+                                clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Path", data.readablePath)))
+                            }
+                        }
+                    )
+                    data.software?.let {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        DetailRow(
+                            icon = Icons.Default.Computer,
+                            label = "Edited With / Software",
+                            value = it
+                        )
                     }
                 }
             }
@@ -400,28 +424,105 @@ fun ImageDetailsDialog(
 }
 
 @Composable
-fun SectionHeader(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary
-    )
+private fun MetadataCategoryCard(
+    title: String,
+    icon: ImageVector,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    OutlinedCard(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        border = CardDefaults.outlinedCardBorder().copy(
+            width = 1.dp
+        ),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(bottom = 12.dp)
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            content()
+        }
+    }
 }
 
 @Composable
-fun DetailRow(label: String, value: String) {
-    Column(modifier = Modifier.padding(vertical = 4.dp)) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
+private fun DetailRow(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    onCopyClick: (() -> Unit)? = null
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                    shape = CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        if (onCopyClick != null) {
+            IconButton(
+                onClick = onCopyClick,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ContentCopy,
+                    contentDescription = "Copy",
+                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
     }
 }
 

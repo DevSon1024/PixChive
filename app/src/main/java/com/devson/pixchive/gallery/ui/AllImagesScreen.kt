@@ -39,7 +39,6 @@ import com.devson.pixchive.viewmodel.FileOperationsViewModel
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.IntentSenderRequest
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -265,7 +264,7 @@ fun AllImagesScreen(
                     }
                 } else {
                     var currentColumns by remember(gridCellsIndex) { mutableStateOf(4 - gridCellsIndex.coerceIn(0, 2)) }
-                    var activeScale by remember { mutableFloatStateOf(1f) }
+                    var accumulatedZoom by remember { mutableFloatStateOf(1f) }
 
                     val animatedColumns by animateIntAsState(
                         targetValue = currentColumns,
@@ -286,39 +285,38 @@ fun AllImagesScreen(
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier
                             .fillMaxSize()
-                            .graphicsLayer {
-                                scaleX = activeScale
-                                scaleY = activeScale
-                            }
                             .pointerInput(Unit) {
                                 awaitEachGesture {
                                     awaitFirstDown(requireUnconsumed = false)
-                                    var zoomAccumulated = 1f
+                                    var hasChangedInThisGesture = false
                                     do {
                                         val event = awaitPointerEvent()
                                         if (event.changes.size >= 2) {
                                             val zoom = event.calculateZoom()
-                                            zoomAccumulated *= zoom
-                                            activeScale = zoomAccumulated
-                                            event.changes.forEach { it.consume() }
+                                            accumulatedZoom *= zoom
+                                            if (!hasChangedInThisGesture) {
+                                                if (accumulatedZoom > 1.25f) {
+                                                    val newCols = (currentColumns - 1).coerceIn(2, 4)
+                                                    if (newCols != currentColumns) {
+                                                        currentColumns = newCols
+                                                        viewModel.setGridCellsIndex(4 - newCols)
+                                                    }
+                                                    hasChangedInThisGesture = true
+                                                } else if (accumulatedZoom < 0.75f) {
+                                                    val newCols = (currentColumns + 1).coerceIn(2, 4)
+                                                    if (newCols != currentColumns) {
+                                                        currentColumns = newCols
+                                                        viewModel.setGridCellsIndex(4 - newCols)
+                                                    }
+                                                    hasChangedInThisGesture = true
+                                                }
+                                            }
+                                            event.changes.forEach { if (it.pressed) it.consume() }
+                                        } else {
+                                            accumulatedZoom = 1f
+                                            hasChangedInThisGesture = false
                                         }
                                     } while (event.changes.any { it.pressed })
-
-                                    // Gesture completed: change grid count if threshold met
-                                    if (zoomAccumulated > 1.25f) {
-                                        val newCols = (currentColumns - 1).coerceIn(2, 4)
-                                        if (newCols != currentColumns) {
-                                            currentColumns = newCols
-                                            viewModel.setGridCellsIndex(4 - newCols)
-                                        }
-                                    } else if (zoomAccumulated < 0.75f) {
-                                        val newCols = (currentColumns + 1).coerceIn(2, 4)
-                                        if (newCols != currentColumns) {
-                                            currentColumns = newCols
-                                            viewModel.setGridCellsIndex(4 - newCols)
-                                        }
-                                    }
-                                    activeScale = 1f
                                 }
                             }
                     ) {

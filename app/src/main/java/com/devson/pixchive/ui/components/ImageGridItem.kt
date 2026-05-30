@@ -53,13 +53,13 @@ fun ImageGridItem(
     val placeholderColor = MaterialTheme.colorScheme.surfaceVariant
     val placeholderPainter = remember(placeholderColor) { ColorPainter(placeholderColor) }
 
-    val imageRequest = remember(image.uri, fetchSize) {
+    val imageRequest = remember(image.uri, image.path, fetchSize) {
         ImageRequest.Builder(context)
-            .data(image.uri)
+            .data(image.uri.ifEmpty { image.path })
             .size(fetchSize)
             .crossfade(false)
             .bitmapConfig(android.graphics.Bitmap.Config.RGB_565)
-            .allowHardware(false)
+            .allowHardware(true)
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
             .build()

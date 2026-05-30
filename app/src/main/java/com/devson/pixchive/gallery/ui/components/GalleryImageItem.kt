@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,6 +33,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
+import coil.request.ImageRequest
+import androidx.compose.ui.platform.LocalContext
 import com.devson.pixchive.gallery.data.models.GalleryImage
 import com.devson.pixchive.gallery.data.models.GalleryViewSettings
 import java.text.SimpleDateFormat
@@ -150,7 +154,27 @@ fun GalleryImageItem(
     viewSettings: GalleryViewSettings = GalleryViewSettings()
 ) {
     val haptics = LocalHapticFeedback.current
+    val context = LocalContext.current
     val isDense = columnCount >= 3
+
+    val fetchSize = when {
+        isListMode -> 160
+        columnCount <= 2 -> 400
+        columnCount <= 4 -> 256
+        else -> 160
+    }
+
+    val imageRequest = remember(image.uri, fetchSize) {
+        ImageRequest.Builder(context)
+            .data(image.uri)
+            .size(fetchSize)
+            .crossfade(false)
+            .bitmapConfig(android.graphics.Bitmap.Config.RGB_565)
+            .allowHardware(true)
+            .memoryCachePolicy(CachePolicy.ENABLED)
+            .diskCachePolicy(CachePolicy.ENABLED)
+            .build()
+    }
 
     val fileName = image.realPath.substringAfterLast('/')
     val baseName = fileName.substringBeforeLast('.', fileName)
@@ -197,7 +221,7 @@ fun GalleryImageItem(
             ) {
                 if (viewSettings.showThumbnail) {
                     AsyncImage(
-                        model = image.uri,
+                        model = imageRequest,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
@@ -274,7 +298,7 @@ fun GalleryImageItem(
         ) {
             if (viewSettings.showThumbnail) {
                 AsyncImage(
-                    model = image.uri,
+                    model = imageRequest,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()

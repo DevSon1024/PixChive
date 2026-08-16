@@ -28,22 +28,26 @@ import com.devson.pixchive.feature.gallery.ui.ImageFolderScreen
 import com.devson.pixchive.feature.settings.ui.RecycleBinScreen
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun NavGraph(
     navController: NavHostController,
-    startDestination: Any = HomeDestination
+    startDestination: Any = HomeDestination,
+    modifier: Modifier = Modifier
 ) {
     val safeNavigateBack: () -> Unit = {
         if (navController.previousBackStackEntry != null) {
             navController.popBackStack()
         }
     }
-    SharedTransitionLayout {
+    SharedTransitionLayout(modifier = modifier) {
         NavHost(
             navController = navController,
             startDestination = startDestination,
+            modifier = Modifier.fillMaxSize(),
             enterTransition = {
                 slideIntoContainer(
                     AnimatedContentTransitionScope.SlideDirection.Left,

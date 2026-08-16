@@ -16,9 +16,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.view.WindowCompat
 import androidx.navigation.compose.rememberNavController
 import com.devson.pixchive.core.data.PreferencesManager
-import com.devson.pixchive.navigation.NavGraph
 import com.devson.pixchive.core.designsystem.theme.AppThemePalette
 import com.devson.pixchive.core.designsystem.theme.PixchiveTheme
+import com.devson.pixchive.navigation.PixChiveApp
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -51,8 +51,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    val navController = rememberNavController()
-                    NavGraph(navController = navController)
+                    PixChiveApp()
                 }
             }
         }

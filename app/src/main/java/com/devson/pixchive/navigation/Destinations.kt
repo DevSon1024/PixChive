@@ -2,56 +2,75 @@ package com.devson.pixchive.navigation
 
 import kotlinx.serialization.Serializable
 
+/**
+ * Base sealed interface for all type-safe navigation routes in PixChive.
+ */
+sealed interface PixChiveDestination
+
+// Top-Level / Primary Shell Destinations
 @Serializable
-object HomeDestination
+object HomeDestination : PixChiveDestination
 
 @Serializable
-object ComicFlow
+object GalleryDestination : PixChiveDestination
 
 @Serializable
-object SettingsDestination
+object SettingsDestination : PixChiveDestination
+
+// Comic Reader Domain Destinations
+@Serializable
+object ComicFlow : PixChiveDestination
 
 @Serializable
-object AboutDestination
+data class FolderViewDestination(val folderId: String) : PixChiveDestination
 
 @Serializable
-object PrivacyPolicyDestination
+data class ChapterViewDestination(
+    val folderId: String,
+    val chapterPath: String
+) : PixChiveDestination
 
 @Serializable
-object AppearanceSettingsDestination
+data class ImageViewerDestination(
+    val folderId: String,
+    val chapterPath: String,
+    val imageIndex: Int = 0
+) : PixChiveDestination
 
 @Serializable
-object DeveloperOptionsDestination
+object FavoritesDestination : PixChiveDestination
+
+// Gallery Domain Sub-Destinations
+@Serializable
+data class ImageFolderDestination(val bucketId: String) : PixChiveDestination
 
 @Serializable
-object LogsDestination
+data class GalleryImageViewerDestination(
+    val bucketId: String,
+    val initialIndex: Int = 0
+) : PixChiveDestination
 
 @Serializable
-data class FolderViewDestination(val folderId: String)
+data class SearchResultsDestination(val query: String) : PixChiveDestination
 
 @Serializable
-data class ChapterViewDestination(val folderId: String, val chapterPath: String)
+object RecycleBinDestination : PixChiveDestination
+
+// Settings Domain Sub-Destinations
+@Serializable
+object AboutDestination : PixChiveDestination
 
 @Serializable
-data class ImageViewerDestination(val folderId: String, val chapterPath: String, val imageIndex: Int)
+object PrivacyPolicyDestination : PixChiveDestination
 
 @Serializable
-data class ImageFolderDestination(val bucketId: String)
+object AppearanceSettingsDestination : PixChiveDestination
 
 @Serializable
-data class GalleryImageViewerDestination(val bucketId: String, val initialIndex: Int)
+object DeveloperOptionsDestination : PixChiveDestination
 
 @Serializable
-object GalleryDestination
+object LogsDestination : PixChiveDestination
 
 @Serializable
-object RecycleBinDestination
-
-@Serializable
-data class SearchResultsDestination(val query: String)
-
-@Serializable
-object FavoritesDestination
-
-@Serializable
-object CustomHomeSettingsDestination
+object CustomHomeSettingsDestination : PixChiveDestination

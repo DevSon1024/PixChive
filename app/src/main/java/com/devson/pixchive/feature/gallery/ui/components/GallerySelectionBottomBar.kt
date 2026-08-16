@@ -1,0 +1,149 @@
+package com.devson.pixchive.feature.gallery.ui.components
+
+import android.net.Uri
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DriveFileMove
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomAppBar
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.devson.pixchive.core.data.models.GalleryImage
+import com.devson.pixchive.core.utils.shareMedia
+import com.devson.pixchive.core.data.FileOperationsViewModel
+
+@Composable
+fun GallerySelectionBottomBar(
+    selectedImages: List<GalleryImage> = emptyList(),
+    selectedCount: Int = selectedImages.size,
+    fileOpsViewModel: FileOperationsViewModel? = null,
+    onMove: () -> Unit,
+    onCopy: () -> Unit,
+    onDelete: () -> Unit,
+    onRename: () -> Unit,
+    onInfo: () -> Unit
+) {
+    val context = LocalContext.current
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    BottomAppBar(
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            ActionColumn(icon = Icons.AutoMirrored.Filled.DriveFileMove, label = "Move", onClick = onMove)
+            ActionColumn(icon = Icons.Filled.ContentCopy, label = "Copy", onClick = onCopy)
+            if (selectedCount == 1) {
+                ActionColumn(
+                    icon = Icons.Filled.Edit,
+                    label = "Rename",
+                    onClick = onRename
+                )
+            }
+            ActionColumn(
+                icon = Icons.Filled.Share,
+                label = "Share",
+                onClick = { shareMedia(context, selectedImages) }
+            )
+            ActionColumn(icon = Icons.Filled.Info, label = "Info", onClick = onInfo)
+            ActionColumn(
+                icon = Icons.Filled.Delete,
+                label = "Delete",
+                onClick = {
+                    if (fileOpsViewModel != null) {
+                        showDeleteDialog = true
+                    } else {
+                        onDelete()
+                    }
+                },
+                tint = MaterialTheme.colorScheme.error
+            )
+        }
+    }
+
+    if (showDeleteDialog) {
+        val uris: List<Uri> = selectedImages.map { it.uri }
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Images") },
+            text = { Text("Choose how you want to delete the selected image(s).") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        fileOpsViewModel?.deleteImages(context, uris, trash = true)
+                        showDeleteDialog = false
+                    }
+                ) {
+                    Text("Move to Recycle Bin")
+                }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(
+                        onClick = {
+                            fileOpsViewModel?.deleteImages(context, uris, trash = false)
+                            showDeleteDialog = false
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("Delete Permanently")
+                    }
+                    TextButton(onClick = { showDeleteDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun ActionColumn(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    tint: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurfaceVariant
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clickable { onClick() }
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+    ) {
+        Icon(icon, contentDescription = label, tint = tint)
+        Text(label, fontSize = 10.sp, color = tint)
+    }
+}

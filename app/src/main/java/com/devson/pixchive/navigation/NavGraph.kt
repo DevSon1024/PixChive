@@ -10,22 +10,22 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.toRoute
-import com.devson.pixchive.ui.screens.settings.AboutScreen
-import com.devson.pixchive.ui.screens.settings.PrivacyPolicyScreen
-import com.devson.pixchive.ui.screens.ChapterViewScreen
-import com.devson.pixchive.ui.screens.FolderViewScreen
-import com.devson.pixchive.ui.screens.HomeScreen
-import com.devson.pixchive.ui.screens.SettingsScreen
-import com.devson.pixchive.ui.screens.settings.CustomHomeSettingsScreen
-import com.devson.pixchive.ui.screens.FavoritesScreen
-import com.devson.pixchive.ui.reader.ReaderScreen
-import com.devson.pixchive.ui.screens.settings.DeveloperOptionsScreen
-import com.devson.pixchive.ui.screens.settings.LogsScreen
-import com.devson.pixchive.ui.screens.settings.AppearanceSettingsScreen
-import com.devson.pixchive.viewmodel.FolderViewModel
-import com.devson.pixchive.gallery.ui.ImageViewScreen
-import com.devson.pixchive.gallery.ui.ImageFolderScreen
-import com.devson.pixchive.ui.screens.settings.RecycleBinScreen
+import com.devson.pixchive.feature.settings.ui.AboutScreen
+import com.devson.pixchive.feature.settings.ui.PrivacyPolicyScreen
+import com.devson.pixchive.feature.reader.ui.ChapterViewScreen
+import com.devson.pixchive.feature.reader.ui.FolderViewScreen
+import com.devson.pixchive.feature.home.HomeScreen
+import com.devson.pixchive.feature.settings.ui.SettingsScreen
+import com.devson.pixchive.feature.settings.ui.CustomHomeSettingsScreen
+import com.devson.pixchive.feature.reader.ui.FavoritesScreen
+import com.devson.pixchive.feature.reader.ui.ReaderScreen
+import com.devson.pixchive.feature.settings.ui.DeveloperOptionsScreen
+import com.devson.pixchive.feature.settings.ui.LogsScreen
+import com.devson.pixchive.feature.settings.ui.AppearanceSettingsScreen
+import com.devson.pixchive.feature.reader.viewmodel.FolderViewModel
+import com.devson.pixchive.feature.gallery.ui.ImageViewScreen
+import com.devson.pixchive.feature.gallery.ui.ImageFolderScreen
+import com.devson.pixchive.feature.settings.ui.RecycleBinScreen
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 
@@ -96,7 +96,7 @@ fun NavGraph(
             }
 
             composable<GalleryDestination> {
-                com.devson.pixchive.gallery.ui.GalleryMainScreen(
+                com.devson.pixchive.feature.gallery.ui.GalleryMainScreen(
                     onNavigateBack = safeNavigateBack,
                     onSettingsClick = { navController.navigate(SettingsDestination) },
                     onRecycleBinClick = { navController.navigate(RecycleBinDestination) },
@@ -114,7 +114,7 @@ fun NavGraph(
 
             composable<SearchResultsDestination> { backStackEntry ->
                 val destination: SearchResultsDestination = backStackEntry.toRoute()
-                com.devson.pixchive.gallery.ui.SearchResultsScreen(
+                com.devson.pixchive.feature.gallery.ui.SearchResultsScreen(
                     query = destination.query,
                     onBack = safeNavigateBack,
                     onImageClick = { index, _ ->

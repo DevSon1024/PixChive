@@ -7,8 +7,9 @@ import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import coil.request.CachePolicy
-import com.devson.pixchive.data.local.AppDatabase
-import com.devson.pixchive.utils.AppLogger
+import com.devson.pixchive.core.data.local.AppDatabase
+import com.devson.pixchive.core.utils.AppLogger
+import com.devson.pixchive.core.data.MediaStoreImageThumbnailFetcher
 
 class PixChiveApplication : Application(), ImageLoaderFactory {
 

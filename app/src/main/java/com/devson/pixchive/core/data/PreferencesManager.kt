@@ -1,0 +1,416 @@
+package com.devson.pixchive.core.data
+
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "pixchive_prefs")
+
+class PreferencesManager(private val context: Context) {
+
+    private val gson = Gson()
+
+    companion object {
+        private val FOLDERS_KEY = stringPreferencesKey("comic_folders")
+        private val FAVORITES_KEY = stringSetPreferencesKey("favorite_images")
+        private val FAVORITES_SORT_OPTION_KEY = stringPreferencesKey("favorites_sort_option")
+        private val DEVELOPER_OPTIONS_ENABLED_KEY = booleanPreferencesKey("developer_options_enabled")
+        private val SHOW_HISTORY_KEY = booleanPreferencesKey("show_history")
+        private val SHOW_FOLDER_CARD_KEY = booleanPreferencesKey("show_folder_card")
+
+        // Folder Screen Prefs
+        private val VIEW_MODE_KEY = stringPreferencesKey("view_mode")
+        private val LAYOUT_MODE_KEY = stringPreferencesKey("layout_mode")
+        private val FOLDER_GRID_COLUMNS_KEY = intPreferencesKey("folder_grid_columns")
+        private val FOLDER_SORT_OPTION_KEY = stringPreferencesKey("folder_sort_option")
+
+        // Home Screen Prefs
+        private val HOME_LAYOUT_MODE_KEY = stringPreferencesKey("home_layout_mode")
+        private val HOME_SORT_OPTION_KEY = stringPreferencesKey("home_sort_option")
+        private val HOME_GRID_COLUMNS_KEY = intPreferencesKey("home_grid_columns")
+
+        // Global Settings
+        private val SHOW_HIDDEN_FILES_KEY = booleanPreferencesKey("show_hidden_files")
+        private val IGNORED_PATHS_KEY = stringSetPreferencesKey("ignored_paths")
+
+        // Theme Settings [ADDED]
+        private val APP_THEME_KEY = stringPreferencesKey("app_theme")
+        private val DYNAMIC_COLOR_KEY = booleanPreferencesKey("dynamic_color")
+        private val SELECTED_PALETTE_KEY = stringPreferencesKey("selected_palette")
+        private val NAV_BAR_TRANSPARENT_KEY = booleanPreferencesKey("nav_bar_transparent")
+
+        // Reader Settings
+        private val READER_SCROLL_MODE_KEY = stringPreferencesKey("reader_scroll_mode")  // "pager" | "webtoon"
+        private val MANGA_MODE_KEY = booleanPreferencesKey("manga_mode")                 // RTL paging
+        private val VOLUME_KEYS_NAVIGATION_KEY = booleanPreferencesKey("volume_keys_navigation")
+        private val READ_PROGRESS_KEY = stringPreferencesKey("read_progress")            // JSON: "folderId|chapterPath" → pageIndex
+        private val GALLERY_GRID_CELLS_INDEX_KEY = intPreferencesKey("gallery_grid_cells_index")
+        private val GALLERY_LAYOUT_MODE_KEY = stringPreferencesKey("gallery_layout_mode")
+        private val GALLERY_SORT_OPTION_KEY = stringPreferencesKey("gallery_sort_option")
+
+        // Gallery Fields
+        private val GALLERY_SHOW_THUMBNAIL_KEY = booleanPreferencesKey("gallery_show_thumbnail")
+        private val GALLERY_SHOW_FILE_EXT_KEY = booleanPreferencesKey("gallery_show_file_ext")
+        private val GALLERY_SHOW_RESOLUTION_KEY = booleanPreferencesKey("gallery_show_resolution")
+        private val GALLERY_SHOW_PATH_KEY = booleanPreferencesKey("gallery_show_path")
+        private val GALLERY_SHOW_SIZE_KEY = booleanPreferencesKey("gallery_show_size")
+        private val GALLERY_SHOW_DATE_KEY = booleanPreferencesKey("gallery_show_date")
+        private val GALLERY_SHOW_FOLDER_THUMBNAIL_KEY = booleanPreferencesKey("gallery_show_folder_thumbnail")
+        private val GALLERY_VIEW_MODE_KEY = stringPreferencesKey("gallery_view_mode")
+        private val BACKGROUND_BLUR_ENABLED_KEY = booleanPreferencesKey("background_blur_enabled")
+        private val LAST_GALLERY_TAB_KEY = intPreferencesKey("last_gallery_tab")
+    }
+
+    // Default to index 2 (which represents 4 columns in our list if index 0 is 2 columns)
+    val galleryGridCellsIndex: Flow<Int> = context.dataStore.data
+        .map { preferences ->
+            preferences[GALLERY_GRID_CELLS_INDEX_KEY] ?: 2
+        }
+
+    suspend fun setGalleryGridCellsIndex(index: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[GALLERY_GRID_CELLS_INDEX_KEY] = index
+        }
+    }
+
+    val galleryLayoutModeFlow: Flow<String> = context.dataStore.data
+        .map { preferences ->
+            preferences[GALLERY_LAYOUT_MODE_KEY] ?: "grid"
+        }.distinctUntilChanged()
+
+    suspend fun setGalleryLayoutMode(mode: String) {
+        context.dataStore.edit { preferences ->
+            preferences[GALLERY_LAYOUT_MODE_KEY] = mode
+        }
+    }
+
+    // --- Gallery Field Settings ---
+    val galleryShowThumbnail: Flow<Boolean> = context.dataStore.data.map { it[GALLERY_SHOW_THUMBNAIL_KEY] ?: true }
+    val galleryShowFileExt: Flow<Boolean> = context.dataStore.data.map { it[GALLERY_SHOW_FILE_EXT_KEY] ?: true }
+    val galleryShowResolution: Flow<Boolean> = context.dataStore.data.map { it[GALLERY_SHOW_RESOLUTION_KEY] ?: true }
+    val galleryShowPath: Flow<Boolean> = context.dataStore.data.map { it[GALLERY_SHOW_PATH_KEY] ?: false }
+    val galleryShowSize: Flow<Boolean> = context.dataStore.data.map { it[GALLERY_SHOW_SIZE_KEY] ?: true }
+    val galleryShowDate: Flow<Boolean> = context.dataStore.data.map { it[GALLERY_SHOW_DATE_KEY] ?: true }
+
+    suspend fun setGalleryShowThumbnail(show: Boolean) = context.dataStore.edit { it[GALLERY_SHOW_THUMBNAIL_KEY] = show }
+    suspend fun setGalleryShowFileExt(show: Boolean) = context.dataStore.edit { it[GALLERY_SHOW_FILE_EXT_KEY] = show }
+    suspend fun setGalleryShowResolution(show: Boolean) = context.dataStore.edit { it[GALLERY_SHOW_RESOLUTION_KEY] = show }
+    suspend fun setGalleryShowPath(show: Boolean) = context.dataStore.edit { it[GALLERY_SHOW_PATH_KEY] = show }
+    suspend fun setGalleryShowSize(show: Boolean) = context.dataStore.edit { it[GALLERY_SHOW_SIZE_KEY] = show }
+    suspend fun setGalleryShowDate(show: Boolean) = context.dataStore.edit { it[GALLERY_SHOW_DATE_KEY] = show }
+
+    val galleryShowFolderThumbnail: Flow<Boolean> = context.dataStore.data.map { it[GALLERY_SHOW_FOLDER_THUMBNAIL_KEY] ?: true }
+    suspend fun setGalleryShowFolderThumbnail(show: Boolean) = context.dataStore.edit { it[GALLERY_SHOW_FOLDER_THUMBNAIL_KEY] = show }
+
+    val galleryViewModeFlow: Flow<String> = context.dataStore.data
+        .map { it[GALLERY_VIEW_MODE_KEY] ?: "albums" }.distinctUntilChanged()
+
+    suspend fun setGalleryViewMode(mode: String) =
+        context.dataStore.edit { it[GALLERY_VIEW_MODE_KEY] = mode }
+
+    val gallerySortOptionFlow: Flow<String> = context.dataStore.data
+        .map { it[GALLERY_SORT_OPTION_KEY] ?: "name_asc" }.distinctUntilChanged()
+
+    suspend fun setGallerySortOption(option: String) =
+        context.dataStore.edit { it[GALLERY_SORT_OPTION_KEY] = option }
+
+    // --- Favorites ---
+    val favoritesFlow: Flow<Set<String>> = context.dataStore.data.map { preferences ->
+        preferences[FAVORITES_KEY] ?: emptySet()
+    }.distinctUntilChanged()
+
+    suspend fun toggleFavorite(uri: String) {
+        context.dataStore.edit { preferences ->
+            val current = preferences[FAVORITES_KEY] ?: emptySet()
+            if (current.contains(uri)) {
+                preferences[FAVORITES_KEY] = current - uri
+            } else {
+                preferences[FAVORITES_KEY] = current + uri
+            }
+        }
+    }
+
+    suspend fun clearLegacyFavorites() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(FAVORITES_KEY)
+        }
+    }
+
+    suspend fun saveFavoritesSortOption(option: String) {
+        context.dataStore.edit { preferences -> preferences[FAVORITES_SORT_OPTION_KEY] = option }
+    }
+
+    val favoritesSortOptionFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[FAVORITES_SORT_OPTION_KEY] ?: "date_newest"
+    }.distinctUntilChanged()
+
+    // --- Common / Folders Data ---
+
+    suspend fun saveFolders(folders: List<ComicFolder>) {
+        val json = gson.toJson(folders)
+        context.dataStore.edit { preferences ->
+            preferences[FOLDERS_KEY] = json
+        }
+    }
+
+    val foldersFlow: Flow<List<ComicFolder>> = context.dataStore.data.map { preferences ->
+        val json = preferences[FOLDERS_KEY] ?: ""
+        if (json.isEmpty()) {
+            emptyList<ComicFolder>()
+        } else {
+            try {
+                val type = object : TypeToken<List<ComicFolder>>() {}.type
+                gson.fromJson<List<ComicFolder>>(json, type) ?: emptyList<ComicFolder>()
+            } catch (e: Exception) {
+                emptyList<ComicFolder>()
+            }
+        }
+    }.distinctUntilChanged()
+
+    // --- Folder Screen Preferences ---
+
+    suspend fun saveViewMode(mode: String) {
+        context.dataStore.edit { preferences -> preferences[VIEW_MODE_KEY] = mode }
+    }
+
+    val viewModeFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[VIEW_MODE_KEY] ?: "all_folders"
+    }.distinctUntilChanged()
+
+    suspend fun saveLayoutMode(mode: String) {
+        context.dataStore.edit { preferences -> preferences[LAYOUT_MODE_KEY] = mode }
+    }
+
+    val layoutModeFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[LAYOUT_MODE_KEY] ?: "grid"
+    }.distinctUntilChanged()
+
+    suspend fun saveFolderGridColumns(columns: Int) {
+        context.dataStore.edit { preferences -> preferences[FOLDER_GRID_COLUMNS_KEY] = columns }
+    }
+
+    val folderGridColumnsFlow: Flow<Int> = context.dataStore.data.map { preferences ->
+        preferences[FOLDER_GRID_COLUMNS_KEY] ?: 3
+    }.distinctUntilChanged()
+
+    suspend fun saveFolderSortOption(option: String) {
+        context.dataStore.edit { preferences -> preferences[FOLDER_SORT_OPTION_KEY] = option }
+    }
+
+    val folderSortOptionFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[FOLDER_SORT_OPTION_KEY] ?: "name_asc"
+    }.distinctUntilChanged()
+
+    // Developer Options
+
+    suspend fun setDeveloperOptionsEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences -> preferences[DEVELOPER_OPTIONS_ENABLED_KEY] = enabled }
+    }
+
+    val developerOptionsEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[DEVELOPER_OPTIONS_ENABLED_KEY] ?: false
+    }.distinctUntilChanged()
+
+
+    // --- Home Screen Preferences ---
+
+    suspend fun saveHomeLayoutMode(mode: String) {
+        context.dataStore.edit { preferences -> preferences[HOME_LAYOUT_MODE_KEY] = mode }
+    }
+
+    val homeLayoutModeFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[HOME_LAYOUT_MODE_KEY] ?: "list"
+    }.distinctUntilChanged()
+
+    suspend fun saveHomeSortOption(option: String) {
+        context.dataStore.edit { preferences -> preferences[HOME_SORT_OPTION_KEY] = option }
+    }
+
+    val homeSortOptionFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[HOME_SORT_OPTION_KEY] ?: "date_newest"
+    }.distinctUntilChanged()
+
+    suspend fun saveHomeGridColumns(columns: Int) {
+        context.dataStore.edit { preferences -> preferences[HOME_GRID_COLUMNS_KEY] = columns }
+    }
+
+    val homeGridColumnsFlow: Flow<Int> = context.dataStore.data.map { preferences ->
+        preferences[HOME_GRID_COLUMNS_KEY] ?: 2
+    }.distinctUntilChanged()
+
+    // --- Global Settings ---
+
+    suspend fun setShowHiddenFiles(show: Boolean) {
+        context.dataStore.edit { preferences -> preferences[SHOW_HIDDEN_FILES_KEY] = show }
+    }
+
+    val showHiddenFilesFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[SHOW_HIDDEN_FILES_KEY] ?: false
+    }.distinctUntilChanged()
+
+    suspend fun addIgnoredPath(path: String) {
+        context.dataStore.edit { preferences ->
+            val current = preferences[IGNORED_PATHS_KEY] ?: emptySet()
+            preferences[IGNORED_PATHS_KEY] = current + path
+        }
+    }
+
+    val ignoredPathsFlow: Flow<Set<String>> = context.dataStore.data.map { preferences ->
+        preferences[IGNORED_PATHS_KEY] ?: emptySet()
+    }.distinctUntilChanged()
+
+    // --- Theme Settings ---
+
+    suspend fun saveAppTheme(theme: String) {
+        context.dataStore.edit { preferences -> preferences[APP_THEME_KEY] = theme }
+    }
+
+    // Values: "system", "light", "dark"
+    val appThemeFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[APP_THEME_KEY] ?: "system"
+    }.distinctUntilChanged()
+
+    suspend fun saveDynamicColor(enabled: Boolean) {
+        context.dataStore.edit { preferences -> preferences[DYNAMIC_COLOR_KEY] = enabled }
+    }
+
+    val dynamicColorFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[DYNAMIC_COLOR_KEY] ?: true
+    }.distinctUntilChanged()
+
+    suspend fun saveSelectedPalette(palette: String) {
+        context.dataStore.edit { preferences -> preferences[SELECTED_PALETTE_KEY] = palette }
+    }
+
+    val selectedPaletteFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[SELECTED_PALETTE_KEY] ?: "BLUE"
+    }.distinctUntilChanged()
+
+    suspend fun saveNavBarTransparent(transparent: Boolean) {
+        context.dataStore.edit { preferences -> preferences[NAV_BAR_TRANSPARENT_KEY] = transparent }
+    }
+
+    val navBarTransparentFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[NAV_BAR_TRANSPARENT_KEY] ?: false
+    }.distinctUntilChanged()
+
+    // --- Reader Settings ---
+
+    suspend fun saveReaderScrollMode(mode: String) {
+        context.dataStore.edit { preferences -> preferences[READER_SCROLL_MODE_KEY] = mode }
+    }
+
+    // Values: "pager", "webtoon"
+    val readerScrollModeFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[READER_SCROLL_MODE_KEY] ?: "pager"
+    }.distinctUntilChanged()
+
+    suspend fun saveMangaMode(enabled: Boolean) {
+        context.dataStore.edit { preferences -> preferences[MANGA_MODE_KEY] = enabled }
+    }
+
+    val mangaModeFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[MANGA_MODE_KEY] ?: false
+    }.distinctUntilChanged()
+
+    suspend fun setVolumeKeysNavigation(enabled: Boolean) {
+        context.dataStore.edit { preferences -> preferences[VOLUME_KEYS_NAVIGATION_KEY] = enabled }
+    }
+
+    val volumeKeysNavigationFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[VOLUME_KEYS_NAVIGATION_KEY] ?: true
+    }.distinctUntilChanged()
+
+    // --- Read Progress ---
+
+    private fun progressKey(folderId: String, chapterPath: String) = "$folderId|$chapterPath"
+
+    suspend fun saveReadProgress(folderId: String, chapterPath: String, page: Int) {
+        context.dataStore.edit { preferences ->
+            val json = preferences[READ_PROGRESS_KEY] ?: "{}"
+            val type = object : TypeToken<MutableMap<String, Int>>() {}.type
+            val map: MutableMap<String, Int> = try {
+                gson.fromJson(json, type) ?: mutableMapOf()
+            } catch (e: Exception) { mutableMapOf() }
+            map[progressKey(folderId, chapterPath)] = page
+            preferences[READ_PROGRESS_KEY] = gson.toJson(map)
+        }
+    }
+
+    suspend fun getReadProgress(folderId: String, chapterPath: String): Int {
+        val json = context.dataStore.data.first()[READ_PROGRESS_KEY] ?: return 0
+        val type = object : TypeToken<Map<String, Int>>() {}.type
+        return try {
+            val map: Map<String, Int> = gson.fromJson(json, type) ?: emptyMap()
+            map[progressKey(folderId, chapterPath)] ?: 0
+        } catch (e: Exception) { 0 }
+    }
+
+    /** Flow of the full progress map for a specific folder (chapterPath → lastPage). */
+    fun readProgressFlow(folderId: String): Flow<Map<String, Int>> =
+        context.dataStore.data.map { preferences ->
+            val json = preferences[READ_PROGRESS_KEY] ?: return@map emptyMap()
+            val type = object : TypeToken<Map<String, Int>>() {}.type
+            try {
+                val raw: Map<String, Int> = gson.fromJson(json, type) ?: emptyMap()
+                // Strip folderId prefix so callers get chapterPath → page
+                val prefix = "$folderId|"
+                raw.entries
+                    .filter { it.key.startsWith(prefix) }
+                    .associate { it.key.removePrefix(prefix) to it.value }
+            } catch (e: Exception) { emptyMap() }
+        }.distinctUntilChanged()
+
+    // --- Blur Settings ---
+    val isBackgroundBlurEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[BACKGROUND_BLUR_ENABLED_KEY] ?: true
+    }.distinctUntilChanged()
+
+    suspend fun setBackgroundBlurEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[BACKGROUND_BLUR_ENABLED_KEY] = enabled
+        }
+    }
+
+    val lastGalleryTabFlow: Flow<Int> = context.dataStore.data.map { preferences ->
+        preferences[LAST_GALLERY_TAB_KEY] ?: 0
+    }.distinctUntilChanged()
+
+    suspend fun setLastGalleryTab(tabIndex: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[LAST_GALLERY_TAB_KEY] = tabIndex
+        }
+    }
+
+    val showHistoryFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[SHOW_HISTORY_KEY] ?: true
+    }.distinctUntilChanged()
+
+    suspend fun setShowHistory(show: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[SHOW_HISTORY_KEY] = show
+        }
+    }
+
+    val showFolderCardFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[SHOW_FOLDER_CARD_KEY] ?: true
+    }.distinctUntilChanged()
+
+    suspend fun setShowFolderCard(show: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[SHOW_FOLDER_CARD_KEY] = show
+        }
+    }
+}

@@ -7,31 +7,42 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
+import androidx.compose.material3.carousel.rememberCarouselState
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -39,35 +50,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.devson.pixchive.core.data.ComicFolder
 import com.devson.pixchive.core.data.PreferencesManager
 import com.devson.pixchive.core.data.local.HistoryEntity
-import kotlinx.coroutines.flow.Flow
-import coil.request.ImageRequest
 import com.devson.pixchive.core.data.local.ImageEntity
-import com.devson.pixchive.core.designsystem.component.ViewSettingsBottomSheet
-import com.devson.pixchive.core.designsystem.component.PermissionDeniedDialog
-import com.devson.pixchive.core.designsystem.component.OptionsBottomSheet
-import com.devson.pixchive.core.designsystem.component.OptionItem
-import com.devson.pixchive.core.designsystem.component.PermissionRationaleDialog
-import com.devson.pixchive.core.designsystem.component.SkeletonHome
+import com.devson.pixchive.core.designsystem.component.*
 import com.devson.pixchive.core.utils.PermissionHelper
-import com.devson.pixchive.feature.home.HomeViewModel
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
-import androidx.compose.material3.carousel.rememberCarouselState
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.calculateZoom
-import androidx.compose.animation.core.animateIntAsState
-import androidx.compose.animation.core.tween
 import com.devson.pixchive.core.utils.PermissionState
+import kotlinx.coroutines.flow.Flow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,6 +86,7 @@ fun HomeScreen(
     val isSyncing by viewModel.isSyncing.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val recentHistory by viewModel.recentHistory.collectAsState()
+    val favoriteCount by viewModel.favoriteCount.collectAsState()
 
     val layoutMode by viewModel.layoutMode.collectAsState()
     val sortOption by viewModel.sortOption.collectAsState()
@@ -114,7 +112,11 @@ fun HomeScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                permissionState = if (PermissionHelper.hasStoragePermission(context)) PermissionState.Granted else PermissionState.NotRequested
+                permissionState = if (PermissionHelper.hasStoragePermission(context)) {
+                    PermissionState.Granted
+                } else {
+                    PermissionState.NotRequested
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -144,8 +146,11 @@ fun HomeScreen(
                 permissionState = PermissionState.Granted
                 folderPickerLauncher.launch(null)
             } else {
-                if (activity != null && PermissionHelper.shouldShowRationale(activity)) showRationaleDialog = true
-                else showSettingsDialog = true
+                if (activity != null && PermissionHelper.shouldShowRationale(activity)) {
+                    showRationaleDialog = true
+                } else {
+                    showSettingsDialog = true
+                }
             }
         }
     )
@@ -154,7 +159,9 @@ fun HomeScreen(
         if (PermissionHelper.hasStoragePermission(context)) {
             permissionState = PermissionState.Granted
             folderPickerLauncher.launch(null)
-        } else showSettingsDialog = true
+        } else {
+            showSettingsDialog = true
+        }
     }
 
     val requestPermissionAndOpenPicker: () -> Unit = {
@@ -162,10 +169,14 @@ fun HomeScreen(
             permissionState = PermissionState.Granted
             folderPickerLauncher.launch(null)
         } else {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) showRationaleDialog = true
-            else {
-                if (activity != null && PermissionHelper.shouldShowRationale(activity)) showRationaleDialog = true
-                else legacyPermissionLauncher.launch(PermissionHelper.getLegacyStoragePermission())
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                showRationaleDialog = true
+            } else {
+                if (activity != null && PermissionHelper.shouldShowRationale(activity)) {
+                    showRationaleDialog = true
+                } else {
+                    legacyPermissionLauncher.launch(PermissionHelper.getLegacyStoragePermission())
+                }
             }
         }
     }
@@ -180,23 +191,78 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { 
-                    Text(
-                        "PixChive",
-                        fontWeight = FontWeight.ExtraBold
-                    ) 
-                },
-                actions = {
-                    IconButton(onClick = onFavoritesClick) {
-                        Icon(Icons.Default.Favorite, contentDescription = "Favorites", tint = MaterialTheme.colorScheme.error)
-                    }
-                    if (showFolderCard) {
-                        IconButton(onClick = { showDisplayOptions = true }) {
-                            Icon(Icons.Default.Tune, contentDescription = "Display Options")
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "PixChive",
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold)
+                        )
+                        if (isSyncing) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                modifier = Modifier.height(24.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(12.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Syncing",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                }
+                            }
                         }
                     }
+                },
+                actions = {
+                    // Favorites action with badge if count > 0
+                    IconButton(onClick = onFavoritesClick) {
+                        BadgedBox(
+                            badge = {
+                                if (favoriteCount > 0) {
+                                    Badge(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        contentColor = MaterialTheme.colorScheme.onPrimary
+                                    ) {
+                                        Text("$favoriteCount")
+                                    }
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Favorite,
+                                contentDescription = "Favorites",
+                                tint = if (favoriteCount > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    if (showFolderCard) {
+                        IconButton(onClick = { showDisplayOptions = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Tune,
+                                contentDescription = "Display Options",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
                     IconButton(onClick = onSettingsClick) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Settings",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -222,19 +288,21 @@ fun HomeScreen(
         ) {
             when {
                 isLoading -> {
-                    // Apply top padding to skeleton to avoid overlap with top bar
                     Box(modifier = Modifier.padding(top = paddingValues.calculateTopPadding())) {
-                        SkeletonHome(layoutMode = layoutMode, columns = gridColumns, showHistory = recentHistory.isNotEmpty())
+                        SkeletonHome(
+                            layoutMode = layoutMode,
+                            columns = gridColumns,
+                            showHistory = recentHistory.isNotEmpty()
+                        )
                     }
                 }
-                folders.isEmpty() -> {
-                    // Apply top padding to empty state
+                folders.isEmpty() && recentHistory.isEmpty() -> {
                     Box(modifier = Modifier.padding(top = paddingValues.calculateTopPadding())) {
-                        EmptyStateContent(onBrowseGalleryClick = { onBrowseGalleryClick(galleryViewMode) })
+                        EmptyFoldersView(onAddFolderClick = requestPermissionAndOpenPicker)
                     }
                 }
                 else -> {
-                    var localColumns by remember(gridColumns) { mutableStateOf(gridColumns) }
+                    var localColumns by remember(gridColumns) { mutableIntStateOf(gridColumns) }
                     var accumulatedZoom by remember { mutableFloatStateOf(1f) }
 
                     val animatedColumns by animateIntAsState(
@@ -255,7 +323,7 @@ fun HomeScreen(
                                     if (event.changes.size >= 2) {
                                         val zoom = event.calculateZoom()
                                         accumulatedZoom *= zoom
-                                        
+
                                         if (!hasChangedInThisGesture) {
                                             if (accumulatedZoom > 1.25f) {
                                                 val newCols = (localColumns - 1).coerceIn(1, 6)
@@ -287,7 +355,6 @@ fun HomeScreen(
                         isRefreshing = isRefreshing,
                         onRefresh = { viewModel.refreshFolders() },
                         modifier = Modifier.fillMaxSize(),
-                        // Offset the refresh indicator by the top bar height
                         contentAlignment = Alignment.TopCenter
                     ) {
                         LazyVerticalGrid(
@@ -295,26 +362,26 @@ fun HomeScreen(
                             state = gridState,
                             contentPadding = PaddingValues(
                                 top = paddingValues.calculateTopPadding() + 8.dp,
-                                bottom = paddingValues.calculateBottomPadding() + 88.dp // FAB clearance
+                                bottom = paddingValues.calculateBottomPadding() + 88.dp
                             ),
                             modifier = Modifier
                                 .fillMaxSize()
                                 .then(zoomModifier)
                         ) {
-                            // NEW BROWSE GALLERY CARD BUTTON
+                            // BROWSE GALLERY ENTRY CARD
                             item(span = { GridItemSpan(maxLineSpan) }) {
                                 OutlinedCard(
                                     onClick = { onBrowseGalleryClick(galleryViewMode) },
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                        .padding(horizontal = 16.dp, vertical = 6.dp),
                                     shape = RoundedCornerShape(16.dp),
                                     colors = CardDefaults.outlinedCardColors(
-                                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.25f)
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                                     ),
-                                    border = androidx.compose.foundation.BorderStroke(
+                                    border = BorderStroke(
                                         1.dp,
-                                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                                     )
                                 ) {
                                     Row(
@@ -325,18 +392,16 @@ fun HomeScreen(
                                     ) {
                                         Box(
                                             modifier = Modifier
-                                                .size(40.dp)
-                                                .background(
-                                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f),
-                                                    RoundedCornerShape(12.dp)
-                                                ),
+                                                .size(44.dp)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f)),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.PhotoLibrary,
                                                 contentDescription = null,
                                                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                                modifier = Modifier.size(20.dp)
+                                                modifier = Modifier.size(22.dp)
                                             )
                                         }
                                         Spacer(modifier = Modifier.width(16.dp))
@@ -345,10 +410,10 @@ fun HomeScreen(
                                                 text = "Browse Gallery",
                                                 style = MaterialTheme.typography.titleMedium,
                                                 fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                                color = MaterialTheme.colorScheme.onSurface
                                             )
                                             Text(
-                                                text = "View all images across all folders flat",
+                                                text = "Explore all photos and albums",
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
@@ -356,15 +421,16 @@ fun HomeScreen(
                                         Icon(
                                             imageVector = Icons.Default.ChevronRight,
                                             contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                                         )
                                     }
                                 }
                             }
-                            // HISTORY SECTION 
+
+                            // JUMP BACK IN / HISTORY SECTION
                             if (showHistory && recentHistory.isNotEmpty()) {
                                 item(span = { GridItemSpan(maxLineSpan) }) {
-                                    SectionHeader(
+                                    HomeSectionHeader(
                                         title = "Jump Back In",
                                         icon = Icons.Default.History
                                     )
@@ -403,14 +469,14 @@ fun HomeScreen(
                                 }
 
                                 item(span = { GridItemSpan(maxLineSpan) }) {
-                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Spacer(modifier = Modifier.height(8.dp))
                                 }
                             }
 
-                            // FOLDERS SECTION
-                            if (showFolderCard) {
+                            // MY FOLDERS SECTION
+                            if (showFolderCard && folders.isNotEmpty()) {
                                 item(span = { GridItemSpan(maxLineSpan) }) {
-                                    SectionHeader(
+                                    HomeSectionHeader(
                                         title = "My Folders",
                                         icon = Icons.Default.FolderOpen
                                     )
@@ -444,50 +510,12 @@ fun HomeScreen(
                     }
                 }
             }
-
-            // Syncing Chip 
-            AnimatedVisibility(
-                visible = isSyncing,
-                enter = fadeIn() + slideInVertically { -it },
-                exit = fadeOut() + slideOutVertically { -it },
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 24.dp)
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.85f),
-                    border = androidx.compose.foundation.BorderStroke(
-                        0.5.dp, 
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                    ),
-                    tonalElevation = 6.dp,
-                    shadowElevation = 4.dp
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            color = MaterialTheme.colorScheme.primary,
-                            strokeWidth = 2.5.dp
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = "Syncing Library...",
-                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                    }
-                }
-            }
         }
 
+        // Display Options Bottom Sheet
         if (showDisplayOptions) {
             ViewSettingsBottomSheet(
                 onDismiss = { showDisplayOptions = false },
-                viewMode = null,
                 layoutMode = layoutMode,
                 gridColumns = gridColumns,
                 sortOption = sortOption,
@@ -497,6 +525,7 @@ fun HomeScreen(
             )
         }
 
+        // Permission Rationale / Denied Dialogs
         if (showRationaleDialog) {
             PermissionRationaleDialog(
                 rationale = PermissionHelper.getPermissionRationale(),
@@ -532,9 +561,8 @@ fun HomeScreen(
     }
 }
 
-// Section Header
 @Composable
-private fun SectionHeader(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+private fun HomeSectionHeader(title: String, icon: ImageVector) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -544,10 +572,8 @@ private fun SectionHeader(title: String, icon: androidx.compose.ui.graphics.vect
         Box(
             modifier = Modifier
                 .size(32.dp)
-                .background(
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                    RoundedCornerShape(8.dp)
-                ),
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -561,15 +587,13 @@ private fun SectionHeader(title: String, icon: androidx.compose.ui.graphics.vect
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium.copy(
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 0.5.sp
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.15.sp
             ),
             color = MaterialTheme.colorScheme.onSurface
         )
     }
 }
-
-// History Card
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -598,138 +622,111 @@ fun HistoryCard(
                 // Cover image
                 AsyncImage(
                     model = entry.coverImageUri,
-                    contentDescription = entry.title,
+                    contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
 
-                // Gradient overlay + text at bottom
+                // Dark gradient scrim from bottom
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
+                        .fillMaxSize()
                         .background(
                             Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
+                                colors = listOf(
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.4f),
+                                    Color.Black.copy(alpha = 0.85f)
+                                ),
+                                startY = 60f
                             )
                         )
-                        .padding(start = 12.dp, end = 12.dp, top = 28.dp, bottom = 12.dp)
-                ) {
-                    Column {
-                        if (mainFolderName.isNotEmpty()) {
-                            Text(
-                                text = "/$mainFolderName",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 1.sp,
-                                    shadow = androidx.compose.ui.graphics.Shadow(
-                                        color = Color.Black,
-                                        offset = androidx.compose.ui.geometry.Offset(1f, 1f),
-                                        blurRadius = 4f
-                                    )
-                                ),
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                        }
+                )
+
+                // Page count badge at top right
+                if (entry.totalPages > 0) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color.Black.copy(alpha = 0.65f),
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(8.dp)
+                    ) {
                         Text(
-                            text = entry.title,
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                shadow = androidx.compose.ui.graphics.Shadow(
-                                    color = Color.Black,
-                                    offset = androidx.compose.ui.geometry.Offset(1f, 1f),
-                                    blurRadius = 4f
-                                )
-                            ),
+                            text = "${entry.currentPage + 1}/${entry.totalPages}",
+                            style = MaterialTheme.typography.labelSmall,
                             color = Color.White,
-                            maxLines = 2,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+
+                // Bottom details
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .padding(horizontal = 10.dp, vertical = 8.dp)
+                ) {
+                    if (mainFolderName.isNotBlank()) {
+                        Text(
+                            text = mainFolderName,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.7f),
+                            maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        // Progress bar at absolute bottom
-                        LinearProgressIndicator(
-                            progress = { (entry.currentPage.toFloat() / entry.totalPages.toFloat()).coerceIn(0f, 1f) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(4.dp)
-                                .clip(RoundedCornerShape(2.dp)),
-                            color = MaterialTheme.colorScheme.primary,
-                            trackColor = Color.White.copy(alpha = 0.3f)
-                        )
                     }
-                }
-
-                // Page badge top-start
-                Surface(
-                    shape = RoundedCornerShape(24.dp),
-                    color = Color.Black.copy(alpha = 0.65f),
-                    border = androidx.compose.foundation.BorderStroke(
-                        0.5.dp, 
-                        Color.White.copy(alpha = 0.2f)
-                    ),
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(10.dp)
-                ) {
                     Text(
-                        text = "Page ${entry.currentPage + 1}",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        ),
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        text = entry.title,
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    val progress = if (entry.totalPages > 0) {
+                        (entry.currentPage + 1f) / entry.totalPages.toFloat()
+                    } else 0f
+
+                    LinearProgressIndicator(
+                        progress = { progress.coerceIn(0f, 1f) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(2.dp)),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = Color.White.copy(alpha = 0.3f),
                     )
                 }
-
-                // Three-dots Menu button top-end
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(10.dp)
-                ) {
-                    IconButton(
-                        onClick = { showMenu = true },
-                        modifier = Modifier
-                            .size(28.dp)
-                            .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Menu",
-                            tint = Color.White,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-
-                    if (showMenu) {
-                        OptionsBottomSheet(
-                            title = entry.title,
-                            subtitle = if (mainFolderName.isNotEmpty()) "/$mainFolderName" else null,
-                            options = listOf(
-                                OptionItem(
-                                    label = "Go to Folder",
-                                    icon = Icons.Default.Folder,
-                                    onClick = onGoToFolder
-                                ),
-                                OptionItem(
-                                    label = "Remove from History",
-                                    icon = Icons.Default.Delete,
-                                    isDestructive = true,
-                                    onClick = onDeleteClick
-                                )
-                            ),
-                            onDismiss = { showMenu = false }
-                        )
-                    }
-                }
             }
+        }
+
+        if (showMenu) {
+            OptionsBottomSheet(
+                title = entry.title,
+                subtitle = mainFolderName.ifBlank { null },
+                options = listOf(
+                    OptionItem(
+                        label = "Go to Folder",
+                        icon = Icons.Default.FolderOpen,
+                        onClick = onGoToFolder
+                    ),
+                    OptionItem(
+                        label = "Remove from History",
+                        icon = Icons.Default.Delete,
+                        isDestructive = true,
+                        onClick = onDeleteClick
+                    )
+                ),
+                onDismiss = { showMenu = false }
+            )
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FolderCard(
     folder: ComicFolder,
@@ -739,65 +736,59 @@ fun FolderCard(
 ) {
     val latestImage by latestImageFlow.collectAsState(initial = null)
 
-    OutlinedCard(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick,
+    ElevatedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(84.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.outlinedCardColors(
+        colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),
-        border = CardDefaults.outlinedCardBorder().copy(
-            brush = Brush.linearGradient(
-                colors = listOf(
-                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
-                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
-                )
-            )
-        )
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+                .fillMaxSize()
+                .combinedClickable(onClick = onClick)
+                .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .background(
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
-                        RoundedCornerShape(12.dp)
-                    ),
+                    .size(60.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
                 contentAlignment = Alignment.Center
             ) {
                 if (latestImage != null) {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(latestImage!!.uri)
-                            .size(128) // Thumbnail size
+                            .size(256)
                             .crossfade(true)
                             .build(),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(12.dp))
+                        modifier = Modifier.fillMaxSize()
                     )
                 } else {
                     Icon(
                         imageVector = Icons.Default.Folder,
                         contentDescription = null,
-                        modifier = Modifier.size(28.dp),
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(32.dp)
                     )
                 }
             }
+
             Spacer(modifier = Modifier.width(16.dp))
+
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = folder.displayName, 
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), 
-                    maxLines = 1, 
+                    text = folder.displayName,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(4.dp))
@@ -805,8 +796,8 @@ fun FolderCard(
                     Icon(
                         imageVector = Icons.Default.FolderOpen,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                        modifier = Modifier.size(12.dp)
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        modifier = Modifier.size(14.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
@@ -818,25 +809,30 @@ fun FolderCard(
                     Text(
                         text = "•",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Icon(
                         imageVector = Icons.Default.PhotoLibrary,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                        modifier = Modifier.size(12.dp)
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        modifier = Modifier.size(14.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "${folder.imageCount} images",
+                        text = "${folder.imageCount} items",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
-            IconButton(onClick = onDelete) { 
-                Icon(Icons.Default.Delete, "Delete", tint = MaterialTheme.colorScheme.error) 
+
+            IconButton(onClick = onDelete) {
+                Icon(
+                    imageVector = Icons.Default.DeleteOutline,
+                    contentDescription = "Delete",
+                    tint = MaterialTheme.colorScheme.error
+                )
             }
         }
     }
@@ -859,17 +855,13 @@ fun FolderGridItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f),
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(18.dp),
             colors = CardDefaults.outlinedCardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow
             ),
-            border = CardDefaults.outlinedCardBorder().copy(
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
-                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
-                    )
-                )
+            border = BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
             )
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
@@ -877,7 +869,7 @@ fun FolderGridItem(
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(latestImage!!.uri)
-                            .size(256) // Thumbnail size to prevent memory crash
+                            .size(256)
                             .crossfade(true)
                             .build(),
                         contentDescription = null,
@@ -887,7 +879,7 @@ fun FolderGridItem(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.4f))
+                            .background(Color.Black.copy(alpha = 0.45f))
                     )
                 }
 
@@ -896,9 +888,9 @@ fun FolderGridItem(
                         .fillMaxSize()
                         .combinedClickable(
                             onClick = onClick,
-                            onLongClick = { 
+                            onLongClick = {
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                showMenu = true 
+                                showMenu = true
                             }
                         )
                         .padding(12.dp),
@@ -907,38 +899,38 @@ fun FolderGridItem(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(56.dp)
+                            .size(52.dp)
+                            .clip(RoundedCornerShape(14.dp))
                             .background(
                                 if (latestImage != null) {
                                     MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f)
                                 } else {
                                     MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
-                                },
-                                RoundedCornerShape(16.dp)
+                                }
                             ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Folder, 
-                            contentDescription = null, 
-                            modifier = Modifier.size(32.dp), 
+                            imageVector = Icons.Default.Folder,
+                            contentDescription = null,
+                            modifier = Modifier.size(28.dp),
                             tint = if (latestImage != null) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary
                         )
                     }
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = folder.displayName, 
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold), 
+                        text = folder.displayName,
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                         color = if (latestImage != null) Color.White else MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1, 
-                        overflow = TextOverflow.Ellipsis, 
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                         textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "${folder.imageCount} items", 
-                        style = MaterialTheme.typography.bodySmall, 
-                        color = if (latestImage != null) Color.White.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant, 
+                        text = "${folder.imageCount} items",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (latestImage != null) Color.White.copy(alpha = 0.75f) else MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
                 }
@@ -957,69 +949,6 @@ fun FolderGridItem(
                     )
                 ),
                 onDismiss = { showMenu = false }
-            )
-        }
-    }
-}
-
-@Composable
-fun EmptyStateContent(onBrowseGalleryClick: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 32.dp, vertical = 64.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .size(96.dp)
-                .background(
-                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
-                    RoundedCornerShape(32.dp)
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "📚", 
-                style = MaterialTheme.typography.displayMedium
-            )
-        }
-        Spacer(modifier = Modifier.height(24.dp))
-        Text(
-            text = "Your Library is Empty", 
-            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.ExtraBold), 
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            text = "Tap the '+' button at the bottom to link folders containing your images and comics.", 
-            style = MaterialTheme.typography.bodyMedium, 
-            textAlign = TextAlign.Center, 
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        
-        Spacer(modifier = Modifier.height(32.dp))
-        
-        FilledTonalButton(
-            onClick = onBrowseGalleryClick,
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.filledTonalButtonColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-            ),
-            modifier = Modifier.height(56.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.PhotoLibrary, 
-                contentDescription = null,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = "Browse Gallery Flat", 
-                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
             )
         }
     }

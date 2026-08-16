@@ -2,35 +2,46 @@ package com.devson.pixchive.feature.home
 
 import android.app.Application
 import android.net.Uri
+import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.asFlow
 import androidx.lifecycle.viewModelScope
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
+import androidx.work.workDataOf
 import com.devson.pixchive.PixChiveApplication
 import com.devson.pixchive.core.data.ComicFolder
 import com.devson.pixchive.core.data.PreferencesManager
+import com.devson.pixchive.core.data.local.HistoryEntity
+import com.devson.pixchive.core.data.local.ImageEntity
 import com.devson.pixchive.core.utils.FolderScanner
+import com.devson.pixchive.core.workers.FolderSyncWorker
+import com.devson.pixchive.core.workers.FolderValidationWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.UUID
-import androidx.documentfile.provider.DocumentFile
-import androidx.lifecycle.asFlow
-import androidx.work.WorkInfo
-import androidx.work.WorkManager
-import com.devson.pixchive.core.workers.FolderSyncWorker
-import com.devson.pixchive.core.workers.FolderValidationWorker
-import com.devson.pixchive.core.data.local.ImageEntity
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val preferencesManager = PreferencesManager(application)
-    private val imageDao = getApplication<PixChiveApplication>().database.imageDao()
-    private val historyDao = getApplication<PixChiveApplication>().database.historyDao()
+    private val app = getApplication<PixChiveApplication>()
+    private val imageDao = app.database.imageDao()
+    private val historyDao = app.database.historyDao()
+    private val favoriteDao = app.database.favoriteDao()
 
-    /** Last 10 chapters the user has read, most recent first. */
-    val recentHistory = historyDao.getRecentHistory()
+    /** Last 10 chapters the user has read, ordered by last accessed. */
+    val recentHistory: StateFlow<List<HistoryEntity>> = historyDao.getRecentHistory()
+        .flowOn(Dispatchers.IO)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // ... (Keep layout/sort state flows) ...
+    /** Total count of favorited images. */
+    val favoriteCount: StateFlow<Int> = favoriteDao.getAllFavoriteUrisFlow()
+        .map { it.size }
+        .flowOn(Dispatchers.IO)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
     private val _layoutMode = MutableStateFlow("list")
     val layoutMode: StateFlow<String> = _layoutMode.asStateFlow()
 
@@ -60,6 +71,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         .map { workInfos ->
             workInfos.any { it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED }
         }
+        .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val _isRefreshing = MutableStateFlow(false)
@@ -77,12 +89,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             _layoutMode.value = preferencesManager.homeLayoutModeFlow.first()
             _sortOption.value = preferencesManager.homeSortOptionFlow.first()
             _gridColumns.value = preferencesManager.homeGridColumnsFlow.first()
-            
+
             validateFolders()
         }
     }
 
-    // ... (Keep sortFolders method) ...
     private fun sortFolders(folders: List<ComicFolder>, option: String): List<ComicFolder> {
         return when (option) {
             "name_asc" -> folders.sortedBy { it.displayName.lowercase() }
@@ -95,8 +106,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun validateFolders() {
         val workManager = WorkManager.getInstance(getApplication())
-        val workRequest = androidx.work.OneTimeWorkRequestBuilder<FolderValidationWorker>()
-            .build()
+        val workRequest = OneTimeWorkRequestBuilder<FolderValidationWorker>().build()
         workManager.enqueueUniqueWork(
             "validate_folders",
             androidx.work.ExistingWorkPolicy.KEEP,
@@ -108,33 +118,31 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             if (_isRefreshing.value) return@launch
             _isRefreshing.value = true
-            
-            // Re-validate and trigger sync for all valid folders
+
             validateFolders()
             val currentFolders = preferencesManager.foldersFlow.first()
             val workManager = WorkManager.getInstance(getApplication())
-            
+
             currentFolders.forEach { folder ->
                 val showHidden = preferencesManager.showHiddenFilesFlow.first()
-                val workRequest = androidx.work.OneTimeWorkRequestBuilder<FolderSyncWorker>()
+                val workRequest = OneTimeWorkRequestBuilder<FolderSyncWorker>()
                     .setInputData(
-                        androidx.work.workDataOf(
+                        workDataOf(
                             FolderSyncWorker.KEY_FOLDER_ID to folder.id,
                             FolderSyncWorker.KEY_FOLDER_URI to folder.uri,
                             FolderSyncWorker.KEY_SHOW_HIDDEN to showHidden
                         )
                     )
                     .build()
-                    
+
                 workManager.enqueueUniqueWork(
                     "sync_folder_${folder.id}",
                     androidx.work.ExistingWorkPolicy.REPLACE,
                     workRequest
                 )
             }
-            
-            // Minimum spinner duration of 1 second for tactical feel
-            kotlinx.coroutines.delay(1000)
+
+            kotlinx.coroutines.delay(800)
             _isRefreshing.value = false
         }
     }
@@ -144,7 +152,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun addFolder(uri: Uri, name: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
             _errorMessage.value = null
 
@@ -152,7 +160,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 val folderId = UUID.randomUUID().toString()
                 val showHidden = preferencesManager.showHiddenFilesFlow.first()
 
-                // Scan and Insert into DB
                 FolderScanner.scanAndInsert(
                     getApplication(),
                     uri,
@@ -161,7 +168,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     showHidden
                 )
 
-                // Get counts from DB
                 val chapterCount = imageDao.getChapterCount(folderId)
                 val imageCount = imageDao.getImageCount(folderId)
 
@@ -188,11 +194,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun removeFolder(folderId: String) {
-        viewModelScope.launch {
-            // Clear from Database
+        viewModelScope.launch(Dispatchers.IO) {
             imageDao.deleteFolderContent(folderId)
+            historyDao.deleteHistoryForFolder(folderId)
 
-            // Update Preferences
             val currentFolders = preferencesManager.foldersFlow.first()
             val updatedFolders = currentFolders.filter { it.id != folderId }
             preferencesManager.saveFolders(updatedFolders)
@@ -200,12 +205,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun removeHistoryItem(folderId: String, chapterPath: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             historyDao.deleteHistory(folderId, chapterPath)
         }
     }
 
-    // ... (Keep setters for layout/sort options) ...
     fun setLayoutMode(mode: String) {
         viewModelScope.launch {
             _layoutMode.value = mode

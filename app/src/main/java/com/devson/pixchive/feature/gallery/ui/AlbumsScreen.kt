@@ -4,20 +4,26 @@ import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items as listItems
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.items as listItems
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.RestoreFromTrash
 import androidx.compose.material.icons.filled.SelectAll
@@ -29,22 +35,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.devson.pixchive.core.data.FileOperationsViewModel
+import com.devson.pixchive.core.designsystem.component.PixChiveEmptyState
+import com.devson.pixchive.core.designsystem.component.SkeletonLoadingView
+import com.devson.pixchive.core.utils.PermissionHelper
+import com.devson.pixchive.feature.gallery.ui.components.CustomRenameDialog
 import com.devson.pixchive.feature.gallery.ui.components.DetailsDialog
 import com.devson.pixchive.feature.gallery.ui.components.GalleryFolderItem
 import com.devson.pixchive.feature.gallery.ui.components.GallerySelectionBottomBar
 import com.devson.pixchive.feature.gallery.ui.components.GalleryViewSettingsBottomSheet
-import com.devson.pixchive.feature.gallery.ui.components.CustomRenameDialog
+import com.devson.pixchive.feature.gallery.ui.components.GlobalSearchAppBar
 import com.devson.pixchive.feature.gallery.viewmodel.GalleryState
 import com.devson.pixchive.feature.gallery.viewmodel.ImageListViewModel
-import com.devson.pixchive.core.utils.PermissionHelper
-import com.devson.pixchive.core.data.FileOperationsViewModel
-import com.devson.pixchive.feature.gallery.ui.components.GlobalSearchAppBar
 import com.devson.pixchive.feature.gallery.viewmodel.SearchViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -132,7 +141,7 @@ fun AlbumsScreen(
         topBar = {
             if (selectedFolderIds.isNotEmpty()) {
                 TopAppBar(
-                    title = { Text("${selectedFolderIds.size} selected") },
+                    title = { Text("${selectedFolderIds.size} selected", fontWeight = FontWeight.Bold) },
                     navigationIcon = {
                         IconButton(onClick = { viewModel.clearSelection() }) {
                             Icon(Icons.Default.Close, contentDescription = "Clear selection")
@@ -170,7 +179,11 @@ fun AlbumsScreen(
             }
         },
         bottomBar = {
-            if (selectedFolderIds.isNotEmpty()) {
+            AnimatedVisibility(
+                visible = selectedFolderIds.isNotEmpty(),
+                enter = slideInVertically { it } + fadeIn(),
+                exit = slideOutVertically { it } + fadeOut()
+            ) {
                 GallerySelectionBottomBar(
                     selectedCount = selectedFolderIds.size,
                     selectedImages = emptyList(),
@@ -188,12 +201,12 @@ fun AlbumsScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(paddingValues)
         ) {
             if (!hasPermission) {
                 Column(
                     modifier = Modifier
                         .align(Alignment.Center)
-                        .padding(paddingValues)
                         .padding(32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -207,7 +220,7 @@ fun AlbumsScreen(
                     Text("Storage Permission Required", style = MaterialTheme.typography.titleLarge)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "PixChive needs access to your storage to find device images.",
+                        text = "PixChive needs access to your storage to find device albums.",
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -227,7 +240,11 @@ fun AlbumsScreen(
             } else {
                 when (val state = uiState) {
                     is GalleryState.Loading -> {
-                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                        val baseColumns = if (layoutMode == "list") 1 else (4 - savedGridCellsIndex.coerceIn(0, 2))
+                        SkeletonLoadingView(
+                            layoutMode = layoutMode,
+                            columns = baseColumns
+                        )
                     }
                     is GalleryState.Error -> {
                         Text(
@@ -241,17 +258,17 @@ fun AlbumsScreen(
                     }
                     is GalleryState.Success -> {
                         if (state.folders.isEmpty()) {
-                            Text(
-                                text = "No images found on this device.",
-                                modifier = Modifier.align(Alignment.Center),
-                                style = MaterialTheme.typography.bodyLarge
+                            PixChiveEmptyState(
+                                icon = Icons.Default.FolderOpen,
+                                title = "No Albums Found",
+                                message = "Image albums stored on your device will appear here."
                             )
                         } else {
                             if (layoutMode == "list") {
                                 LazyColumn(
                                     contentPadding = PaddingValues(
-                                        top = paddingValues.calculateTopPadding() + 12.dp,
-                                        bottom = paddingValues.calculateBottomPadding() + 16.dp,
+                                        top = 12.dp,
+                                        bottom = 80.dp,
                                         start = 12.dp,
                                         end = 12.dp
                                     ),
@@ -274,7 +291,7 @@ fun AlbumsScreen(
                                 }
                             } else {
                                 var currentColumns by remember(savedGridCellsIndex) {
-                                    mutableStateOf(4 - savedGridCellsIndex.coerceIn(0, 2))
+                                    mutableIntStateOf(4 - savedGridCellsIndex.coerceIn(0, 2))
                                 }
                                 var accumulatedZoom by remember { mutableFloatStateOf(1f) }
 
@@ -288,8 +305,8 @@ fun AlbumsScreen(
                                     columns = GridCells.Fixed(animatedColumns.coerceIn(2, 4)),
                                     state = gridState,
                                     contentPadding = PaddingValues(
-                                        top = paddingValues.calculateTopPadding() + 12.dp,
-                                        bottom = paddingValues.calculateBottomPadding() + 16.dp,
+                                        top = 12.dp,
+                                        bottom = 80.dp,
                                         start = 12.dp,
                                         end = 12.dp
                                     ),
@@ -336,19 +353,12 @@ fun AlbumsScreen(
                                         GalleryFolderItem(
                                             folder = folder,
                                             isSelected = folder.bucketId in selectedFolderIds,
-                                            gridColumns = animatedColumns.coerceIn(2, 4),
+                                            isListMode = false,
                                             viewSettings = viewSettings,
                                             showThumbnail = showFolderThumbnail,
-                                            modifier = Modifier
-                                                .animateItem()
-                                                .fillMaxWidth(),
-                                            onClick = {
-                                                if (selectedFolderIds.isNotEmpty()) {
-                                                    viewModel.toggleSelection(folder.bucketId)
-                                                } else {
-                                                    onFolderClick(folder.bucketId)
-                                                }
-                                            },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            onClick = { onFolderClick(folder.bucketId) },
+                                            onThumbnailClick = { viewModel.toggleSelection(folder.bucketId) },
                                             onLongPress = { viewModel.toggleSelection(folder.bucketId) }
                                         )
                                     }
@@ -376,7 +386,7 @@ fun AlbumsScreen(
                 galleryViewMode = galleryViewMode,
                 onGalleryViewModeChange = { mode ->
                     viewModel.setGalleryViewMode(mode)
-                    if (mode == "all_images") {
+                    if (mode == "photos") {
                         showSettingsSheet = false
                         onSwitchToPhotos()
                     }
@@ -394,9 +404,8 @@ fun AlbumsScreen(
         }
 
         if (showRenameDialog) {
-            val selectedId = selectedFolderIds.firstOrNull()
-            val folder = (uiState as? GalleryState.Success)?.folders?.find { it.bucketId == selectedId }
-            folder?.let {
+            val selectedFolder = selectedFolders.firstOrNull()
+            selectedFolder?.let {
                 CustomRenameDialog(
                     initialName = it.folderName,
                     onConfirm = { newName ->

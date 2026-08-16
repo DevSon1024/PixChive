@@ -195,6 +195,20 @@ fun SkeletonList(
 }
 
 @Composable
+fun SkeletonLoadingView(
+    layoutMode: String = "grid",
+    columns: Int = 3,
+    count: Int = 15,
+    modifier: Modifier = Modifier
+) {
+    if (layoutMode == "list") {
+        SkeletonList(count = count, modifier = modifier)
+    } else {
+        SkeletonGrid(columns = columns.coerceIn(1, 6), count = count, modifier = modifier)
+    }
+}
+
+@Composable
 fun SkeletonGrid(
     columns: Int = 3,
     count: Int = 15,

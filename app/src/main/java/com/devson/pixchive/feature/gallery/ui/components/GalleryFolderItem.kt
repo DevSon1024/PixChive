@@ -56,7 +56,7 @@ private fun FolderThumbnail(
             .background(MaterialTheme.colorScheme.secondaryContainer),
         contentAlignment = Alignment.Center
     ) {
-        if (showThumbnail && folder.thumbnailUri != null) {
+        if (showThumbnail) {
             AsyncImage(
                 model = folder.thumbnailUri,
                 contentDescription = null,
@@ -371,7 +371,7 @@ fun GalleryFolderItem(
                         .then(clickMod)
                 ) {
                     // Thumbnail fills whole card
-                    if (showThumbnail && folder.thumbnailUri != null) {
+                    if (showThumbnail) {
                         AsyncImage(
                             model = folder.thumbnailUri,
                             contentDescription = null,

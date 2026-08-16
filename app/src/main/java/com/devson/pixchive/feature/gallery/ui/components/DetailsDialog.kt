@@ -22,6 +22,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import androidx.compose.ui.Alignment
 
+@Suppress("DEPRECATION")
 @Composable
 fun DetailsDialog(
     selectedFolders: List<GalleryFolder> = emptyList(),

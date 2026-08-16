@@ -283,7 +283,8 @@ enum class AppThemePalette(
         )
     }
 
-    fun darkScheme(): ColorScheme = when (this) {
+    fun darkScheme(isAmoled: Boolean = false): ColorScheme {
+        val base = when (this) {
 
         CINEMATIC -> darkColorScheme(
             primary                = Color(0xFF80EEFF),
@@ -500,6 +501,22 @@ enum class AppThemePalette(
             surfaceContainerHighest= Color(0xFF202332),
             scrim                  = Color(0xFF000000)
         )
+    }
+        return if (isAmoled) {
+            base.copy(
+                background             = AmoledBackground,
+                surface                = AmoledSurface,
+                surfaceVariant         = AmoledSurfaceContainer,
+                surfaceContainerLowest = AmoledBackground,
+                surfaceContainerLow    = AmoledSurface,
+                surfaceContainer       = AmoledSurfaceContainer,
+                surfaceContainerHigh   = Color(0xFF181818),
+                surfaceContainerHighest= Color(0xFF222222),
+                outline                = AmoledOutline
+            )
+        } else {
+            base
+        }
     }
 }
 

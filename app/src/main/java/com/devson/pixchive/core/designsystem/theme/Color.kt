@@ -2,23 +2,19 @@ package com.devson.pixchive.core.designsystem.theme
 
 import androidx.compose.ui.graphics.Color
 
-//  NOSVED PLAYER - Shared colour tokens
+//  PixChive - Shared Color Tokens
 //  Full per-palette ColorSchemes live in AppThemePalette.kt.
-//  Constants here are used directly by Theme.kt default schemes and in the
-//  player UI (seek-bar tint, status badges, etc.).
+//  Tokens defined here are used across the theme system, media readers, and design system components.
 
 // CINEMATIC palette raw tokens
-//  Primary Accent: Electric Cyan
 val NosvedCyan80        = Color(0xFF80EEFF)   // Light tint  (dark-theme primary)
 val NosvedCyan40        = Color(0xFF00BCD4)   // Mid tone    (light-theme primary)
 val NosvedCyanDeep      = Color(0xFF006978)   // Deep        (primaryContainer text, dark)
 val NosvedCyanAccent    = Color(0xFF00E5FF)   // Pure neon   (seek-bar, highlights)
 
-//  Secondary Accent: Amber / Gold
 val NosvedAmber80       = Color(0xFFFFE082)   // Light tint  (dark-theme secondary)
 val NosvedAmber40       = Color(0xFFFFB300)   // Saturated   (light-theme secondary)
 
-//  Tertiary: Deep Violet
 val NosvedViolet80      = Color(0xFFD0BCFF)   // Light tint  (dark-theme tertiary)
 val NosvedViolet40      = Color(0xFF7C4DFF)   // Saturated   (light-theme tertiary)
 
@@ -33,7 +29,7 @@ val NosvedIndigo40      = Color(0xFF3949AB)   // Medium      (light theme second
 val NosvedGreen80       = Color(0xFFB9F6CA)   // Light       (dark theme tertiary)
 val NosvedGreen40       = Color(0xFF1E8E3E)   // Medium      (light theme tertiary)
 
-//  Blue light surfaces (Google Play / Material 3 style)
+// Blue light surfaces (Material 3 style)
 val NosvedBlueLightBg       = Color(0xFFEEF1FB)   // Soft periwinkle-blue background
 val NosvedBlueLightSurface  = Color(0xFFFFFFFF)   // Pure white cards / dialogs
 val NosvedBlueLightSurface2 = Color(0xFFF3F6FF)   // Slightly tinted surface container
@@ -43,7 +39,7 @@ val NosvedBlueLightSubtext  = Color(0xFF44474F)   // Secondary / hint text
 val NosvedBlueLightPrimCont = Color(0xFFDAE2FF)   // Primary container (chips, badges)
 val NosvedBlueLightSecCont  = Color(0xFFE0E5FF)   // Secondary container (icon bgs)
 
-//  Blue dark surfaces
+// Blue dark surfaces
 val NosvedBlueDarkBg        = Color(0xFF0E1117)   // Background
 val NosvedBlueDarkSurface   = Color(0xFF161B27)   // Card / surface level 1
 val NosvedBlueDarkSurface2  = Color(0xFF1E2537)   // Card / surface level 2 (elevated)
@@ -70,6 +66,12 @@ val NosvedDarkOutline   = Color(0xFF2A3340)
 val NosvedDarkOnSurface = Color(0xFFDDE3EC)
 val NosvedDarkSubtext   = Color(0xFF8896A8)
 
-// Error / status
+// Pure OLED / AMOLED Black Tokens
+val AmoledBackground       = Color(0xFF000000)
+val AmoledSurface          = Color(0xFF050505)
+val AmoledSurfaceContainer = Color(0xFF121212)
+val AmoledOutline          = Color(0xFF262626)
+
+// Error / status tokens
 val NosvedErrorRed      = Color(0xFFCF6679)   // Error / destructive
 val NosvedSeekBarTint   = NosvedCyanAccent    // Progress / scrubber tint (Cinematic default)

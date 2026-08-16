@@ -1,20 +1,34 @@
 package com.devson.pixchive.core.designsystem.component
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ViewList
+import androidx.compose.material.icons.automirrored.outlined.ViewList
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Collections
+import androidx.compose.material.icons.outlined.FolderCopy
+import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.devson.pixchive.core.designsystem.theme.PixchiveTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,112 +50,140 @@ fun ViewSettingsBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         dragHandle = { BottomSheetDefaults.DragHandle() },
-        containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 0.dp
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        tonalElevation = 6.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp, vertical = 8.dp)
-                .padding(bottom = 32.dp)
+                .padding(bottom = 36.dp)
                 .verticalScroll(rememberScrollState())
         ) {
             Text(
                 text = "Display Options",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
             )
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // 1. View Mode (Only if enabled)
             if (viewMode != null && onViewModeChange != null) {
                 Text(
                     text = "View Mode",
                     style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     SelectionCard(
                         selected = viewMode == "all_folders",
                         title = "All Folders",
-                        icon = Icons.Default.FolderCopy,
+                        icon = if (viewMode == "all_folders") Icons.Default.FolderCopy else Icons.Outlined.FolderCopy,
                         onClick = { onViewModeChange("all_folders") },
                         modifier = Modifier.weight(1f)
                     )
                     SelectionCard(
                         selected = viewMode == "flat" || viewMode == "files",
                         title = "Flat View",
-                        icon = Icons.Default.Collections,
+                        icon = if (viewMode == "flat" || viewMode == "files") Icons.Default.Collections else Icons.Outlined.Collections,
                         onClick = { onViewModeChange("flat") },
                         modifier = Modifier.weight(1f)
                     )
                 }
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(20.dp))
             }
 
             // 2. Layout
             Text(
                 text = "Layout",
                 style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 SelectionCard(
                     selected = layoutMode == "grid",
                     title = "Grid",
-                    icon = Icons.Default.GridView,
+                    icon = if (layoutMode == "grid") Icons.Default.GridView else Icons.Outlined.GridView,
                     onClick = { onLayoutModeChange("grid") },
                     modifier = Modifier.weight(1f)
                 )
                 SelectionCard(
                     selected = layoutMode == "list",
                     title = "List",
-                    icon = Icons.AutoMirrored.Filled.ViewList,
+                    icon = if (layoutMode == "list") Icons.AutoMirrored.Filled.ViewList else Icons.AutoMirrored.Outlined.ViewList,
                     onClick = { onLayoutModeChange("list") },
                     modifier = Modifier.weight(1f)
                 )
             }
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            // 3. Grid Columns Slider (Only visible in Grid mode)
+            // 3. Grid Columns (Only visible in Grid mode)
             if (layoutMode == "grid") {
+                val haptic = LocalHapticFeedback.current
+                Text(
+                    text = "Grid Columns",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = "Grid Columns",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "$gridColumns",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                    listOf(1, 2, 3, 4).forEach { columns ->
+                        val isSelected = gridColumns == columns
+                        val containerColor by animateColorAsState(
+                            targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                            label = "col_container"
+                        )
+                        val contentColor by animateColorAsState(
+                            targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            label = "col_content"
+                        )
 
-                Slider(
-                    value = gridColumns.toFloat(),
-                    onValueChange = { onGridColumnsChange(it.toInt()) },
-                    valueRange = 1f..4f,
-                    steps = 2,
-                    colors = SliderDefaults.colors(
-                        thumbColor = MaterialTheme.colorScheme.primary,
-                        activeTrackColor = MaterialTheme.colorScheme.primary,
-                        inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                )
-                Spacer(modifier = Modifier.height(24.dp))
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(containerColor)
+                                .border(
+                                    width = 1.dp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .clickable {
+                                    if (!isSelected) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        onGridColumnsChange(columns)
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "$columns",
+                                color = contentColor,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(20.dp))
             }
 
             // 4. Sort By
@@ -149,10 +191,11 @@ fun ViewSettingsBottomSheet(
                 Text(
                     text = "Sort By",
                     style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                
+                Spacer(modifier = Modifier.height(10.dp))
+
                 val fieldAndDir = parseSortOption(sortOption)
 
                 OutlinedButton(
@@ -200,21 +243,33 @@ private fun SelectionCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
-    val contentColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-    val borderColor = if (!selected) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null
+    val haptic = LocalHapticFeedback.current
+    val containerColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+        label = "sel_container"
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+        label = "sel_content"
+    )
+    val borderColor = if (!selected) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
 
     Surface(
-        onClick = onClick,
+        onClick = {
+            if (!selected) {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            }
+            onClick()
+        },
         modifier = modifier.height(72.dp),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(14.dp),
         color = containerColor,
         border = borderColor
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(horizontal = 4.dp)
+            modifier = Modifier.padding(horizontal = 8.dp)
         ) {
             Icon(
                 imageVector = icon,
@@ -222,14 +277,25 @@ private fun SelectionCard(
                 tint = contentColor,
                 modifier = Modifier.size(24.dp)
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = title,
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                 color = contentColor,
                 maxLines = 1,
                 softWrap = false
             )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ViewSettingsBottomSheetPreview() {
+    PixchiveTheme {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Display Options Preview", style = MaterialTheme.typography.titleLarge)
         }
     }
 }

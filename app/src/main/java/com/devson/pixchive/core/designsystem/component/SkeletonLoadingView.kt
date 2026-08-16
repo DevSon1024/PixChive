@@ -4,35 +4,49 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import com.devson.pixchive.core.designsystem.theme.PixchiveTheme
 
+/**
+ * Creates a theme-aware animated shimmer brush.
+ */
 @Composable
-fun shimmerBrush(showShimmer: Boolean = true, targetValue: Float = 1000f): Brush {
+fun shimmerBrush(
+    showShimmer: Boolean = true,
+    targetValue: Float = 1000f,
+    baseColor: Color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+    highlightColor: Color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+): Brush {
     return if (showShimmer) {
         val shimmerColors = listOf(
-            Color.LightGray.copy(alpha = 0.6f),
-            Color.LightGray.copy(alpha = 0.2f),
-            Color.LightGray.copy(alpha = 0.6f),
+            baseColor,
+            highlightColor,
+            baseColor
         )
 
         val transition = rememberInfiniteTransition(label = "shimmerTransition")
@@ -40,7 +54,7 @@ fun shimmerBrush(showShimmer: Boolean = true, targetValue: Float = 1000f): Brush
             initialValue = 0f,
             targetValue = targetValue,
             animationSpec = infiniteRepeatable(
-                animation = tween(800, easing = FastOutSlowInEasing),
+                animation = tween(1000, easing = FastOutSlowInEasing),
                 repeatMode = RepeatMode.Restart
             ),
             label = "shimmerTranslate"
@@ -60,19 +74,36 @@ fun shimmerBrush(showShimmer: Boolean = true, targetValue: Float = 1000f): Brush
     }
 }
 
+/**
+ * Reusable modifier to apply animated skeleton shimmer with a clipped shape.
+ */
+fun Modifier.shimmerEffect(
+    shape: Shape = RoundedCornerShape(8.dp),
+    showShimmer: Boolean = true
+): Modifier = composed {
+    this
+        .clip(shape)
+        .background(shimmerBrush(showShimmer = showShimmer))
+}
+
 @Composable
-fun SkeletonHome(layoutMode: String, columns: Int, showHistory: Boolean = true) {
+fun SkeletonHome(
+    layoutMode: String = "grid",
+    columns: Int = 2,
+    showHistory: Boolean = true,
+    modifier: Modifier = Modifier
+) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(if (layoutMode == "grid") columns else 1),
         contentPadding = PaddingValues(bottom = 88.dp),
-        modifier = Modifier.fillMaxSize()
+        modifier = modifier.fillMaxSize()
     ) {
         if (showHistory) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 SkeletonSectionHeader(title = "Jump Back In", icon = Icons.Default.History)
             }
             item(span = { GridItemSpan(maxLineSpan) }) {
-                androidx.compose.foundation.lazy.LazyRow(
+                LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -92,13 +123,13 @@ fun SkeletonHome(layoutMode: String, columns: Int, showHistory: Boolean = true) 
         }
 
         if (layoutMode == "grid") {
-            items(10) {
+            items(8) {
                 Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
                     SkeletonGridItem()
                 }
             }
         } else {
-            items(6) {
+            items(5) {
                 Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
                     SkeletonListItem()
                 }
@@ -108,7 +139,7 @@ fun SkeletonHome(layoutMode: String, columns: Int, showHistory: Boolean = true) 
 }
 
 @Composable
-private fun SkeletonSectionHeader(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+private fun SkeletonSectionHeader(title: String, icon: ImageVector) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -131,22 +162,29 @@ private fun SkeletonSectionHeader(title: String, icon: androidx.compose.ui.graph
 }
 
 @Composable
-fun SkeletonHistoryCard() {
+fun SkeletonHistoryCard(modifier: Modifier = Modifier) {
     Surface(
-        modifier = Modifier
+        modifier = modifier
             .width(140.dp)
             .aspectRatio(0.7f),
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+        color = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
-        Box(modifier = Modifier.fillMaxSize().background(shimmerBrush()))
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(shimmerBrush())
+        )
     }
 }
 
 @Composable
-fun SkeletonList(count: Int = 10) {
+fun SkeletonList(
+    count: Int = 10,
+    modifier: Modifier = Modifier
+) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -157,13 +195,17 @@ fun SkeletonList(count: Int = 10) {
 }
 
 @Composable
-fun SkeletonGrid(columns: Int, count: Int = 15) {
+fun SkeletonGrid(
+    columns: Int = 3,
+    count: Int = 15,
+    modifier: Modifier = Modifier
+) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(columns),
         contentPadding = PaddingValues(16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.fillMaxSize()
+        modifier = modifier.fillMaxSize()
     ) {
         items(count) {
             SkeletonGridItem()
@@ -172,13 +214,13 @@ fun SkeletonGrid(columns: Int, count: Int = 15) {
 }
 
 @Composable
-fun SkeletonListItem() {
+fun SkeletonListItem(modifier: Modifier = Modifier) {
     Surface(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(80.dp),
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Row(
             modifier = Modifier
@@ -189,25 +231,22 @@ fun SkeletonListItem() {
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(shimmerBrush())
+                    .shimmerEffect(RoundedCornerShape(10.dp))
             )
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth(0.6f)
-                        .height(20.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(shimmerBrush())
+                        .fillMaxWidth(0.65f)
+                        .height(18.dp)
+                        .shimmerEffect(RoundedCornerShape(4.dp))
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth(0.4f)
-                        .height(16.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(shimmerBrush())
+                        .fillMaxWidth(0.35f)
+                        .height(14.dp)
+                        .shimmerEffect(RoundedCornerShape(4.dp))
                 )
             }
         }
@@ -215,35 +254,45 @@ fun SkeletonListItem() {
 }
 
 @Composable
-fun SkeletonGridItem() {
+fun SkeletonGridItem(modifier: Modifier = Modifier) {
     Surface(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .aspectRatio(1f),
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(8.dp),
+                .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(shimmerBrush())
+                    .shimmerEffect(RoundedCornerShape(12.dp))
             )
             Spacer(modifier = Modifier.height(12.dp))
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.7f)
-                    .height(16.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(shimmerBrush())
+                    .height(14.dp)
+                    .shimmerEffect(RoundedCornerShape(4.dp))
             )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun SkeletonListItemPreview() {
+    PixchiveTheme {
+        Column(modifier = Modifier.padding(16.dp)) {
+            SkeletonListItem()
+            Spacer(modifier = Modifier.height(12.dp))
+            SkeletonListItem()
         }
     }
 }

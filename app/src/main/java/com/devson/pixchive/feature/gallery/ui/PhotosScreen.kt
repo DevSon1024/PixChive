@@ -160,29 +160,6 @@ fun PhotosScreen(
                     }
                 }
             },
-            bottomBar = {
-                AnimatedVisibility(
-                    visible = selectedIds.isNotEmpty(),
-                    enter = slideInVertically { it } + fadeIn(),
-                    exit = slideOutVertically { it } + fadeOut()
-                ) {
-                    GallerySelectionBottomBar(
-                        selectedImages = selectedImages,
-                        fileOpsViewModel = fileOpsViewModel,
-                        onMove = {
-                            explorerOperationType = "MOVE"
-                            showStorageExplorer = true
-                        },
-                        onCopy = {
-                            explorerOperationType = "COPY"
-                            showStorageExplorer = true
-                        },
-                        onDelete = {},
-                        onRename = { showRenameDialog = true },
-                        onInfo = { showDetailsDialog = true }
-                    )
-                }
-            },
             containerColor = MaterialTheme.colorScheme.background
         ) { paddingValues ->
             Box(
@@ -220,7 +197,7 @@ fun PhotosScreen(
                             columns = GridCells.Fixed(1),
                             state = gridState,
                             contentPadding = PaddingValues(
-                                top = 8.dp,
+                                top = 4.dp,
                                 bottom = 100.dp
                             ),
                             horizontalArrangement = Arrangement.Start,
@@ -294,7 +271,7 @@ fun PhotosScreen(
                             columns = GridCells.Fixed(animatedColumns.coerceIn(2, 4)),
                             state = gridState,
                             contentPadding = PaddingValues(
-                                top = 8.dp,
+                                top = 4.dp,
                                 bottom = 100.dp,
                                 start = 8.dp,
                                 end = 8.dp

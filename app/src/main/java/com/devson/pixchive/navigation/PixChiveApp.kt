@@ -20,16 +20,21 @@ import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.devson.pixchive.core.designsystem.component.CapsuleBottomBar
 import com.devson.pixchive.core.designsystem.component.NavTabItem
+import com.devson.pixchive.feature.gallery.viewmodel.AllImagesViewModel
+import com.devson.pixchive.feature.gallery.viewmodel.ImageListViewModel
 
 /**
  * Root App Shell for PixChive with responsive Scaffold and floating 4-tab capsule navigation.
@@ -39,7 +44,15 @@ fun PixChiveApp(
     navController: NavHostController = rememberNavController()
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
+    val destination = navBackStackEntry?.destination
+
+    // Observe image selection state to hide capsule navigation during selection mode
+    val allImagesViewModel: AllImagesViewModel = viewModel()
+    val imageListViewModel: ImageListViewModel = viewModel()
+    val allImagesSelection by allImagesViewModel.selectedIds.collectAsState()
+    val imageListSelection by imageListViewModel.selectedIds.collectAsState()
+
+    val isSelectionActive = allImagesSelection.isNotEmpty() || imageListSelection.isNotEmpty()
 
     // Top-Level 4 Tabs definition
     val tabItems = remember {
@@ -51,16 +64,17 @@ fun PixChiveApp(
         )
     }
 
-    // Determine if current screen is a top-level screen
+    // Determine if current screen is a top-level screen using type-safe route matching
     val selectedTabIndex = when {
-        currentRoute?.contains("HomeDestination") == true -> 0
-        currentRoute?.contains("GalleryDestination") == true -> 1
-        currentRoute?.contains("LibraryDestination") == true -> 2
-        currentRoute?.contains("SettingsDestination") == true -> 3
+        destination?.hasRoute<HomeDestination>() == true -> 0
+        destination?.hasRoute<GalleryDestination>() == true -> 1
+        destination?.hasRoute<LibraryDestination>() == true -> 2
+        destination?.hasRoute<SettingsDestination>() == true -> 3
         else -> -1
     }
 
-    val showBottomBar = selectedTabIndex != -1
+    // Capsule bottom bar is visible only on root tabs AND when multi-selection mode is inactive
+    val showBottomBar = selectedTabIndex != -1 && !isSelectionActive
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -80,7 +94,7 @@ fun PixChiveApp(
                         items = tabItems,
                         selectedTabIndex = if (selectedTabIndex >= 0) selectedTabIndex else 0,
                         onTabSelected = { index ->
-                            val targetDestination = when (index) {
+                            val targetDestination: PixChiveDestination = when (index) {
                                 0 -> HomeDestination
                                 1 -> GalleryDestination
                                 2 -> LibraryDestination
@@ -89,12 +103,19 @@ fun PixChiveApp(
                             }
 
                             if (selectedTabIndex != index) {
-                                navController.navigate(targetDestination) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
+                                if (targetDestination == HomeDestination) {
+                                    navController.popBackStack(
+                                        navController.graph.findStartDestination().id,
+                                        inclusive = false
+                                    )
+                                } else {
+                                    navController.navigate(targetDestination) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
                                     }
-                                    launchSingleTop = true
-                                    restoreState = true
                                 }
                             }
                         }
@@ -110,4 +131,3 @@ fun PixChiveApp(
         )
     }
 }
-

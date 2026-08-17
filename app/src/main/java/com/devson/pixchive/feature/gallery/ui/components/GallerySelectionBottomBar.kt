@@ -1,14 +1,10 @@
 package com.devson.pixchive.feature.gallery.ui.components
 
 import android.net.Uri
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.filled.ContentCopy
@@ -16,28 +12,24 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.BottomAppBar
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.devson.pixchive.core.data.FileOperationsViewModel
 import com.devson.pixchive.core.data.models.GalleryImage
 import com.devson.pixchive.core.utils.shareMedia
-import com.devson.pixchive.core.data.FileOperationsViewModel
 
+/**
+ * Floating Capsule Selection Action Bar that morphs from the main bottom navbar during selection mode.
+ */
 @Composable
 fun GallerySelectionBottomBar(
     selectedImages: List<GalleryImage> = emptyList(),
@@ -47,39 +39,64 @@ fun GallerySelectionBottomBar(
     onCopy: () -> Unit,
     onDelete: () -> Unit,
     onRename: () -> Unit,
-    onInfo: () -> Unit
+    onInfo: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    BottomAppBar(
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.fillMaxWidth()
+    Surface(
+        modifier = modifier
+            .padding(bottom = 16.dp)
+            .height(56.dp)
+            .wrapContentWidth()
+            .graphicsLayer {
+                shadowElevation = 8.dp.toPx()
+                shape = RoundedCornerShape(28.dp)
+                clip = true
+            },
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.96f),
+        shape = RoundedCornerShape(28.dp),
+        tonalElevation = 8.dp
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+                .fillMaxHeight()
                 .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.SpaceEvenly,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ActionColumn(icon = Icons.AutoMirrored.Filled.DriveFileMove, label = "Move", onClick = onMove)
-            ActionColumn(icon = Icons.Filled.ContentCopy, label = "Copy", onClick = onCopy)
+            CapsuleActionButton(
+                icon = Icons.AutoMirrored.Filled.DriveFileMove,
+                label = "Move",
+                onClick = onMove
+            )
+            CapsuleActionButton(
+                icon = Icons.Filled.ContentCopy,
+                label = "Copy",
+                onClick = onCopy
+            )
             if (selectedCount == 1) {
-                ActionColumn(
+                CapsuleActionButton(
                     icon = Icons.Filled.Edit,
                     label = "Rename",
                     onClick = onRename
                 )
             }
-            ActionColumn(
-                icon = Icons.Filled.Share,
-                label = "Share",
-                onClick = { shareMedia(context, selectedImages) }
+            if (selectedImages.isNotEmpty()) {
+                CapsuleActionButton(
+                    icon = Icons.Filled.Share,
+                    label = "Share",
+                    onClick = { shareMedia(context, selectedImages) }
+                )
+            }
+            CapsuleActionButton(
+                icon = Icons.Filled.Info,
+                label = "Info",
+                onClick = onInfo
             )
-            ActionColumn(icon = Icons.Filled.Info, label = "Info", onClick = onInfo)
-            ActionColumn(
+            CapsuleActionButton(
                 icon = Icons.Filled.Delete,
                 label = "Delete",
                 onClick = {
@@ -131,19 +148,25 @@ fun GallerySelectionBottomBar(
 }
 
 @Composable
-private fun ActionColumn(
+private fun CapsuleActionButton(
     icon: ImageVector,
     label: String,
     onClick: () -> Unit,
-    tint: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurfaceVariant
+    tint: Color = MaterialTheme.colorScheme.onSurfaceVariant
 ) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .clickable { onClick() }
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(20.dp),
+        color = Color.Transparent
     ) {
-        Icon(icon, contentDescription = label, tint = tint)
-        Text(label, fontSize = 10.sp, color = tint)
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+        ) {
+            Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(20.dp))
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = tint)
+        }
     }
 }

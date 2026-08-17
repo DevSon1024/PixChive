@@ -1,16 +1,18 @@
 # AGENTS.md - System Instructions for AI Agents
 
-Welcome to the **PixChive** codebase. When assisting with this project, you must strictly adhere to the architectural boundaries, UI standards, and workflow rules defined in this document. 
+Welcome to the **PixChive** codebase. When assisting with this project, you must strictly adhere to the architectural boundaries, UI standards, and workflow rules defined in this document.
 
 ## 1. Project Architecture & Separation of Concerns
 
 PixChive is fundamentally divided into two distinct operational domains:
+
 1. **Image Gallery**
 2. **Comic Reading**
 
 These domains operate with completely separate working environments, logic, and data handling.
+
 - **Current Structure:** The gallery logic and UI are isolated within their own dedicated `gallery` package folder.
-- **Future Structure:** A dedicated `comic` package will be established using the exact same isolated architecture. 
+- **Future Structure:** A dedicated `comic` package will be established using the exact same isolated architecture.
 - **Rule:** Never bleed logic, ViewModels, or state management between the Gallery and Comic Reader domains. Keep their ecosystems completely encapsulated.
 
 ## 2. UI / Jetpack Compose Guidelines
@@ -31,12 +33,20 @@ These domains operate with completely separate working environments, logic, and 
 
 You must actively maintain the project's changelog. After every completed task, error resolution, or feature addition, you must append an entry to the `update_details.md` file.
 
-**Format for `update_details.md` entries:**
-- **Type of Details:** (e.g., Error Solving, New Update, Refactor, Performance Improvement, More)
-- **Description:** A brief, clear summary of what was changed, fixed, or added in the recent chat/interaction.
-- **End Marker:** After the details of the latest update, you must append `---` to close out that specific chat area/session.
+**Format and Rules for `update_details.md`:**
 
-### Example Update Entry:
-**Type:** Error Solving
-**Details:** Migrated `getAllImages` to use Paging 3 to resolve OOM exceptions and heavy GC pauses. Refactored `GalleryImageItem` to optimize Coil `ImageRequest` for smoother high-column grid scrolling.
+- Do NOT read or rewrite the whole file every time. Simply append the new data at the very end of the document.
+- Include a Date and Time stamp for the update.
+  Whenever a fix, optimization, or feature is completed, you MUST document it using the following format:
+
+- **Issue:** (Briefly describe the exact issue or bottleneck that was just solved)
+- **Type:** (Specify the category: e.g., Error, Bug, UI, Performance, Architecture, Feature)
+- **Solution:** (Explain how the issue was solved. Maximum 10 lines.)
+- After the details of the latest update, you must append exactly `---` on a new line to close out that specific session.
+- Do not include any conversational filler in the file.
+
+## 5. Version Control (Git) Protocol
+
+- **Do not commit or push** any changes to the repository until explicitly being asked to do so by the developer.
+
 ---

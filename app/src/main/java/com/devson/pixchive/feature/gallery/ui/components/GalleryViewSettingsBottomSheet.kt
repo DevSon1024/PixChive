@@ -92,6 +92,30 @@ fun GalleryViewSettingsBottomSheet(
                 modifier = Modifier.padding(bottom = 12.dp)
             )
 
+            if (onGalleryViewModeChange != null) {
+                GallerySettingsSectionLabel("View Mode")
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    GalleryIconToggleButton(
+                        label = "Albums",
+                        selected = galleryViewMode == "albums",
+                        selectedIcon = Icons.Filled.FolderCopy,
+                        unselectedIcon = Icons.Outlined.FolderCopy,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onGalleryViewModeChange("albums") }
+                    )
+                    GalleryIconToggleButton(
+                        label = "Photos",
+                        selected = galleryViewMode == "photos",
+                        selectedIcon = Icons.Filled.Collections,
+                        unselectedIcon = Icons.Outlined.Collections,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onGalleryViewModeChange("photos") }
+                    )
+                }
+                HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
+            }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

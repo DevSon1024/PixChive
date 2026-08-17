@@ -183,24 +183,6 @@ fun AlbumsScreen(
                 }
             }
         },
-        bottomBar = {
-            AnimatedVisibility(
-                visible = selectedFolderIds.isNotEmpty(),
-                enter = slideInVertically { it } + fadeIn(),
-                exit = slideOutVertically { it } + fadeOut()
-            ) {
-                GallerySelectionBottomBar(
-                    selectedCount = selectedFolderIds.size,
-                    selectedImages = emptyList(),
-                    fileOpsViewModel = fileOpsViewModel,
-                    onMove = {},
-                    onCopy = {},
-                    onDelete = {},
-                    onRename = { showRenameDialog = true },
-                    onInfo = { showDetailsDialog = true }
-                )
-            }
-        },
         containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Box(
@@ -272,7 +254,7 @@ fun AlbumsScreen(
                             if (layoutMode == "list") {
                                 LazyColumn(
                                     contentPadding = PaddingValues(
-                                        top = 12.dp,
+                                        top = 4.dp,
                                         bottom = 100.dp,
                                         start = 12.dp,
                                         end = 12.dp
@@ -310,7 +292,7 @@ fun AlbumsScreen(
                                     columns = GridCells.Fixed(animatedColumns.coerceIn(2, 4)),
                                     state = gridState,
                                     contentPadding = PaddingValues(
-                                        top = 12.dp,
+                                        top = 4.dp,
                                         bottom = 100.dp,
                                         start = 12.dp,
                                         end = 12.dp

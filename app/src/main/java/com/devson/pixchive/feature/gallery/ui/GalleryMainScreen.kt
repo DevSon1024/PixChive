@@ -1,6 +1,10 @@
 package com.devson.pixchive.feature.gallery.ui
 
-import androidx.compose.foundation.background
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -14,10 +18,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.devson.pixchive.core.data.FileOperationsViewModel
 import com.devson.pixchive.core.data.PreferencesManager
+import com.devson.pixchive.feature.gallery.ui.components.CustomRenameDialog
+import com.devson.pixchive.feature.gallery.ui.components.DetailsDialog
+import com.devson.pixchive.feature.gallery.ui.components.GallerySelectionBottomBar
 import com.devson.pixchive.feature.gallery.ui.components.GalleryViewSettingsBottomSheet
 import com.devson.pixchive.feature.gallery.ui.components.GlobalSearchAppBar
 import com.devson.pixchive.feature.gallery.viewmodel.AllImagesViewModel
+import com.devson.pixchive.feature.gallery.viewmodel.GalleryState
 import com.devson.pixchive.feature.gallery.viewmodel.ImageListViewModel
 import com.devson.pixchive.feature.gallery.viewmodel.SearchViewModel
 import kotlinx.coroutines.launch
@@ -61,8 +70,10 @@ fun GalleryMainScreen(
     val allImagesViewModel: AllImagesViewModel = viewModel()
     val imageListViewModel: ImageListViewModel = viewModel()
     val searchViewModel: SearchViewModel = viewModel()
+    val fileOpsViewModel: FileOperationsViewModel = viewModel()
 
     val allImagesSelection by allImagesViewModel.selectedIds.collectAsState()
+    val selectedImages by allImagesViewModel.selectedImages.collectAsState()
     val imageListSelection by imageListViewModel.selectedIds.collectAsState()
 
     val isInSelectionMode = (pagerState.currentPage == 0 && imageListSelection.isNotEmpty()) ||
@@ -70,6 +81,11 @@ fun GalleryMainScreen(
 
     var showAlbumsSettingsSheet by remember { mutableStateOf(false) }
     var showPhotosSettingsSheet by remember { mutableStateOf(false) }
+
+    var showRenameDialog by remember { mutableStateOf(false) }
+    var showDetailsDialog by remember { mutableStateOf(false) }
+    var showStorageExplorer by remember { mutableStateOf(false) }
+    var explorerOperationType by remember { mutableStateOf("MOVE") }
 
     val searchQuery by searchViewModel.searchQuery.collectAsState()
     val suggestions by searchViewModel.suggestions.collectAsState()
@@ -107,80 +123,31 @@ fun GalleryMainScreen(
                     )
                 )
             } else {
-                Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background)) {
-                    GlobalSearchAppBar(
-                        title = "Gallery",
-                        searchQuery = searchQuery,
-                        suggestions = suggestions,
-                        onQueryChange = { searchViewModel.updateSearchQuery(it) },
-                        onSearch = onSearch,
-                        onBackClick = onNavigateBack,
-                        actions = {
-                            IconButton(onClick = onRecycleBinClick) {
-                                Icon(Icons.Filled.RestoreFromTrash, contentDescription = "Recycle Bin")
-                            }
-                            IconButton(onClick = {
-                                if (pagerState.currentPage == 0) {
-                                    showAlbumsSettingsSheet = true
-                                } else {
-                                    showPhotosSettingsSheet = true
-                                }
-                            }) {
-                                Icon(Icons.Default.Tune, contentDescription = "View Settings")
-                            }
-                            IconButton(onClick = onSettingsClick) {
-                                Icon(Icons.Default.Settings, contentDescription = "App Settings")
-                            }
+                GlobalSearchAppBar(
+                    title = "Gallery",
+                    searchQuery = searchQuery,
+                    suggestions = suggestions,
+                    onQueryChange = { searchViewModel.updateSearchQuery(it) },
+                    onSearch = onSearch,
+                    onBackClick = onNavigateBack,
+                    actions = {
+                        IconButton(onClick = onRecycleBinClick) {
+                            Icon(Icons.Filled.RestoreFromTrash, contentDescription = "Recycle Bin")
                         }
-                    )
-
-                    // Material 3 Segmented Button Row at Top
-                    SingleChoiceSegmentedButtonRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp)
-                    ) {
-                        SegmentedButton(
-                            selected = pagerState.currentPage == 0,
-                            onClick = { scope.launch { pagerState.animateScrollToPage(0) } },
-                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                            icon = {
-                                SegmentedButtonDefaults.Icon(active = pagerState.currentPage == 0) {
-                                    Icon(
-                                        Icons.Default.Folder,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
+                        IconButton(onClick = {
+                            if (pagerState.currentPage == 0) {
+                                showAlbumsSettingsSheet = true
+                            } else {
+                                showPhotosSettingsSheet = true
                             }
-                        ) {
-                            Text(
-                                "Albums",
-                                fontWeight = if (pagerState.currentPage == 0) FontWeight.Bold else FontWeight.Normal
-                            )
+                        }) {
+                            Icon(Icons.Default.Tune, contentDescription = "View Settings")
                         }
-
-                        SegmentedButton(
-                            selected = pagerState.currentPage == 1,
-                            onClick = { scope.launch { pagerState.animateScrollToPage(1) } },
-                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                            icon = {
-                                SegmentedButtonDefaults.Icon(active = pagerState.currentPage == 1) {
-                                    Icon(
-                                        Icons.Default.PhotoLibrary,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                        ) {
-                            Text(
-                                "Photos",
-                                fontWeight = if (pagerState.currentPage == 1) FontWeight.Bold else FontWeight.Normal
-                            )
+                        IconButton(onClick = onSettingsClick) {
+                            Icon(Icons.Default.Settings, contentDescription = "App Settings")
                         }
                     }
-                }
+                )
             }
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -222,6 +189,45 @@ fun GalleryMainScreen(
                     )
                 }
             }
+
+            // Floating Capsule Selection Action Bar
+            AnimatedVisibility(
+                visible = isInSelectionMode,
+                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+            ) {
+                if (pagerState.currentPage == 0) {
+                    GallerySelectionBottomBar(
+                        selectedCount = imageListSelection.size,
+                        selectedImages = emptyList(),
+                        fileOpsViewModel = fileOpsViewModel,
+                        onMove = {},
+                        onCopy = {},
+                        onDelete = {},
+                        onRename = { showRenameDialog = true },
+                        onInfo = { showDetailsDialog = true }
+                    )
+                } else {
+                    GallerySelectionBottomBar(
+                        selectedImages = selectedImages,
+                        fileOpsViewModel = fileOpsViewModel,
+                        onMove = {
+                            explorerOperationType = "MOVE"
+                            showStorageExplorer = true
+                        },
+                        onCopy = {
+                            explorerOperationType = "COPY"
+                            showStorageExplorer = true
+                        },
+                        onDelete = {},
+                        onRename = { showRenameDialog = true },
+                        onInfo = { showDetailsDialog = true }
+                    )
+                }
+            }
         }
     }
 
@@ -244,6 +250,13 @@ fun GalleryMainScreen(
             onSortOptionChange = { imageListViewModel.setSortOption(it) },
             showFolderThumbnail = showFolderThumbnail,
             onShowFolderThumbnailChange = { imageListViewModel.setShowFolderThumbnail(it) },
+            galleryViewMode = "albums",
+            onGalleryViewModeChange = { mode ->
+                showAlbumsSettingsSheet = false
+                scope.launch {
+                    if (mode == "photos") pagerState.animateScrollToPage(1)
+                }
+            },
             onDismiss = { showAlbumsSettingsSheet = false }
         )
     }
@@ -264,7 +277,76 @@ fun GalleryMainScreen(
             onSortOptionChange = {},
             showFolderThumbnail = false,
             onShowFolderThumbnailChange = {},
+            galleryViewMode = "photos",
+            onGalleryViewModeChange = { mode ->
+                showPhotosSettingsSheet = false
+                scope.launch {
+                    if (mode == "albums") pagerState.animateScrollToPage(0)
+                }
+            },
             onDismiss = { showPhotosSettingsSheet = false }
+        )
+    }
+
+    // Selection Dialogs
+    if (showDetailsDialog) {
+        if (pagerState.currentPage == 0) {
+            val foldersState by imageListViewModel.uiState.collectAsState()
+            val selectedFoldersList = (foldersState as? GalleryState.Success)?.folders?.filter { it.bucketId in imageListSelection } ?: emptyList()
+            DetailsDialog(
+                selectedFolders = selectedFoldersList,
+                selectedImages = emptyList(),
+                onDismiss = { showDetailsDialog = false }
+            )
+        } else {
+            DetailsDialog(
+                selectedFolders = emptyList(),
+                selectedImages = selectedImages,
+                onDismiss = { showDetailsDialog = false }
+            )
+        }
+    }
+
+    if (showRenameDialog) {
+        if (pagerState.currentPage == 0) {
+            val selectedId = imageListSelection.firstOrNull()
+            val foldersState by imageListViewModel.uiState.collectAsState()
+            val folder = (foldersState as? GalleryState.Success)?.folders?.find { it.bucketId == selectedId }
+            folder?.let {
+                CustomRenameDialog(
+                    initialName = it.folderName,
+                    onConfirm = { newName ->
+                        imageListViewModel.renameSelectedFolder(newName)
+                        showRenameDialog = false
+                    },
+                    onDismiss = { showRenameDialog = false }
+                )
+            }
+        } else {
+            val selectedId = allImagesSelection.firstOrNull()
+            val image = selectedImages.find { it.id == selectedId }
+            image?.let {
+                CustomRenameDialog(
+                    initialName = it.realPath.substringAfterLast('/'),
+                    onConfirm = { newName ->
+                        allImagesViewModel.renameSelectedImage(newName)
+                        showRenameDialog = false
+                    },
+                    onDismiss = { showRenameDialog = false }
+                )
+            }
+        }
+    }
+
+    if (showStorageExplorer) {
+        StorageExplorerScreen(
+            operationType = explorerOperationType,
+            sourceUris = selectedImages.map { it.uri },
+            onComplete = {
+                showStorageExplorer = false
+                allImagesViewModel.clearSelection()
+            },
+            onCancel = { showStorageExplorer = false }
         )
     }
 }

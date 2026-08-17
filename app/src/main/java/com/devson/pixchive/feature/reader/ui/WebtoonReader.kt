@@ -19,6 +19,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import coil.request.CachePolicy
 import coil.request.ImageRequest
 import coil.size.Size
 import com.devson.pixchive.core.data.ImageFile
@@ -28,6 +29,7 @@ import me.saket.telephoto.zoomable.ZoomSpec
 import me.saket.telephoto.zoomable.coil.ZoomableAsyncImage
 import me.saket.telephoto.zoomable.rememberZoomableImageState
 import me.saket.telephoto.zoomable.rememberZoomableState
+import java.io.File
 
 @Composable
 fun WebtoonReader(
@@ -52,7 +54,6 @@ fun WebtoonReader(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
-            // Handle single taps on the empty spaces in the Box, if any
             .pointerInput(Unit) {
                 detectTapGestures(onTap = { onToggleUI() })
             }
@@ -103,9 +104,9 @@ private fun WebtoonPageItem(
         chapterImages.getOrNull(page)
     }
 
-    val imageUri = when (pageImage) {
-        is ImageEntity -> pageImage.uri
-        is ImageFile   -> pageImage.uri.toString()
+    val model = when (pageImage) {
+        is ImageEntity -> if (pageImage.path.isNotEmpty()) File(pageImage.path) else pageImage.uri
+        is ImageFile   -> if (pageImage.path.isNotEmpty()) File(pageImage.path) else pageImage.uri
         else           -> null
     }
 
@@ -119,8 +120,11 @@ private fun WebtoonPageItem(
 
         ZoomableAsyncImage(
             model = ImageRequest.Builder(context)
-                .data(imageUri)
+                .data(model)
                 .size(Size.ORIGINAL)
+                .allowHardware(true)
+                .memoryCachePolicy(CachePolicy.ENABLED)
+                .diskCachePolicy(CachePolicy.ENABLED)
                 .crossfade(false)
                 .build(),
             contentDescription = null,
@@ -132,4 +136,4 @@ private fun WebtoonPageItem(
             contentScale = ContentScale.FillWidth
         )
     }
-}
+}

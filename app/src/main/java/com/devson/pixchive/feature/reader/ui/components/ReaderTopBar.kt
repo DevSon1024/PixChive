@@ -8,13 +8,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.CompareArrows
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -27,16 +27,20 @@ import com.devson.pixchive.core.data.local.ImageEntity
 fun ReaderTopBar(
     chapterFolderName: String,
     currentImageName: String,
-    @Suppress("UNUSED_PARAMETER") showMoreMenu: Boolean,
+    @Suppress("UNUSED_PARAMETER") showMoreMenu: Boolean = false,
     currentImage: ImageFile?,
     currentImageEntity: ImageEntity? = null,
     isFavorite: Boolean = false,
+    readerScrollMode: String = "pager",
+    mangaMode: Boolean = false,
     onNavigateBack: () -> Unit,
-    onMoreMenuToggle: (Boolean) -> Unit,
+    onMoreMenuToggle: (Boolean) -> Unit = {},
     onToggleFavorite: () -> Unit = {},
-    contentColor: Color = Color.White  // Dynamic UI color from image brightness
+    onSetReadingMode: ((scrollMode: String, isManga: Boolean) -> Unit)? = null,
+    contentColor: Color = Color.White
 ) {
     var showDetailsDialog by remember { mutableStateOf(false) }
+    var showReadingModeMenu by remember { mutableStateOf(false) }
 
     // Favorite animation
     var favoriteTrigger by remember { mutableStateOf(false) }
@@ -63,6 +67,12 @@ fun ReaderTopBar(
         }
     }
 
+    val readingModeLabel = when {
+        readerScrollMode == "webtoon" -> "Webtoon"
+        mangaMode -> "Manga"
+        else -> "Comic"
+    }
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -83,7 +93,7 @@ fun ReaderTopBar(
                 Surface(
                     onClick = onNavigateBack,
                     shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.35f),
                     modifier = Modifier.size(44.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -138,14 +148,99 @@ fun ReaderTopBar(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Reading Mode Selector
+                    Box {
+                        Surface(
+                            onClick = { showReadingModeMenu = true },
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.35f),
+                            modifier = Modifier.height(44.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = when {
+                                        readerScrollMode == "webtoon" -> Icons.Default.SwapVert
+                                        mangaMode -> Icons.AutoMirrored.Filled.CompareArrows
+                                        else -> Icons.Default.ViewCarousel
+                                    },
+                                    contentDescription = "Reading Mode",
+                                    tint = contentColor,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Text(
+                                    text = readingModeLabel,
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = contentColor
+                                )
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = showReadingModeMenu,
+                            onDismissRequest = { showReadingModeMenu = false },
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Manga Mode (RTL)") },
+                                leadingIcon = {
+                                    Icon(Icons.AutoMirrored.Filled.CompareArrows, contentDescription = null)
+                                },
+                                trailingIcon = {
+                                    if (readerScrollMode != "webtoon" && mangaMode) {
+                                        Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                },
+                                onClick = {
+                                    showReadingModeMenu = false
+                                    onSetReadingMode?.invoke("pager", true)
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Comic Mode (LTR)") },
+                                leadingIcon = {
+                                    Icon(Icons.Default.ViewCarousel, contentDescription = null)
+                                },
+                                trailingIcon = {
+                                    if (readerScrollMode != "webtoon" && !mangaMode) {
+                                        Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                },
+                                onClick = {
+                                    showReadingModeMenu = false
+                                    onSetReadingMode?.invoke("pager", false)
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Webtoon Mode (Vertical)") },
+                                leadingIcon = {
+                                    Icon(Icons.Default.SwapVert, contentDescription = null)
+                                },
+                                trailingIcon = {
+                                    if (readerScrollMode == "webtoon") {
+                                        Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                },
+                                onClick = {
+                                    showReadingModeMenu = false
+                                    onSetReadingMode?.invoke("webtoon", mangaMode)
+                                }
+                            )
+                        }
+                    }
+
                     // Favorite Button
                     Surface(
                         onClick = { onToggleFavorite() },
                         shape = CircleShape,
                         color = if (isFavorite)
-                            Color(0xFFFF4081).copy(alpha = 0.2f)
+                            Color(0xFFFF4081).copy(alpha = 0.25f)
                         else
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.3f),
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.35f),
                         modifier = Modifier
                             .size(44.dp)
                             .scale(favoriteScale)
@@ -167,7 +262,7 @@ fun ReaderTopBar(
                             onMoreMenuToggle(false)
                         },
                         shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f),
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.35f),
                         modifier = Modifier.size(44.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
@@ -190,4 +285,4 @@ fun ReaderTopBar(
         showDetailsDialog && currentImage != null ->
             ImageDetailsDialog(image = currentImage, onDismiss = { showDetailsDialog = false })
     }
-}
+}

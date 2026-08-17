@@ -21,8 +21,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.devson.pixchive.core.data.local.ImageEntity
-import com.devson.pixchive.core.designsystem.component.ViewSettingsBottomSheet
 import com.devson.pixchive.core.designsystem.component.EmptyFavoritesView
+import com.devson.pixchive.core.designsystem.component.SkeletonLoadingView
+import com.devson.pixchive.core.designsystem.component.ViewSettingsBottomSheet
 import com.devson.pixchive.feature.gallery.ui.components.ImageGridItem
 import com.devson.pixchive.feature.gallery.ui.components.ImageListItem
 import com.devson.pixchive.feature.reader.viewmodel.FolderViewModel
@@ -78,7 +79,13 @@ fun FavoritesScreen(
         Box(modifier = Modifier.fillMaxSize()) {
             when {
                 lazyImages.loadState.refresh is LoadState.Loading && lazyImages.itemCount == 0 -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    SkeletonLoadingView(
+                        layoutMode = layoutMode,
+                        columns = gridColumns,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = padding.calculateTopPadding())
+                    )
                 }
                 lazyImages.itemCount == 0 && lazyImages.loadState.refresh is LoadState.NotLoading -> {
                     Box(modifier = Modifier.padding(top = padding.calculateTopPadding())) {

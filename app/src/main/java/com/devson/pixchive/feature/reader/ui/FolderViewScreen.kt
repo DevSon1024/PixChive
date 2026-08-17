@@ -27,11 +27,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.devson.pixchive.feature.reader.ui.components.ChapterListItem
 import com.devson.pixchive.core.designsystem.component.EmptyChaptersView
+import com.devson.pixchive.core.designsystem.component.SkeletonLoadingView
 import com.devson.pixchive.core.designsystem.component.ViewSettingsBottomSheet
-import com.devson.pixchive.core.designsystem.component.SkeletonGrid
-import com.devson.pixchive.core.designsystem.component.SkeletonList
+import com.devson.pixchive.feature.reader.ui.components.ChapterListItem
 import com.devson.pixchive.feature.reader.viewmodel.FolderViewModel
 import kotlinx.coroutines.flow.filter
 
@@ -112,9 +111,13 @@ fun FolderViewScreen(
                    (currentFolder != null && isLoading)
 
             if (isLoading || isStaleState) {
-                Box(modifier = Modifier.padding(top = padding.calculateTopPadding())) {
-                    if (layoutMode == "grid") SkeletonGrid(columns = gridColumns) else SkeletonList()
-                }
+                SkeletonLoadingView(
+                    layoutMode = layoutMode,
+                    columns = gridColumns,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = padding.calculateTopPadding())
+                )
             } else {
                 when (effectiveViewMode) {
                     "flat" -> AllImagesView(
@@ -297,6 +300,7 @@ fun AllFoldersView(
                 items(chapters, key = { it.path }) { chapter ->
                     ChapterListItem(
                         chapter = chapter,
+                        savedPage = readProgressMap[chapter.path] ?: 0,
                         onClick = { onChapterClick(chapter.path) },
                         onRemove = { viewModel.removeFolder(chapter.path) }
                     )

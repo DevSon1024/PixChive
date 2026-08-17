@@ -1,36 +1,19 @@
 package com.devson.pixchive.feature.reader.ui.components
 
-import com.devson.pixchive.core.designsystem.component.OptionsBottomSheet
-import com.devson.pixchive.core.designsystem.component.OptionItem
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -43,6 +26,8 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.devson.pixchive.core.data.Chapter
+import com.devson.pixchive.core.designsystem.component.OptionItem
+import com.devson.pixchive.core.designsystem.component.OptionsBottomSheet
 import java.io.File
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -60,25 +45,27 @@ fun ChapterGridItem(
 
     val showDetails = columns <= 2
     val showName = columns <= 4
-    // Reduced fetch size to prevent GC thrashing when rendering folder grids
-    val fetchSize = if (columns <= 2) 400 else 250
+    val fetchSize = if (columns <= 2) 400 else 256
 
-    // CRITICAL FIX: Remember the request, use hardware bitmaps, and load from File path
     val firstImagePath = chapter.images.firstOrNull()?.path
     val imageRequest = remember(firstImagePath, fetchSize) {
         if (firstImagePath != null) {
             ImageRequest.Builder(context)
                 .data(File(firstImagePath))
                 .size(fetchSize)
-                .allowHardware(true) // Stops the NativeAlloc GC stutter
+                .allowHardware(true)
                 .crossfade(false)
                 .build()
         } else null
     }
 
-    val shape = RoundedCornerShape(12.dp)
+    val shape = RoundedCornerShape(14.dp)
+    val isCompleted = chapter.imageCount > 0 && savedPage >= (chapter.imageCount - 1)
+    val progressFraction = if (chapter.imageCount > 0 && savedPage > 0) {
+        ((savedPage + 1).toFloat() / chapter.imageCount).coerceIn(0f, 1f)
+    } else 0f
 
-    Box(modifier = Modifier.padding(2.dp)) {
+    Box(modifier = Modifier.padding(3.dp)) {
         OutlinedCard(
             shape = shape,
             colors = CardDefaults.outlinedCardColors(
@@ -125,6 +112,7 @@ fun ChapterGridItem(
                     }
                 }
 
+                // Bottom gradient label & chapter information
                 if (showName) {
                     Box(
                         modifier = Modifier
@@ -135,7 +123,7 @@ fun ChapterGridItem(
                                     colors = listOf(
                                         Color.Transparent,
                                         Color.Black.copy(alpha = 0.5f),
-                                        Color.Black.copy(alpha = 0.85f)
+                                        Color.Black.copy(alpha = 0.88f)
                                     )
                                 )
                             )
@@ -143,15 +131,15 @@ fun ChapterGridItem(
                     ) {
                         Column {
                             Text(
-                                chapter.displayName,
-                                style = MaterialTheme.typography.labelMedium,
+                                text = chapter.displayName,
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                                 color = Color.White,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                             if (showDetails) {
                                 Text(
-                                    "${chapter.imageCount} images",
+                                    text = "${chapter.imageCount} pages",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = Color.White.copy(alpha = 0.8f)
                                 )
@@ -160,34 +148,82 @@ fun ChapterGridItem(
                     }
                 }
 
+                // Progress Badge at Top-End
                 if (savedPage > 0 && chapter.imageCount > 0) {
-                    val progressPercent = ((savedPage.toFloat() / chapter.imageCount) * 100).toInt().coerceIn(0, 100)
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer,
+                    if (isCompleted) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(8.dp),
+                            shadowElevation = 3.dp
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Completed",
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Text(
+                                    text = "Read",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onPrimary
+                                )
+                            }
+                        }
+                    } else {
+                        val progressPercent = (progressFraction * 100).toInt()
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.95f),
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(8.dp),
+                            shadowElevation = 2.dp
+                        ) {
+                            Text(
+                                text = "$progressPercent%",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+
+                // Linear accent progress bar along bottom
+                if (progressFraction > 0f) {
+                    Box(
                         modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(8.dp),
-                        shadowElevation = 2.dp
+                            .fillMaxWidth()
+                            .height(3.dp)
+                            .align(Alignment.BottomStart)
+                            .background(Color.Black.copy(alpha = 0.3f))
                     ) {
-                        Text(
-                            text = "$progressPercent%",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            fontWeight = FontWeight.Bold
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(progressFraction)
+                                .fillMaxHeight()
+                                .background(MaterialTheme.colorScheme.primary)
                         )
                     }
                 }
             }
         }
+
         if (showMenu) {
             OptionsBottomSheet(
                 title = chapter.displayName,
-                subtitle = "${chapter.imageCount} images",
+                subtitle = "${chapter.imageCount} pages",
                 options = listOf(
                     OptionItem(
-                        label = "Remove",
+                        label = "Remove from list",
                         icon = Icons.Default.Close,
                         isDestructive = true,
                         onClick = onRemove
@@ -197,4 +233,4 @@ fun ChapterGridItem(
             )
         }
     }
-}
+}

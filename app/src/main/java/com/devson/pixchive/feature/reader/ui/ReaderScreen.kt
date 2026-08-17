@@ -4,6 +4,7 @@ import android.app.Activity
 import android.media.AudioManager
 import android.view.KeyEvent
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -54,6 +55,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.request.CachePolicy
 import coil.request.ImageRequest
 import coil.size.Scale
 import com.devson.pixchive.core.data.PreferencesManager
@@ -275,6 +277,15 @@ fun ReaderScreen(
 
     LaunchedEffect(folderId) { viewModel.loadFolder(folderId) }
 
+    // System back gesture handling
+    BackHandler {
+        if (showBottomOptions) {
+            showBottomOptions = false
+        } else {
+            onNavigateBack()
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -318,7 +329,7 @@ fun ReaderScreen(
                     val startY = down.position.y
                     var currentY = startY
                     var isConsumedByChild = false
-                    
+
                     do {
                         val event = awaitPointerEvent(PointerEventPass.Final)
                         val change = event.changes.firstOrNull()
@@ -410,20 +421,23 @@ fun ReaderScreen(
                             chapterImages.getOrNull(page)
                         }
 
+                        val model = when (pageImage) {
+                            is ImageEntity -> if (pageImage.path.isNotEmpty()) File(pageImage.path) else pageImage.uri
+                            is com.devson.pixchive.core.data.ImageFile -> if (pageImage.path.isNotEmpty()) File(pageImage.path) else pageImage.uri
+                            else -> null
+                        }
+
                         val rotation = rotationStates[page] ?: 0f
                         Box(modifier = Modifier.fillMaxSize()) {
                             val zoomableState = rememberZoomableState(zoomSpec = ZoomSpec(maxZoomFactor = 5f))
                             ZoomableAsyncImage(
                                 model = ImageRequest.Builder(context)
-                                    .data(
-                                        when (pageImage) {
-                                            is ImageEntity -> pageImage.uri
-                                            is com.devson.pixchive.core.data.ImageFile -> pageImage.uri
-                                            else -> null
-                                        }
-                                    )
+                                    .data(model)
                                     .size(2048)
                                     .scale(Scale.FIT)
+                                    .allowHardware(true)
+                                    .memoryCachePolicy(CachePolicy.ENABLED)
+                                    .diskCachePolicy(CachePolicy.ENABLED)
                                     .crossfade(false)
                                     .build(),
                                 contentDescription = null,
@@ -482,14 +496,19 @@ fun ReaderScreen(
                     showMoreMenu = false,
                     currentImage = null,
                     currentImageEntity = currentImage as? ImageEntity,
+                    isFavorite = isFavorite,
+                    readerScrollMode = readerScrollMode,
+                    mangaMode = mangaMode,
                     onNavigateBack = onNavigateBack,
                     onMoreMenuToggle = {},
-                    isFavorite = isFavorite,
-                    // No contentColor — always white; scrim provides contrast
                     onToggleFavorite = {
                         currentImage?.let {
                             if (it is ImageEntity) viewModel.toggleFavorite(it.uri)
                         }
+                    },
+                    onSetReadingMode = { newScrollMode, isManga ->
+                        viewModel.setReaderScrollMode(newScrollMode)
+                        viewModel.setMangaMode(isManga)
                     }
                 )
             }

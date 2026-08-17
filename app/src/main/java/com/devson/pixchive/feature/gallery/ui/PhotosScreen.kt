@@ -61,6 +61,7 @@ fun PhotosScreen(
     onImageClick: (Int) -> Unit = {},
     onRecycleBinClick: () -> Unit = {},
     onSwitchToAlbums: () -> Unit = {},
+    showTopBar: Boolean = true,
     viewModel: AllImagesViewModel = viewModel()
 ) {
     val pagedGridItems = viewModel.pagedGridItems.collectAsLazyPagingItems()
@@ -114,47 +115,49 @@ fun PhotosScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             topBar = {
-                if (selectedIds.isNotEmpty()) {
-                    TopAppBar(
-                        title = { Text("${selectedIds.size} selected", fontWeight = FontWeight.Bold) },
-                        navigationIcon = {
-                            IconButton(onClick = { viewModel.clearSelection() }) {
-                                Icon(Icons.Default.Close, contentDescription = "Clear selection")
-                            }
-                        },
-                        actions = {
-                            IconButton(onClick = { viewModel.selectAll() }) {
-                                Icon(Icons.Default.SelectAll, contentDescription = "Select All")
-                            }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.background
+                if (showTopBar) {
+                    if (selectedIds.isNotEmpty()) {
+                        TopAppBar(
+                            title = { Text("${selectedIds.size} selected", fontWeight = FontWeight.Bold) },
+                            navigationIcon = {
+                                IconButton(onClick = { viewModel.clearSelection() }) {
+                                    Icon(Icons.Default.Close, contentDescription = "Clear selection")
+                                }
+                            },
+                            actions = {
+                                IconButton(onClick = { viewModel.selectAll() }) {
+                                    Icon(Icons.Default.SelectAll, contentDescription = "Select All")
+                                }
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.background
+                            )
                         )
-                    )
-                } else {
-                    val searchViewModel: SearchViewModel = viewModel()
-                    val searchQuery by searchViewModel.searchQuery.collectAsState()
-                    val suggestions by searchViewModel.suggestions.collectAsState()
+                    } else {
+                        val searchViewModel: SearchViewModel = viewModel()
+                        val searchQuery by searchViewModel.searchQuery.collectAsState()
+                        val suggestions by searchViewModel.suggestions.collectAsState()
 
-                    GlobalSearchAppBar(
-                        title = "Photos",
-                        searchQuery = searchQuery,
-                        suggestions = suggestions,
-                        onQueryChange = { searchViewModel.updateSearchQuery(it) },
-                        onSearch = onSearch,
-                        onBackClick = onNavigateBack,
-                        actions = {
-                            IconButton(onClick = onRecycleBinClick) {
-                                Icon(Icons.Filled.RestoreFromTrash, contentDescription = "Recycle Bin")
+                        GlobalSearchAppBar(
+                            title = "Photos",
+                            searchQuery = searchQuery,
+                            suggestions = suggestions,
+                            onQueryChange = { searchViewModel.updateSearchQuery(it) },
+                            onSearch = onSearch,
+                            onBackClick = onNavigateBack,
+                            actions = {
+                                IconButton(onClick = onRecycleBinClick) {
+                                    Icon(Icons.Filled.RestoreFromTrash, contentDescription = "Recycle Bin")
+                                }
+                                IconButton(onClick = { showSettingsSheet = true }) {
+                                    Icon(Icons.Default.Tune, contentDescription = "View Settings")
+                                }
+                                IconButton(onClick = onSettingsClick) {
+                                    Icon(Icons.Default.Settings, contentDescription = "App Settings")
+                                }
                             }
-                            IconButton(onClick = { showSettingsSheet = true }) {
-                                Icon(Icons.Default.Tune, contentDescription = "View Settings")
-                            }
-                            IconButton(onClick = onSettingsClick) {
-                                Icon(Icons.Default.Settings, contentDescription = "App Settings")
-                            }
-                        }
-                    )
+                        )
+                    }
                 }
             },
             bottomBar = {
@@ -218,7 +221,7 @@ fun PhotosScreen(
                             state = gridState,
                             contentPadding = PaddingValues(
                                 top = 8.dp,
-                                bottom = 80.dp
+                                bottom = 100.dp
                             ),
                             horizontalArrangement = Arrangement.Start,
                             verticalArrangement = Arrangement.Top,
@@ -292,7 +295,7 @@ fun PhotosScreen(
                             state = gridState,
                             contentPadding = PaddingValues(
                                 top = 8.dp,
-                                bottom = 80.dp,
+                                bottom = 100.dp,
                                 start = 8.dp,
                                 end = 8.dp
                             ),

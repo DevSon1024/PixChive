@@ -1,13 +1,22 @@
 package com.devson.pixchive.core.designsystem.component
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -19,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -28,8 +38,117 @@ import androidx.compose.ui.unit.sp
 import com.devson.pixchive.core.designsystem.theme.PixchiveTheme
 
 /**
- * Modern floating Material 3 capsule bottom navigation bar.
+ * Data model for capsule bottom navigation tab items.
  */
+data class NavTabItem(
+    val label: String,
+    val selectedIcon: ImageVector,
+    val unselectedIcon: ImageVector
+)
+
+/**
+ * Modern floating Material 3 capsule bottom navigation bar with icons and animated label expansion.
+ */
+@Composable
+fun CapsuleBottomBar(
+    items: List<NavTabItem>,
+    selectedTabIndex: Int,
+    onTabSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val haptic = LocalHapticFeedback.current
+
+    Surface(
+        modifier = modifier
+            .padding(bottom = 16.dp)
+            .height(58.dp)
+            .wrapContentWidth()
+            .graphicsLayer {
+                shadowElevation = 10.dp.toPx()
+                shape = RoundedCornerShape(30.dp)
+                clip = true
+            },
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.94f),
+        shape = RoundedCornerShape(30.dp),
+        tonalElevation = 6.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 6.dp, vertical = 6.dp)
+                .fillMaxHeight(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            items.forEachIndexed { index, item ->
+                val isSelected = selectedTabIndex == index
+
+                val backgroundColor by animateColorAsState(
+                    targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                    animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow),
+                    label = "tab_bg"
+                )
+
+                val contentColor by animateColorAsState(
+                    targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    animationSpec = spring(stiffness = Spring.StiffnessLow),
+                    label = "tab_content"
+                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(backgroundColor)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            if (!isSelected) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onTabSelected(index)
+                            }
+                        }
+                        .padding(horizontal = if (isSelected) 16.dp else 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
+                        contentDescription = item.label,
+                        tint = contentColor,
+                        modifier = Modifier.size(22.dp)
+                    )
+
+                    AnimatedVisibility(
+                        visible = isSelected,
+                        enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) +
+                                expandHorizontally(animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)),
+                        exit = fadeOut(animationSpec = spring(stiffness = Spring.StiffnessHigh)) +
+                                shrinkHorizontally(animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessHigh))
+                    ) {
+                        Row {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = item.label,
+                                color = contentColor,
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                ),
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Text-only overload for simple tab lists.
+ */
+@JvmName("CapsuleBottomBarTabs")
 @Composable
 fun CapsuleBottomBar(
     tabs: List<String>,
@@ -41,8 +160,8 @@ fun CapsuleBottomBar(
 
     Surface(
         modifier = modifier
-            .padding(bottom = 24.dp)
-            .height(56.dp)
+            .padding(bottom = 16.dp)
+            .height(54.dp)
             .wrapContentWidth()
             .graphicsLayer {
                 shadowElevation = 8.dp.toPx()
@@ -135,10 +254,16 @@ private fun CapsuleBottomBarPreview() {
             contentAlignment = Alignment.Center
         ) {
             CapsuleBottomBar(
-                tabs = listOf("Photos", "Albums"),
+                items = listOf(
+                    NavTabItem("Home", Icons.Filled.Home, Icons.Outlined.Home),
+                    NavTabItem("Gallery", Icons.Filled.PhotoLibrary, Icons.Outlined.PhotoLibrary),
+                    NavTabItem("Library", Icons.Filled.CollectionsBookmark, Icons.Outlined.CollectionsBookmark),
+                    NavTabItem("Settings", Icons.Filled.Settings, Icons.Outlined.Settings)
+                ),
                 selectedTabIndex = 0,
                 onTabSelected = {}
             )
         }
     }
 }
+

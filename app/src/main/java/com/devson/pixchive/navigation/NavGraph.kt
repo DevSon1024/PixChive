@@ -95,6 +95,23 @@ fun NavGraph(
                     },
                     onBrowseGalleryClick = { _ ->
                         navController.navigate(GalleryDestination)
+                    },
+                    onNavigateToLibrary = {
+                        navController.navigate(LibraryDestination)
+                    }
+                )
+            }
+
+            composable<LibraryDestination> {
+                com.devson.pixchive.feature.reader.ui.LibraryScreen(
+                    onFolderClick = { folderId ->
+                        navController.navigate(FolderViewDestination(folderId))
+                    },
+                    onSettingsClick = {
+                        navController.navigate(SettingsDestination)
+                    },
+                    onFavoritesClick = {
+                        navController.navigate(FavoritesDestination)
                     }
                 )
             }

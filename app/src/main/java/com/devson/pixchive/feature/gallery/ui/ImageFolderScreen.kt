@@ -207,7 +207,7 @@ fun ImageFolderScreen(
                         LazyColumn(
                             contentPadding = PaddingValues(
                                 top = 8.dp,
-                                bottom = 80.dp
+                                bottom = 100.dp
                             ),
                             modifier = Modifier.fillMaxSize()
                         ) {
@@ -248,7 +248,7 @@ fun ImageFolderScreen(
                             state = gridState,
                             contentPadding = PaddingValues(
                                 top = 8.dp,
-                                bottom = 80.dp,
+                                bottom = 100.dp,
                                 start = 4.dp,
                                 end = 4.dp
                             ),

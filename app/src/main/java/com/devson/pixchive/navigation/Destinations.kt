@@ -15,6 +15,9 @@ object HomeDestination : PixChiveDestination
 object GalleryDestination : PixChiveDestination
 
 @Serializable
+object LibraryDestination : PixChiveDestination
+
+@Serializable
 object SettingsDestination : PixChiveDestination
 
 // Comic Reader Domain Destinations

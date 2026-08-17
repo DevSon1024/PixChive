@@ -117,7 +117,7 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(
                     top = paddingValues.calculateTopPadding(),
-                    bottom = paddingValues.calculateBottomPadding() + 24.dp
+                    bottom = 100.dp
                 )
                 .padding(horizontal = 16.dp)
         ) {

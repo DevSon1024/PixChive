@@ -32,7 +32,7 @@ class MainActivity : ComponentActivity() {
             val dynamicColor by preferencesManager.dynamicColorFlow.collectAsState(initial = true)
             val selectedPaletteStr by preferencesManager.selectedPaletteFlow.collectAsState(initial = "BLUE")
             val selectedPalette = try { AppThemePalette.valueOf(selectedPaletteStr) } catch(e: Exception) { AppThemePalette.BLUE }
-            val isNavBarTransparent by preferencesManager.navBarTransparentFlow.collectAsState(initial = false)
+            val isNavBarTransparent by preferencesManager.navBarTransparentFlow.collectAsState(initial = true)
 
             // Determine if dark theme should be enabled based on preference
             val isDarkTheme = when (appTheme) {

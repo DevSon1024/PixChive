@@ -11,11 +11,15 @@ import com.devson.pixchive.core.designsystem.component.galleryItemClick as coreG
 fun Modifier.galleryItemClick(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
+    isSelectionModeActive: Boolean = false,
+    onToggleSelection: (() -> Unit)? = null,
     interactionSource: MutableInteractionSource? = null,
     indication: Indication? = null
 ): Modifier = this.coreGalleryItemClick(
     onClick = onClick,
     onLongClick = onLongClick,
+    isSelectionModeActive = isSelectionModeActive,
+    onToggleSelection = onToggleSelection,
     interactionSource = interactionSource,
     indication = indication
 )

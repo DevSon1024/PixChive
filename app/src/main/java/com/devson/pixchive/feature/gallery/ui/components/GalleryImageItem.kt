@@ -148,6 +148,7 @@ fun GalleryImageItem(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isSelectionModeActive: Boolean = false,
     isListMode: Boolean = false,
     onThumbnailClick: (() -> Unit)? = null,
     columnCount: Int = 2,
@@ -191,13 +192,23 @@ fun GalleryImageItem(
         label = "itemBorder"
     )
 
+    val handleToggle = {
+        onThumbnailClick?.invoke() ?: onLongClick()
+    }
+
     if (isListMode) {
         val rowShape = RoundedCornerShape(12.dp)
         Row(
             modifier = modifier
                 .fillMaxWidth()
                 .combinedClickable(
-                    onClick = onClick,
+                    onClick = {
+                        if (isSelectionModeActive) {
+                            handleToggle()
+                        } else {
+                            onClick()
+                        }
+                    },
                     onLongClick = {
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         onLongClick()
@@ -212,7 +223,7 @@ fun GalleryImageItem(
                     .size(width = 80.dp, height = 60.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .combinedClickable(
-                        onClick = { onThumbnailClick?.invoke() ?: onLongClick() },
+                        onClick = { handleToggle() },
                         onLongClick = {
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                             onLongClick()
@@ -287,7 +298,9 @@ fun GalleryImageItem(
                     onLongClick = {
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         onLongClick()
-                    }
+                    },
+                    isSelectionModeActive = isSelectionModeActive,
+                    onToggleSelection = handleToggle
                 )
                 .background(bgColor)
                 .border(

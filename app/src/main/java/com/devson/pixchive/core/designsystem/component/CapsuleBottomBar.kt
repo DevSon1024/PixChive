@@ -1,5 +1,6 @@
 package com.devson.pixchive.core.designsystem.component
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
@@ -8,6 +9,7 @@ import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -47,14 +49,27 @@ data class NavTabItem(
 )
 
 /**
- * Modern floating Material 3 capsule bottom navigation bar with icons and animated label expansion.
+ * Data model for selection action items displayed inside the capsule during selection mode.
+ */
+data class SelectionActionItem(
+    val label: String,
+    val icon: ImageVector,
+    val onClick: () -> Unit,
+    val isDestructive: Boolean = false
+)
+
+/**
+ * Modern floating Material 3 capsule bottom bar that seamlessly transitions between 
+ * navigation tabs and selection mode action buttons.
  */
 @Composable
 fun CapsuleBottomBar(
     items: List<NavTabItem>,
     selectedTabIndex: Int,
     onTabSelected: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isSelectionActive: Boolean = false,
+    selectionActions: List<SelectionActionItem> = emptyList()
 ) {
     val haptic = LocalHapticFeedback.current
 
@@ -68,75 +83,137 @@ fun CapsuleBottomBar(
                 shape = RoundedCornerShape(30.dp)
                 clip = true
             },
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.94f),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.96f),
         shape = RoundedCornerShape(30.dp),
         tonalElevation = 6.dp
     ) {
-        Row(
-            modifier = Modifier
-                .padding(horizontal = 6.dp, vertical = 6.dp)
-                .fillMaxHeight(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            items.forEachIndexed { index, item ->
-                val isSelected = selectedTabIndex == index
-
-                val backgroundColor by animateColorAsState(
-                    targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                    animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow),
-                    label = "tab_bg"
-                )
-
-                val contentColor by animateColorAsState(
-                    targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    animationSpec = spring(stiffness = Spring.StiffnessLow),
-                    label = "tab_content"
-                )
-
+        AnimatedContent(
+            targetState = isSelectionActive && selectionActions.isNotEmpty(),
+            transitionSpec = {
+                fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) +
+                        expandHorizontally(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) togetherWith
+                        fadeOut(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) +
+                        shrinkHorizontally(animationSpec = spring(stiffness = Spring.StiffnessMediumLow))
+            },
+            label = "capsule_mode_transition"
+        ) { isSelection ->
+            if (isSelection) {
+                // Selection Mode Action Buttons
                 Row(
                     modifier = Modifier
-                        .fillMaxHeight()
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(backgroundColor)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) {
-                            if (!isSelected) {
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .fillMaxHeight(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    selectionActions.forEach { action ->
+                        val contentColor = if (action.isDestructive) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+
+                        Surface(
+                            onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onTabSelected(index)
+                                action.onClick()
+                            },
+                            shape = RoundedCornerShape(20.dp),
+                            color = Color.Transparent
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center,
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .padding(horizontal = 10.dp, vertical = 2.dp)
+                            ) {
+                                Icon(
+                                    imageVector = action.icon,
+                                    contentDescription = action.label,
+                                    tint = contentColor,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = action.label,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = contentColor
+                                )
                             }
                         }
-                        .padding(horizontal = if (isSelected) 16.dp else 12.dp),
+                    }
+                }
+            } else {
+                // Default Navigation Tabs
+                Row(
+                    modifier = Modifier
+                        .padding(horizontal = 6.dp, vertical = 6.dp)
+                        .fillMaxHeight(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Icon(
-                        imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
-                        contentDescription = item.label,
-                        tint = contentColor,
-                        modifier = Modifier.size(22.dp)
-                    )
+                    items.forEachIndexed { index, item ->
+                        val isSelected = selectedTabIndex == index
 
-                    AnimatedVisibility(
-                        visible = isSelected,
-                        enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) +
-                                expandHorizontally(animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)),
-                        exit = fadeOut(animationSpec = spring(stiffness = Spring.StiffnessHigh)) +
-                                shrinkHorizontally(animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessHigh))
-                    ) {
-                        Row {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = item.label,
-                                color = contentColor,
-                                style = MaterialTheme.typography.labelLarge.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp
-                                ),
-                                maxLines = 1
+                        val backgroundColor by animateColorAsState(
+                            targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                            animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow),
+                            label = "tab_bg"
+                        )
+
+                        val contentColor by animateColorAsState(
+                            targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            animationSpec = spring(stiffness = Spring.StiffnessLow),
+                            label = "tab_content"
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(backgroundColor)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) {
+                                    if (!isSelected) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        onTabSelected(index)
+                                    }
+                                }
+                                .padding(horizontal = if (isSelected) 16.dp else 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
+                                contentDescription = item.label,
+                                tint = contentColor,
+                                modifier = Modifier.size(22.dp)
                             )
+
+                            AnimatedVisibility(
+                                visible = isSelected,
+                                enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) +
+                                        expandHorizontally(animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)),
+                                exit = fadeOut(animationSpec = spring(stiffness = Spring.StiffnessHigh)) +
+                                        shrinkHorizontally(animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessHigh))
+                            ) {
+                                Row {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = item.label,
+                                        color = contentColor,
+                                        style = MaterialTheme.typography.labelLarge.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp
+                                        ),
+                                        maxLines = 1
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -266,4 +343,3 @@ private fun CapsuleBottomBarPreview() {
         }
     }
 }
-

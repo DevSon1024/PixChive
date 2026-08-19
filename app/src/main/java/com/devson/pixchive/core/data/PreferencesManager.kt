@@ -303,7 +303,7 @@ class PreferencesManager(private val context: Context) {
     }
 
     val navBarTransparentFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
-        preferences[NAV_BAR_TRANSPARENT_KEY] ?: false
+        preferences[NAV_BAR_TRANSPARENT_KEY] ?: true
     }.distinctUntilChanged()
 
     // --- Reader Settings ---

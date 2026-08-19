@@ -39,7 +39,9 @@ fun GalleryMainScreen(
     onRecycleBinClick: () -> Unit,
     onFolderClick: (String) -> Unit,
     onImageClick: (String, Int) -> Unit,
-    onSearch: (String) -> Unit
+    onSearch: (String) -> Unit,
+    allImagesViewModel: AllImagesViewModel = viewModel(),
+    imageListViewModel: ImageListViewModel = viewModel()
 ) {
     val context = LocalContext.current
     val prefsManager = remember { PreferencesManager(context) }
@@ -67,21 +69,18 @@ fun GalleryMainScreen(
         }
     }
 
-    val allImagesViewModel: AllImagesViewModel = viewModel()
-    val imageListViewModel: ImageListViewModel = viewModel()
-    val searchViewModel: SearchViewModel = viewModel()
     val fileOpsViewModel: FileOperationsViewModel = viewModel()
+    val searchViewModel: SearchViewModel = viewModel()
 
     val allImagesSelection by allImagesViewModel.selectedIds.collectAsState()
-    val selectedImages by allImagesViewModel.selectedImages.collectAsState()
     val imageListSelection by imageListViewModel.selectedIds.collectAsState()
+    val selectedImages by allImagesViewModel.selectedImages.collectAsState()
 
     val isInSelectionMode = (pagerState.currentPage == 0 && imageListSelection.isNotEmpty()) ||
             (pagerState.currentPage == 1 && allImagesSelection.isNotEmpty())
 
     var showAlbumsSettingsSheet by remember { mutableStateOf(false) }
     var showPhotosSettingsSheet by remember { mutableStateOf(false) }
-
     var showRenameDialog by remember { mutableStateOf(false) }
     var showDetailsDialog by remember { mutableStateOf(false) }
     var showStorageExplorer by remember { mutableStateOf(false) }
@@ -190,7 +189,7 @@ fun GalleryMainScreen(
                 }
             }
 
-            // Floating Capsule Selection Action Bar
+            // Floating Selection Bottom Bar
             AnimatedVisibility(
                 visible = isInSelectionMode,
                 enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
@@ -199,34 +198,45 @@ fun GalleryMainScreen(
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
             ) {
-                if (pagerState.currentPage == 0) {
-                    GallerySelectionBottomBar(
-                        selectedCount = imageListSelection.size,
-                        selectedImages = emptyList(),
-                        fileOpsViewModel = fileOpsViewModel,
-                        onMove = {},
-                        onCopy = {},
-                        onDelete = {},
-                        onRename = { showRenameDialog = true },
-                        onInfo = { showDetailsDialog = true }
-                    )
-                } else {
-                    GallerySelectionBottomBar(
-                        selectedImages = selectedImages,
-                        fileOpsViewModel = fileOpsViewModel,
-                        onMove = {
-                            explorerOperationType = "MOVE"
-                            showStorageExplorer = true
-                        },
-                        onCopy = {
-                            explorerOperationType = "COPY"
-                            showStorageExplorer = true
-                        },
-                        onDelete = {},
-                        onRename = { showRenameDialog = true },
-                        onInfo = { showDetailsDialog = true }
-                    )
-                }
+                val isAlbums = pagerState.currentPage == 0
+                val selectedCount = if (isAlbums) imageListSelection.size else allImagesSelection.size
+
+                GallerySelectionBottomBar(
+                    selectedImages = if (isAlbums) emptyList() else selectedImages,
+                    selectedCount = selectedCount,
+                    fileOpsViewModel = fileOpsViewModel,
+                    onMove = {
+                        explorerOperationType = "MOVE"
+                        showStorageExplorer = true
+                    },
+                    onCopy = {
+                        explorerOperationType = "COPY"
+                        showStorageExplorer = true
+                    },
+                    onRename = {
+                        showRenameDialog = true
+                    },
+                    onInfo = {
+                        showDetailsDialog = true
+                    },
+                    onDelete = {
+                        if (isAlbums) {
+                            val foldersState = imageListViewModel.uiState.value
+                            val selectedFoldersList = (foldersState as? GalleryState.Success)?.folders?.filter { it.bucketId in imageListSelection } ?: emptyList()
+                            val uris = selectedFoldersList.map { it.thumbnailUri }
+                            if (uris.isNotEmpty()) {
+                                fileOpsViewModel.deleteImages(context, uris, trash = true)
+                            }
+                            imageListViewModel.clearSelection()
+                        } else {
+                            val uris = selectedImages.map { it.uri }
+                            if (uris.isNotEmpty()) {
+                                fileOpsViewModel.deleteImages(context, uris, trash = true)
+                            }
+                            allImagesViewModel.clearSelection()
+                        }
+                    }
+                )
             }
         }
     }

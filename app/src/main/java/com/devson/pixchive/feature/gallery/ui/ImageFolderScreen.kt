@@ -158,37 +158,12 @@ fun ImageFolderScreen(
                     )
                 }
             },
-            bottomBar = {
-                AnimatedVisibility(
-                    visible = selectedImageIds.isNotEmpty(),
-                    enter = slideInVertically { it } + fadeIn(),
-                    exit = slideOutVertically { it } + fadeOut()
-                ) {
-                    GallerySelectionBottomBar(
-                        selectedImages = selectedImages,
-                        fileOpsViewModel = fileOpsViewModel,
-                        onMove = {
-                            explorerOperationType = "MOVE"
-                            showStorageExplorer = true
-                        },
-                        onCopy = {
-                            explorerOperationType = "COPY"
-                            showStorageExplorer = true
-                        },
-                        onDelete = {
-                            fileOpsViewModel.deleteImages(context, selectedImages.map { it.uri }, trash = true)
-                        },
-                        onRename = { showRenameDialog = true },
-                        onInfo = { showDetailsDialog = true }
-                    )
-                }
-            },
             containerColor = MaterialTheme.colorScheme.background
         ) { paddingValues ->
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
+                    .padding(top = paddingValues.calculateTopPadding())
             ) {
                 if (isLoading) {
                     val baseColumns = if (layoutMode == "list") 1 else (4 - savedGridCellsIndex.coerceIn(0, 2))
@@ -206,15 +181,19 @@ fun ImageFolderScreen(
                     if (layoutMode == "list") {
                         LazyColumn(
                             contentPadding = PaddingValues(
-                                top = 8.dp,
-                                bottom = 100.dp
+                                top = 4.dp,
+                                bottom = 100.dp,
+                                start = 4.dp,
+                                end = 4.dp
                             ),
                             modifier = Modifier.fillMaxSize()
                         ) {
                             listItemsIndexed(images, key = { _, img -> img.id }) { index, image ->
+                                val isSelected = image.id in selectedImageIds
                                 GalleryImageItem(
                                     image = image,
-                                    isSelected = image.id in selectedImageIds,
+                                    isSelected = isSelected,
+                                    isSelectionModeActive = selectedImageIds.isNotEmpty(),
                                     isListMode = true,
                                     columnCount = 1,
                                     viewSettings = viewSettings,
@@ -247,7 +226,7 @@ fun ImageFolderScreen(
                             columns = GridCells.Fixed(animatedColumns.coerceIn(2, 4)),
                             state = gridState,
                             contentPadding = PaddingValues(
-                                top = 8.dp,
+                                top = 4.dp,
                                 bottom = 100.dp,
                                 start = 4.dp,
                                 end = 4.dp
@@ -292,9 +271,11 @@ fun ImageFolderScreen(
                                 }
                         ) {
                             gridItemsIndexed(images, key = { _, img -> img.id }) { index, image ->
+                                val isSelected = image.id in selectedImageIds
                                 GalleryImageItem(
                                     image = image,
-                                    isSelected = image.id in selectedImageIds,
+                                    isSelected = isSelected,
+                                    isSelectionModeActive = selectedImageIds.isNotEmpty(),
                                     isListMode = false,
                                     columnCount = animatedColumns.coerceIn(2, 4),
                                     viewSettings = viewSettings,
@@ -302,6 +283,7 @@ fun ImageFolderScreen(
                                         .animateItem()
                                         .fillMaxWidth()
                                         .aspectRatio(1f),
+                                    onThumbnailClick = { viewModel.toggleSelection(image.id) },
                                     onClick = {
                                         if (selectedImageIds.isNotEmpty()) {
                                             viewModel.toggleSelection(image.id)
@@ -314,6 +296,35 @@ fun ImageFolderScreen(
                             }
                         }
                     }
+                }
+
+                // Floating Selection Bottom Bar
+                AnimatedVisibility(
+                    visible = selectedImageIds.isNotEmpty(),
+                    enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                    exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                ) {
+                    GallerySelectionBottomBar(
+                        selectedImages = selectedImages,
+                        selectedCount = selectedImageIds.size,
+                        fileOpsViewModel = fileOpsViewModel,
+                        onMove = {
+                            explorerOperationType = "MOVE"
+                            showStorageExplorer = true
+                        },
+                        onCopy = {
+                            explorerOperationType = "COPY"
+                            showStorageExplorer = true
+                        },
+                        onDelete = {
+                            fileOpsViewModel.deleteImages(context, selectedImages.map { it.uri }, trash = true)
+                        },
+                        onRename = { showRenameDialog = true },
+                        onInfo = { showDetailsDialog = true }
+                    )
                 }
             }
         }

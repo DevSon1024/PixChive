@@ -79,10 +79,13 @@ fun Modifier.hapticClickable(
 /**
  * A custom clickable modifier that DOES NOT consume the down pointer event on Main pass,
  * which allows the parent PinchZoomGrid to also receive it for pinch detection.
+ * If isSelectionModeActive is true, single taps automatically route to onToggleSelection or onClick.
  */
 fun Modifier.galleryItemClick(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
+    isSelectionModeActive: Boolean = false,
+    onToggleSelection: (() -> Unit)? = null,
     interactionSource: MutableInteractionSource? = null,
     indication: Indication? = null
 ): Modifier = composed {
@@ -93,7 +96,7 @@ fun Modifier.galleryItemClick(
 
     this
         .indication(currentInteractionSource, currentIndication)
-        .pointerInput(currentInteractionSource) {
+        .pointerInput(currentInteractionSource, isSelectionModeActive) {
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false)
 
@@ -138,7 +141,11 @@ fun Modifier.galleryItemClick(
                     coroutineScope.launch {
                         currentInteractionSource.emit(PressInteraction.Cancel(press))
                     }
-                    onLongClick?.invoke()
+                    if (isSelectionModeActive && onToggleSelection != null) {
+                        onToggleSelection.invoke()
+                    } else {
+                        onLongClick?.invoke()
+                    }
                     // Drain and consume remaining events until lift
                     var drainEvent: androidx.compose.ui.input.pointer.PointerEvent
                     do {
@@ -150,7 +157,11 @@ fun Modifier.galleryItemClick(
                         currentInteractionSource.emit(PressInteraction.Release(press))
                     }
                     upOrCancelEvent!!.changes.forEach { it.consume() }
-                    onClick()
+                    if (isSelectionModeActive && onToggleSelection != null) {
+                        onToggleSelection()
+                    } else {
+                        onClick()
+                    }
                 } else {
                     coroutineScope.launch {
                         currentInteractionSource.emit(PressInteraction.Cancel(press))

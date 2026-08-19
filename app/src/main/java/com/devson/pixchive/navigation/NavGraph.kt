@@ -31,11 +31,16 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 
+import com.devson.pixchive.feature.gallery.viewmodel.AllImagesViewModel
+import com.devson.pixchive.feature.gallery.viewmodel.ImageListViewModel
+
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun NavGraph(
     navController: NavHostController,
     startDestination: Any = HomeDestination,
+    allImagesViewModel: AllImagesViewModel = viewModel(),
+    imageListViewModel: ImageListViewModel = viewModel(),
     modifier: Modifier = Modifier
 ) {
     val safeNavigateBack: () -> Unit = {
@@ -129,7 +134,9 @@ fun NavGraph(
                     },
                     onSearch = { query ->
                         navController.navigate(SearchResultsDestination(query))
-                    }
+                    },
+                    allImagesViewModel = allImagesViewModel,
+                    imageListViewModel = imageListViewModel
                 )
             }
 

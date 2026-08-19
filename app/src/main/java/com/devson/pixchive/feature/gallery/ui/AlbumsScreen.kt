@@ -188,7 +188,7 @@ fun AlbumsScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .padding(if (showTopBar) paddingValues else PaddingValues(0.dp))
         ) {
             if (!hasPermission) {
                 Column(
@@ -263,14 +263,22 @@ fun AlbumsScreen(
                                     modifier = Modifier.fillMaxSize()
                                 ) {
                                     listItems(state.folders, key = { it.bucketId }) { folder ->
+                                        val isSelected = folder.bucketId in selectedFolderIds
                                         GalleryFolderItem(
                                             folder = folder,
-                                            isSelected = folder.bucketId in selectedFolderIds,
+                                            isSelected = isSelected,
+                                            isSelectionModeActive = selectedFolderIds.isNotEmpty(),
                                             isListMode = true,
                                             viewSettings = viewSettings,
                                             showThumbnail = showFolderThumbnail,
                                             modifier = Modifier.fillMaxWidth(),
-                                            onClick = { onFolderClick(folder.bucketId) },
+                                            onClick = {
+                                                if (selectedFolderIds.isNotEmpty()) {
+                                                    viewModel.toggleSelection(folder.bucketId)
+                                                } else {
+                                                    onFolderClick(folder.bucketId)
+                                                }
+                                            },
                                             onThumbnailClick = { viewModel.toggleSelection(folder.bucketId) },
                                             onLongPress = { viewModel.toggleSelection(folder.bucketId) }
                                         )
@@ -337,14 +345,22 @@ fun AlbumsScreen(
                                         }
                                 ) {
                                     items(state.folders, key = { it.bucketId }) { folder ->
+                                        val isSelected = folder.bucketId in selectedFolderIds
                                         GalleryFolderItem(
                                             folder = folder,
-                                            isSelected = folder.bucketId in selectedFolderIds,
+                                            isSelected = isSelected,
+                                            isSelectionModeActive = selectedFolderIds.isNotEmpty(),
                                             isListMode = false,
                                             viewSettings = viewSettings,
                                             showThumbnail = showFolderThumbnail,
                                             modifier = Modifier.fillMaxWidth(),
-                                            onClick = { onFolderClick(folder.bucketId) },
+                                            onClick = {
+                                                if (selectedFolderIds.isNotEmpty()) {
+                                                    viewModel.toggleSelection(folder.bucketId)
+                                                } else {
+                                                    onFolderClick(folder.bucketId)
+                                                }
+                                            },
                                             onThumbnailClick = { viewModel.toggleSelection(folder.bucketId) },
                                             onLongPress = { viewModel.toggleSelection(folder.bucketId) }
                                         )

@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -43,12 +44,13 @@ import com.devson.pixchive.feature.gallery.viewmodel.ImageListViewModel
 fun PixChiveApp(
     navController: NavHostController = rememberNavController()
 ) {
+    val context = LocalContext.current
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val destination = navBackStackEntry?.destination
 
-    // Observe image selection state to hide capsule navigation during selection mode
     val allImagesViewModel: AllImagesViewModel = viewModel()
     val imageListViewModel: ImageListViewModel = viewModel()
+
     val allImagesSelection by allImagesViewModel.selectedIds.collectAsState()
     val imageListSelection by imageListViewModel.selectedIds.collectAsState()
 
@@ -73,7 +75,7 @@ fun PixChiveApp(
         else -> -1
     }
 
-    // Capsule bottom bar is visible only on root tabs AND when multi-selection mode is inactive
+    // Capsule bottom bar is visible on root tabs when not in selection mode
     val showBottomBar = selectedTabIndex != -1 && !isSelectionActive
 
     Scaffold(
@@ -127,6 +129,8 @@ fun PixChiveApp(
         // NavHost occupies full screen for edge-to-edge drawing; screens handle their own insets
         NavGraph(
             navController = navController,
+            allImagesViewModel = allImagesViewModel,
+            imageListViewModel = imageListViewModel,
             modifier = Modifier.fillMaxSize()
         )
     }

@@ -137,6 +137,7 @@ private fun FolderMetaRow(
 fun GalleryFolderItem(
     folder: GalleryFolder,
     isSelected: Boolean,
+    isSelectionModeActive: Boolean = false,
     isListMode: Boolean = false,
     gridColumns: Int = 2,
     viewSettings: GalleryViewSettings = GalleryViewSettings(),
@@ -165,12 +166,18 @@ fun GalleryFolderItem(
         label = "folderBorder"
     )
 
+    val handleToggle = {
+        onThumbnailClick?.invoke() ?: onLongPress()
+    }
+
     val clickMod = Modifier.galleryItemClick(
         onClick = onClick,
         onLongClick = {
             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             onLongPress()
-        }
+        },
+        isSelectionModeActive = isSelectionModeActive,
+        onToggleSelection = handleToggle
     )
 
     if (isListMode) {
@@ -178,7 +185,13 @@ fun GalleryFolderItem(
             modifier = modifier
                 .fillMaxWidth()
                 .combinedClickable(
-                    onClick = onClick,
+                    onClick = {
+                        if (isSelectionModeActive) {
+                            handleToggle()
+                        } else {
+                            onClick()
+                        }
+                    },
                     onLongClick = {
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         onLongPress()
@@ -193,7 +206,7 @@ fun GalleryFolderItem(
                     .size(width = 72.dp, height = 56.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .combinedClickable(
-                        onClick = { onThumbnailClick?.invoke() ?: onLongPress() },
+                        onClick = { handleToggle() },
                         onLongClick = {
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                             onLongPress()

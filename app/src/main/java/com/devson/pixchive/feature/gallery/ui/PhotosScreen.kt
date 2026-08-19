@@ -165,7 +165,7 @@ fun PhotosScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
+                    .padding(if (showTopBar) paddingValues else PaddingValues(0.dp))
             ) {
                 val loadState = pagedGridItems.loadState
                 val isListMode = layoutMode == "list"
@@ -234,6 +234,7 @@ fun PhotosScreen(
                                         GalleryImageItem(
                                             image = item,
                                             isSelected = isSelected,
+                                            isSelectionModeActive = selectedIds.isNotEmpty(),
                                             isListMode = true,
                                             columnCount = 1,
                                             viewSettings = viewSettings,
@@ -345,6 +346,7 @@ fun PhotosScreen(
                                         GalleryImageItem(
                                             image = item,
                                             isSelected = isSelected,
+                                            isSelectionModeActive = selectedIds.isNotEmpty(),
                                             isListMode = false,
                                             columnCount = animatedColumns.coerceIn(2, 4),
                                             viewSettings = viewSettings,

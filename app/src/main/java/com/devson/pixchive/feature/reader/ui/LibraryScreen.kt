@@ -2,18 +2,24 @@ package com.devson.pixchive.feature.reader.ui
 
 import android.app.Activity
 import android.content.Intent
+import android.graphics.Bitmap
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -26,14 +32,22 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import coil.request.CachePolicy
+import coil.request.ImageRequest
+import com.devson.pixchive.core.data.FolderWithCover
+import com.devson.pixchive.core.data.local.HistoryEntity
 import com.devson.pixchive.core.designsystem.component.*
 import com.devson.pixchive.core.utils.PermissionHelper
 import com.devson.pixchive.core.utils.PermissionState
@@ -50,6 +64,7 @@ fun LibraryScreen(
     onFolderClick: (String) -> Unit,
     onSettingsClick: () -> Unit = {},
     onFavoritesClick: () -> Unit = {},
+    onResumeChapter: (folderId: String, chapterPath: String, initialPage: Int) -> Unit = { _, _, _ -> },
     viewModel: HomeViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -57,6 +72,7 @@ fun LibraryScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
 
     val folders by viewModel.folders.collectAsState()
+    val recentHistory by viewModel.recentHistory.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
@@ -344,6 +360,16 @@ fun LibraryScreen(
                                     .fillMaxSize()
                                     .then(zoomModifier)
                             ) {
+                                if (recentHistory.isNotEmpty()) {
+                                    item(span = { GridItemSpan(maxLineSpan) }) {
+                                        ContinueReadingSection(
+                                            recentHistory = recentHistory.take(3),
+                                            folders = folders,
+                                            onResumeChapter = onResumeChapter
+                                        )
+                                    }
+                                }
+
                                 items(folders, key = { it.id }, contentType = { "folder_grid" }) { folderItem ->
                                     FolderGridItem(
                                         folderWithCover = folderItem,
@@ -363,6 +389,16 @@ fun LibraryScreen(
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.fillMaxSize()
                             ) {
+                                if (recentHistory.isNotEmpty()) {
+                                    item {
+                                        ContinueReadingSection(
+                                            recentHistory = recentHistory.take(3),
+                                            folders = folders,
+                                            onResumeChapter = onResumeChapter
+                                        )
+                                    }
+                                }
+
                                 items(folders, key = { it.id }, contentType = { "folder_list" }) { folderItem ->
                                     FolderCard(
                                         folderWithCover = folderItem,
@@ -422,6 +458,166 @@ fun LibraryScreen(
                 },
                 onDismiss = { showSettingsDialog = false }
             )
+        }
+    }
+}
+
+@Composable
+private fun ContinueReadingSection(
+    recentHistory: List<HistoryEntity>,
+    folders: List<FolderWithCover>,
+    onResumeChapter: (folderId: String, chapterPath: String, initialPage: Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(bottom = 12.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.History,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "Continue Reading",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(horizontal = 4.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(recentHistory, key = { it.chapterPath }) { entry ->
+                val mainFolderName = folders.find { it.id == entry.folderId }?.displayName ?: ""
+                CompactContinueReadingCard(
+                    entry = entry,
+                    mainFolderName = mainFolderName,
+                    onClick = {
+                        onResumeChapter(entry.folderId, entry.chapterPath, entry.currentPage)
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompactContinueReadingCard(
+    entry: HistoryEntity,
+    mainFolderName: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    OutlinedCard(
+        modifier = modifier
+            .width(230.dp)
+            .height(82.dp),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        ),
+        onClick = onClick
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(46.dp)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                contentAlignment = Alignment.Center
+            ) {
+                if (entry.coverImageUri.isNotEmpty()) {
+                    val context = LocalContext.current
+                    val coverRequest = remember(entry.coverImageUri) {
+                        ImageRequest.Builder(context)
+                            .data(entry.coverImageUri)
+                            .size(160)
+                            .crossfade(false)
+                            .bitmapConfig(Bitmap.Config.RGB_565)
+                            .allowHardware(true)
+                            .memoryCachePolicy(CachePolicy.ENABLED)
+                            .diskCachePolicy(CachePolicy.ENABLED)
+                            .build()
+                    }
+                    AsyncImage(
+                        model = coverRequest,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Folder,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                if (mainFolderName.isNotBlank()) {
+                    Text(
+                        text = mainFolderName,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Text(
+                    text = entry.title,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                val progress = if (entry.totalPages > 0) {
+                    (entry.currentPage + 1f) / entry.totalPages.toFloat()
+                } else 0f
+                LinearProgressIndicator(
+                    progress = { progress.coerceIn(0f, 1f) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .clip(RoundedCornerShape(2.dp)),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Page ${entry.currentPage + 1}/${entry.totalPages.coerceAtLeast(1)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
+                )
+            }
         }
     }
 }

@@ -46,13 +46,20 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     val foldersWithCovers: StateFlow<List<FolderWithCover>> = combine(
         preferencesManager.foldersFlow,
         imageDao.getAllFolderCoversFlow(),
+        historyDao.getRecentHistory(),
         _sortOption
-    ) { folderList, covers, sortOption ->
+    ) { folderList, covers, history, sortOption ->
         val coverMap = covers.associate { it.folderId to it.coverUri }
+        val historyMap = history.groupBy { it.folderId }
         val withCovers = folderList.map { folder ->
+            val folderHistory = historyMap[folder.id]?.firstOrNull()
+            val progress = if (folderHistory != null && folderHistory.totalPages > 0) {
+                (folderHistory.currentPage + 1f) / folderHistory.totalPages.toFloat()
+            } else 0f
             FolderWithCover(
                 folder = folder,
-                coverUri = coverMap[folder.id]
+                coverUri = coverMap[folder.id],
+                readProgress = progress
             )
         }
         sortFoldersWithCovers(withCovers, sortOption)

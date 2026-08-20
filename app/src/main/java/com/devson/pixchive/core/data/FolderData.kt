@@ -18,7 +18,8 @@ data class ComicFolder(
 
 data class FolderWithCover(
     val folder: ComicFolder,
-    val coverUri: String? = null
+    val coverUri: String? = null,
+    val readProgress: Float = 0f
 ) {
     val id: String get() = folder.id
     val displayName: String get() = folder.displayName

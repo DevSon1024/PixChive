@@ -44,6 +44,7 @@ fun FolderCard(
 ) = FolderCard(
     folder = folderWithCover.folder,
     coverUri = folderWithCover.coverUri,
+    readProgress = folderWithCover.readProgress,
     onDelete = onDelete,
     onClick = onClick
 )
@@ -53,6 +54,7 @@ fun FolderCard(
 fun FolderCard(
     folder: ComicFolder,
     coverUri: String? = null,
+    readProgress: Float = 0f,
     onDelete: () -> Unit,
     onClick: () -> Unit
 ) {
@@ -153,6 +155,19 @@ fun FolderCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+
+                if (readProgress > 0f) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    LinearProgressIndicator(
+                        progress = { readProgress.coerceIn(0f, 1f) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(2.dp)
+                            .clip(RoundedCornerShape(1.dp)),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                }
             }
 
             IconButton(onClick = onDelete) {
@@ -175,6 +190,7 @@ fun FolderGridItem(
 ) = FolderGridItem(
     folder = folderWithCover.folder,
     coverUri = folderWithCover.coverUri,
+    readProgress = folderWithCover.readProgress,
     onDelete = onDelete,
     onClick = onClick
 )
@@ -184,6 +200,7 @@ fun FolderGridItem(
 fun FolderGridItem(
     folder: ComicFolder,
     coverUri: String? = null,
+    readProgress: Float = 0f,
     onDelete: () -> Unit,
     onClick: () -> Unit
 ) {
@@ -194,8 +211,8 @@ fun FolderGridItem(
         OutlinedCard(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(1f),
-            shape = RoundedCornerShape(18.dp),
+                .aspectRatio(0.7f),
+            shape = RoundedCornerShape(14.dp),
             colors = CardDefaults.outlinedCardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow
             ),
@@ -204,87 +221,115 @@ fun FolderGridItem(
                 MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
             )
         ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                val hasCover = !coverUri.isNullOrEmpty()
-                if (hasCover) {
-                    val context = LocalContext.current
-                    val imageRequest = remember(coverUri) {
-                        ImageRequest.Builder(context)
-                            .data(coverUri)
-                            .size(256)
-                            .crossfade(false)
-                            .bitmapConfig(Bitmap.Config.RGB_565)
-                            .allowHardware(true)
-                            .memoryCachePolicy(CachePolicy.ENABLED)
-                            .diskCachePolicy(CachePolicy.ENABLED)
-                            .build()
-                    }
-                    AsyncImage(
-                        model = imageRequest,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .combinedClickable(
+                        onClick = onClick,
+                        onLongClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            showMenu = true
+                        }
                     )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.45f))
-                    )
-                }
-
-                Column(
+            ) {
+                // Top section: Cover Art with imageCount badge
+                Box(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .combinedClickable(
-                            onClick = onClick,
-                            onLongClick = {
-                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                showMenu = true
-                            }
-                        )
-                        .padding(12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .clip(RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(52.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(
-                                if (hasCover) {
-                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f)
-                                } else {
-                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
-                                }
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    if (!coverUri.isNullOrEmpty()) {
+                        val context = LocalContext.current
+                        val imageRequest = remember(coverUri) {
+                            ImageRequest.Builder(context)
+                                .data(coverUri)
+                                .size(320)
+                                .crossfade(false)
+                                .bitmapConfig(Bitmap.Config.RGB_565)
+                                .allowHardware(true)
+                                .memoryCachePolicy(CachePolicy.ENABLED)
+                                .diskCachePolicy(CachePolicy.ENABLED)
+                                .build()
+                        }
+                        AsyncImage(
+                            model = imageRequest,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
                         Icon(
                             imageVector = Icons.Default.Folder,
                             contentDescription = null,
-                            modifier = Modifier.size(28.dp),
-                            tint = if (hasCover) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary
+                            modifier = Modifier.size(36.dp),
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
                         )
                     }
-                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Material 3 Badge in top right corner showing imageCount
+                    if (folder.imageCount > 0) {
+                        Badge(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.92f),
+                            contentColor = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(6.dp)
+                        ) {
+                            Text(
+                                text = "${folder.imageCount}",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                            )
+                        }
+                    }
+                }
+
+                // Bottom section: Standard Column for title, read progress, and chapter count
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                ) {
                     Text(
                         text = folder.displayName,
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = if (hasCover) Color.White else MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        textAlign = TextAlign.Center
+                        overflow = TextOverflow.Ellipsis
                     )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // LinearProgressIndicator below the title
+                    if (readProgress > 0f) {
+                        LinearProgressIndicator(
+                            progress = { readProgress.coerceIn(0f, 1f) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(3.dp)
+                                .clip(RoundedCornerShape(2.dp)),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.height(3.dp))
+                    }
+
                     Spacer(modifier = Modifier.height(2.dp))
+
                     Text(
-                        text = "${folder.imageCount} items",
+                        text = "${folder.chapterCount} ch",
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (hasCover) Color.White.copy(alpha = 0.75f) else MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
         }
+
         if (showMenu) {
             OptionsBottomSheet(
                 title = folder.displayName,

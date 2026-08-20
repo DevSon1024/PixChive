@@ -117,6 +117,15 @@ fun NavGraph(
                     },
                     onFavoritesClick = {
                         navController.navigate(FavoritesDestination)
+                    },
+                    onResumeChapter = { folderId, chapterPath, initialPage ->
+                        navController.navigate(
+                            ImageViewerDestination(
+                                folderId,
+                                chapterPath,
+                                initialPage
+                            )
+                        )
                     }
                 )
             }

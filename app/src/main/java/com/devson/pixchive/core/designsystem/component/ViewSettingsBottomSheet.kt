@@ -39,11 +39,17 @@ fun ViewSettingsBottomSheet(
     layoutMode: String, // "grid", "list"
     gridColumns: Int,
     sortOption: String? = null, // null to hide sort section
+    coverAspectRatio: Float = 0.7f,
+    showUnreadBadges: Boolean = true,
+    showProgressBars: Boolean = true,
     // Callbacks
     onViewModeChange: ((String) -> Unit)? = null,
     onLayoutModeChange: (String) -> Unit,
     onGridColumnsChange: (Int) -> Unit,
-    onSortOptionChange: ((String) -> Unit)? = null
+    onSortOptionChange: ((String) -> Unit)? = null,
+    onCoverAspectRatioChange: ((Float) -> Unit)? = null,
+    onShowUnreadBadgesChange: ((Boolean) -> Unit)? = null,
+    onShowProgressBarsChange: ((Boolean) -> Unit)? = null
 ) {
     var showSortWheel by remember { mutableStateOf(false) }
 
@@ -186,7 +192,117 @@ fun ViewSettingsBottomSheet(
                 Spacer(modifier = Modifier.height(20.dp))
             }
 
-            // 4. Sort By
+            // 4. Cover Aspect Ratio (Only when in Grid mode and callback provided)
+            if (layoutMode == "grid" && onCoverAspectRatioChange != null) {
+                Text(
+                    text = "Cover Ratio",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    SelectionCard(
+                        selected = kotlin.math.abs(coverAspectRatio - 0.7f) < 0.05f,
+                        title = "Portrait",
+                        icon = Icons.Default.CropPortrait,
+                        onClick = { onCoverAspectRatioChange(0.7f) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    SelectionCard(
+                        selected = kotlin.math.abs(coverAspectRatio - 1.0f) < 0.05f,
+                        title = "Square",
+                        icon = Icons.Default.CropSquare,
+                        onClick = { onCoverAspectRatioChange(1.0f) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    SelectionCard(
+                        selected = kotlin.math.abs(coverAspectRatio - 1.5f) < 0.05f,
+                        title = "Landscape",
+                        icon = Icons.Default.CropLandscape,
+                        onClick = { onCoverAspectRatioChange(1.5f) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Spacer(modifier = Modifier.height(20.dp))
+            }
+
+            // 5. Card Elements (Badges & Progress Bars)
+            if (onShowUnreadBadgesChange != null || onShowProgressBarsChange != null) {
+                Text(
+                    text = "Card Elements",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+
+                if (onShowUnreadBadgesChange != null) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onShowUnreadBadgesChange(!showUnreadBadges) }
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Item Count Badges",
+                                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Show item count badge on covers",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = showUnreadBadges,
+                            onCheckedChange = onShowUnreadBadgesChange
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                if (onShowProgressBarsChange != null) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onShowProgressBarsChange(!showProgressBars) }
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Reading Progress Bars",
+                                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Show progress indicator under card titles",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = showProgressBars,
+                            onCheckedChange = onShowProgressBarsChange
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+            }
+
+            // 6. Sort By
             if (sortOption != null && onSortOptionChange != null) {
                 Text(
                     text = "Sort By",

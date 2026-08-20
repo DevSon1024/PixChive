@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -71,6 +72,11 @@ class PreferencesManager(private val context: Context) {
         private val GALLERY_VIEW_MODE_KEY = stringPreferencesKey("gallery_view_mode")
         private val BACKGROUND_BLUR_ENABLED_KEY = booleanPreferencesKey("background_blur_enabled")
         private val LAST_GALLERY_TAB_KEY = intPreferencesKey("last_gallery_tab")
+
+        // Library Appearance Settings
+        private val COVER_ASPECT_RATIO_KEY = floatPreferencesKey("cover_aspect_ratio")
+        private val SHOW_UNREAD_BADGES_KEY = booleanPreferencesKey("show_unread_badges")
+        private val SHOW_PROGRESS_BARS_KEY = booleanPreferencesKey("show_progress_bars")
     }
 
     // Default to index 2 (which represents 4 columns in our list if index 0 is 2 columns)
@@ -411,6 +417,37 @@ class PreferencesManager(private val context: Context) {
     suspend fun setShowFolderCard(show: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[SHOW_FOLDER_CARD_KEY] = show
+        }
+    }
+
+    // --- Library Appearance Settings ---
+    val coverAspectRatioFlow: Flow<Float> = context.dataStore.data.map { preferences ->
+        preferences[COVER_ASPECT_RATIO_KEY] ?: 0.7f
+    }.distinctUntilChanged()
+
+    suspend fun setCoverAspectRatio(ratio: Float) {
+        context.dataStore.edit { preferences ->
+            preferences[COVER_ASPECT_RATIO_KEY] = ratio
+        }
+    }
+
+    val showUnreadBadgesFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[SHOW_UNREAD_BADGES_KEY] ?: true
+    }.distinctUntilChanged()
+
+    suspend fun setShowUnreadBadges(show: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[SHOW_UNREAD_BADGES_KEY] = show
+        }
+    }
+
+    val showProgressBarsFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[SHOW_PROGRESS_BARS_KEY] ?: true
+    }.distinctUntilChanged()
+
+    suspend fun setShowProgressBars(show: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[SHOW_PROGRESS_BARS_KEY] = show
         }
     }
 }

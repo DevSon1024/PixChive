@@ -39,12 +39,14 @@ import com.devson.pixchive.core.designsystem.component.OptionsBottomSheet
 @Composable
 fun FolderCard(
     folderWithCover: FolderWithCover,
+    showProgressBar: Boolean = true,
     onDelete: () -> Unit,
     onClick: () -> Unit
 ) = FolderCard(
     folder = folderWithCover.folder,
     coverUri = folderWithCover.coverUri,
     readProgress = folderWithCover.readProgress,
+    showProgressBar = showProgressBar,
     onDelete = onDelete,
     onClick = onClick
 )
@@ -55,6 +57,7 @@ fun FolderCard(
     folder: ComicFolder,
     coverUri: String? = null,
     readProgress: Float = 0f,
+    showProgressBar: Boolean = true,
     onDelete: () -> Unit,
     onClick: () -> Unit
 ) {
@@ -156,7 +159,7 @@ fun FolderCard(
                     )
                 }
 
-                if (readProgress > 0f) {
+                if (showProgressBar && readProgress > 0f) {
                     Spacer(modifier = Modifier.height(4.dp))
                     LinearProgressIndicator(
                         progress = { readProgress.coerceIn(0f, 1f) },
@@ -185,12 +188,18 @@ fun FolderCard(
 @Composable
 fun FolderGridItem(
     folderWithCover: FolderWithCover,
+    aspectRatio: Float = 0.7f,
+    showUnreadBadge: Boolean = true,
+    showProgressBar: Boolean = true,
     onDelete: () -> Unit,
     onClick: () -> Unit
 ) = FolderGridItem(
     folder = folderWithCover.folder,
     coverUri = folderWithCover.coverUri,
     readProgress = folderWithCover.readProgress,
+    aspectRatio = aspectRatio,
+    showUnreadBadge = showUnreadBadge,
+    showProgressBar = showProgressBar,
     onDelete = onDelete,
     onClick = onClick
 )
@@ -201,6 +210,9 @@ fun FolderGridItem(
     folder: ComicFolder,
     coverUri: String? = null,
     readProgress: Float = 0f,
+    aspectRatio: Float = 0.7f,
+    showUnreadBadge: Boolean = true,
+    showProgressBar: Boolean = true,
     onDelete: () -> Unit,
     onClick: () -> Unit
 ) {
@@ -211,7 +223,7 @@ fun FolderGridItem(
         OutlinedCard(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(0.7f),
+                .aspectRatio(aspectRatio),
             shape = RoundedCornerShape(14.dp),
             colors = CardDefaults.outlinedCardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow
@@ -270,7 +282,7 @@ fun FolderGridItem(
                     }
 
                     // Material 3 Badge in top right corner showing imageCount
-                    if (folder.imageCount > 0) {
+                    if (showUnreadBadge && folder.imageCount > 0) {
                         Badge(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.92f),
                             contentColor = MaterialTheme.colorScheme.onSurface,
@@ -300,21 +312,21 @@ fun FolderGridItem(
                         overflow = TextOverflow.Ellipsis
                     )
 
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    // LinearProgressIndicator below the title
-                    if (readProgress > 0f) {
-                        LinearProgressIndicator(
-                            progress = { readProgress.coerceIn(0f, 1f) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(3.dp)
-                                .clip(RoundedCornerShape(2.dp)),
-                            color = MaterialTheme.colorScheme.primary,
-                            trackColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
-                    } else {
-                        Spacer(modifier = Modifier.height(3.dp))
+                    if (showProgressBar) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        if (readProgress > 0f) {
+                            LinearProgressIndicator(
+                                progress = { readProgress.coerceIn(0f, 1f) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(3.dp)
+                                    .clip(RoundedCornerShape(2.dp)),
+                                color = MaterialTheme.colorScheme.primary,
+                                trackColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        } else {
+                            Spacer(modifier = Modifier.height(3.dp))
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(2.dp))

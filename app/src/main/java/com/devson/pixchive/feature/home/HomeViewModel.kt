@@ -52,6 +52,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _sortOption = MutableStateFlow("date_newest")
     val sortOption: StateFlow<String> = _sortOption.asStateFlow()
 
+    val coverAspectRatio: StateFlow<Float> = preferencesManager.coverAspectRatioFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.7f)
+
+    val showUnreadBadges: StateFlow<Boolean> = preferencesManager.showUnreadBadgesFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val showProgressBars: StateFlow<Boolean> = preferencesManager.showProgressBarsFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
     val folders: StateFlow<List<FolderWithCover>> = combine(
         preferencesManager.foldersFlow,
         imageDao.getAllFolderCoversFlow(),
@@ -244,6 +253,24 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _gridColumns.value = columns
             preferencesManager.saveHomeGridColumns(columns)
+        }
+    }
+
+    fun setCoverAspectRatio(ratio: Float) {
+        viewModelScope.launch {
+            preferencesManager.setCoverAspectRatio(ratio)
+        }
+    }
+
+    fun setShowUnreadBadges(show: Boolean) {
+        viewModelScope.launch {
+            preferencesManager.setShowUnreadBadges(show)
+        }
+    }
+
+    fun setShowProgressBars(show: Boolean) {
+        viewModelScope.launch {
+            preferencesManager.setShowProgressBars(show)
         }
     }
 

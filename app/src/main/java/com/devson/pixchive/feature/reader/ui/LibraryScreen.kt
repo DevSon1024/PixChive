@@ -92,6 +92,9 @@ fun LibraryScreen(
     val layoutMode by viewModel.layoutMode.collectAsState()
     val sortOption by viewModel.sortOption.collectAsState()
     val gridColumns by viewModel.gridColumns.collectAsState()
+    val coverAspectRatio by viewModel.coverAspectRatio.collectAsState()
+    val showUnreadBadges by viewModel.showUnreadBadges.collectAsState()
+    val showProgressBars by viewModel.showProgressBars.collectAsState()
 
     val gridState = rememberLazyGridState()
     val isFabExpanded by remember {
@@ -409,6 +412,9 @@ fun LibraryScreen(
                                 items(folders, key = { it.id }, contentType = { "folder_grid" }) { folderItem ->
                                     FolderGridItem(
                                         folderWithCover = folderItem,
+                                        aspectRatio = coverAspectRatio,
+                                        showUnreadBadge = showUnreadBadges,
+                                        showProgressBar = showProgressBars,
                                         onDelete = { viewModel.removeFolder(folderItem.id) },
                                         onClick = { onFolderClick(folderItem.id) }
                                     )
@@ -438,6 +444,7 @@ fun LibraryScreen(
                                 items(folders, key = { it.id }, contentType = { "folder_list" }) { folderItem ->
                                     FolderCard(
                                         folderWithCover = folderItem,
+                                        showProgressBar = showProgressBars,
                                         onDelete = { viewModel.removeFolder(folderItem.id) },
                                         onClick = { onFolderClick(folderItem.id) }
                                     )
@@ -495,9 +502,15 @@ fun LibraryScreen(
                 layoutMode = layoutMode,
                 gridColumns = gridColumns,
                 sortOption = sortOption,
+                coverAspectRatio = coverAspectRatio,
+                showUnreadBadges = showUnreadBadges,
+                showProgressBars = showProgressBars,
                 onLayoutModeChange = { viewModel.setLayoutMode(it) },
                 onGridColumnsChange = { viewModel.setGridColumns(it) },
-                onSortOptionChange = { viewModel.setSortOption(it) }
+                onSortOptionChange = { viewModel.setSortOption(it) },
+                onCoverAspectRatioChange = { viewModel.setCoverAspectRatio(it) },
+                onShowUnreadBadgesChange = { viewModel.setShowUnreadBadges(it) },
+                onShowProgressBarsChange = { viewModel.setShowProgressBars(it) }
             )
         }
 

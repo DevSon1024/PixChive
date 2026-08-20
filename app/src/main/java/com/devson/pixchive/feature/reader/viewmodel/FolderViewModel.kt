@@ -43,6 +43,15 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     private val _sortOption = MutableStateFlow("name_asc")
     val sortOption: StateFlow<String> = _sortOption.asStateFlow()
 
+    val coverAspectRatio: StateFlow<Float> = preferencesManager.coverAspectRatioFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.7f)
+
+    val showUnreadBadges: StateFlow<Boolean> = preferencesManager.showUnreadBadgesFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val showProgressBars: StateFlow<Boolean> = preferencesManager.showProgressBarsFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
     val foldersWithCovers: StateFlow<List<FolderWithCover>> = combine(
         preferencesManager.foldersFlow,
         imageDao.getAllFolderCoversFlow(),
@@ -556,6 +565,24 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     suspend fun getReadProgress(chapterPath: String): Int {
         val folderId = _currentFolder.value?.id ?: return 0
         return preferencesManager.getReadProgress(folderId, chapterPath)
+    }
+
+    fun setCoverAspectRatio(ratio: Float) {
+        viewModelScope.launch {
+            preferencesManager.setCoverAspectRatio(ratio)
+        }
+    }
+
+    fun setShowUnreadBadges(show: Boolean) {
+        viewModelScope.launch {
+            preferencesManager.setShowUnreadBadges(show)
+        }
+    }
+
+    fun setShowProgressBars(show: Boolean) {
+        viewModelScope.launch {
+            preferencesManager.setShowProgressBars(show)
+        }
     }
 
     private fun sortImages(images: List<ImageEntity>, sort: String): List<ImageEntity> {

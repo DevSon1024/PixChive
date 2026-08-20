@@ -3,38 +3,52 @@ package com.devson.pixchive.feature.settings.ui
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-// Data models
+// Data Models
 
 data class OpenSourceLibrary(
     val name: String,
@@ -45,12 +59,11 @@ data class OpenSourceLibrary(
     val category: String
 )
 
-// Library catalogue
 private val openSourceLibraries = listOf(
     OpenSourceLibrary(
         name = "Telephoto",
         author = "Saket Narayan",
-        description = "A zoomable image composable for Jetpack Compose, built on top of SubcomposeLayout. Powers the smooth pinch-to-zoom image viewing experience in PixChive.",
+        description = "A zoomable image composable for Jetpack Compose, built on top of SubcomposeLayout. Powers smooth pinch-to-zoom image viewing in PixChive.",
         url = "https://github.com/saket/telephoto",
         license = "Apache-2.0",
         category = "Image Handling"
@@ -58,15 +71,15 @@ private val openSourceLibraries = listOf(
     OpenSourceLibrary(
         name = "Coil",
         author = "Colin White & contributors",
-        description = "An image loading library for Android backed by Kotlin Coroutines. Handles all thumbnail generation and image decoding efficiently in PixChive.",
+        description = "An image loading library for Android backed by Kotlin Coroutines. Handles thumbnail caching and fast bitmap decoding.",
         url = "https://github.com/coil-kt/coil",
         license = "Apache-2.0",
         category = "Image Loading"
     ),
     OpenSourceLibrary(
         name = "Jetpack Compose",
-        author = "Google / Android Open Source Project",
-        description = "Android's modern declarative UI toolkit. The entire PixChive UI is built with Compose - from the folder grid to the reader and settings screens.",
+        author = "Google / AOSP",
+        description = "Android's modern declarative UI toolkit. The entire PixChive UI is built with Compose using Material Design 3 guidelines.",
         url = "https://developer.android.com/jetpack/compose",
         license = "Apache-2.0",
         category = "UI Framework"
@@ -74,7 +87,7 @@ private val openSourceLibraries = listOf(
     OpenSourceLibrary(
         name = "Room",
         author = "Google / AOSP",
-        description = "A persistence library that provides an abstraction layer over SQLite. Stores folder metadata, scan results, and user favourites in PixChive.",
+        description = "A persistence library that provides an abstraction layer over SQLite. Stores folder metadata, scan results, and user favourites.",
         url = "https://developer.android.com/training/data-storage/room",
         license = "Apache-2.0",
         category = "Database"
@@ -90,7 +103,7 @@ private val openSourceLibraries = listOf(
     OpenSourceLibrary(
         name = "DataStore",
         author = "Google / AOSP",
-        description = "A data storage solution using Kotlin Coroutines and Flow. Persists all user preferences (theme, hidden-files toggle, etc.) in PixChive.",
+        description = "A modern data storage solution using Coroutines and Flow. Persists all user preferences (theme, layout mode, grid columns).",
         url = "https://developer.android.com/topic/libraries/architecture/datastore",
         license = "Apache-2.0",
         category = "Preferences"
@@ -98,7 +111,7 @@ private val openSourceLibraries = listOf(
     OpenSourceLibrary(
         name = "Paging 3",
         author = "Google / AOSP",
-        description = "Load and display pages of data gracefully. Used by PixChive to stream large flat-view image lists without overwhelming memory.",
+        description = "Load and display pages of data gracefully. Used by PixChive to stream massive photo collections with near-zero UI jank.",
         url = "https://developer.android.com/topic/libraries/architecture/paging/v3-overview",
         license = "Apache-2.0",
         category = "Data Loading"
@@ -106,15 +119,15 @@ private val openSourceLibraries = listOf(
     OpenSourceLibrary(
         name = "WorkManager",
         author = "Google / AOSP",
-        description = "A background task scheduler that respects battery and OS constraints. Powers deferred folder-scanning jobs in PixChive.",
+        description = "Background task scheduler respecting battery and OS constraints. Powers deferred background media sync in PixChive.",
         url = "https://developer.android.com/topic/libraries/architecture/workmanager",
         license = "Apache-2.0",
         category = "Background Work"
     ),
     OpenSourceLibrary(
         name = "Accompanist Permissions",
-        author = "Google / Android Open Source Project",
-        description = "A utility library for handling runtime permissions in Jetpack Compose. Used to request storage / media access permissions on first launch.",
+        author = "Google / AOSP",
+        description = "Utility library for handling runtime permissions in Jetpack Compose for seamless storage and media access.",
         url = "https://google.github.io/accompanist/permissions/",
         license = "Apache-2.0",
         category = "Permissions"
@@ -122,7 +135,7 @@ private val openSourceLibraries = listOf(
     OpenSourceLibrary(
         name = "simple-storage",
         author = "Anggrayudi Hardiannico",
-        description = "A wrapper around Android's Storage Access Framework that simplifies SAF URIs, DocumentFile operations, and cross-partition file I/O - critical for broad file support in PixChive.",
+        description = "SAF wrapper that simplifies Storage Access Framework operations and cross-partition file I/O for broad folder support.",
         url = "https://github.com/anggrayudi/SimpleStorage",
         license = "Apache-2.0",
         category = "File I/O"
@@ -130,7 +143,7 @@ private val openSourceLibraries = listOf(
     OpenSourceLibrary(
         name = "ExifInterface",
         author = "Google / AOSP",
-        description = "Reads and writes EXIF metadata from JPEG/WebP/PNG files. Provides image orientation and metadata info in PixChive's detail view.",
+        description = "Reads and writes EXIF metadata from JPEG, WebP, and PNG files. Powers image detail info and orientation parsing.",
         url = "https://developer.android.com/reference/androidx/exifinterface/media/ExifInterface",
         license = "Apache-2.0",
         category = "Metadata"
@@ -138,7 +151,7 @@ private val openSourceLibraries = listOf(
     OpenSourceLibrary(
         name = "Gson",
         author = "Google",
-        description = "A Java serialization/deserialization library. Used internally for JSON-based folder data persistence in PixChive.",
+        description = "A Java serialization/deserialization library. Used for robust JSON data persistence.",
         url = "https://github.com/google/gson",
         license = "Apache-2.0",
         category = "Serialization"
@@ -146,32 +159,16 @@ private val openSourceLibraries = listOf(
     OpenSourceLibrary(
         name = "Kotlin Coroutines",
         author = "JetBrains",
-        description = "Asynchronous programming made simple. Every background operation in PixChive - scanning, loading, sorting - is powered by Kotlin coroutines and Flow.",
+        description = "Asynchronous programming and reactive Flow pipelines powering all background operations in PixChive.",
         url = "https://github.com/Kotlin/kotlinx.coroutines",
         license = "Apache-2.0",
         category = "Async"
     )
 )
 
-// Category chip colors mapped to MaterialTheme tokens (index-based for variety)
-private val categoryColors = listOf(
-    Color(0xFF6750A4), // purple
-    Color(0xFF0B6E4F), // green
-    Color(0xFFB5460B), // orange
-    Color(0xFF006782), // teal
-    Color(0xFF6B3FA0), // violet
-    Color(0xFF7A5900), // amber
-    Color(0xFF004BA1), // blue
-)
 
-// Helpers
-private fun categoryColor(category: String): Color {
-    return categoryColors[Math.abs(category.hashCode()) % categoryColors.size]
-}
+// Main About Screen
 
-// ---------------------------------------------------------------------------
-// Composables
-// ---------------------------------------------------------------------------
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -183,7 +180,7 @@ fun AboutScreen(
     if (showCredits) {
         CreditsScreen(onNavigateBack = { showCredits = false })
     } else {
-        MainAboutScreen(
+        MainAboutContent(
             onNavigateBack = onNavigateBack,
             onShowCredits = { showCredits = true }
         )
@@ -192,34 +189,575 @@ fun AboutScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MainAboutScreen(
+private fun MainAboutContent(
     onNavigateBack: () -> Unit,
     onShowCredits: () -> Unit
 ) {
     val context = LocalContext.current
+
     val packageInfo = remember {
         try {
             context.packageManager.getPackageInfo(context.packageName, 0)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }
-    val versionName = packageInfo?.versionName ?: "Unknown"
+    val versionName = packageInfo?.versionName ?: "1.0.0"
     val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-        packageInfo?.longVersionCode?.toString() ?: "Unknown"
+        packageInfo?.longVersionCode?.toString() ?: "1"
     } else {
         @Suppress("DEPRECATION")
-        packageInfo?.versionCode?.toString() ?: "Unknown"
+        packageInfo?.versionCode?.toString() ?: "1"
     }
-    
+
     val androidVersion = Build.VERSION.RELEASE
     val apiLevel = Build.VERSION.SDK_INT
     val abis = Build.SUPPORTED_ABIS.joinToString(", ")
 
+    fun openUrl(url: String) {
+        try {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        } catch (_: Exception) {
+            Toast.makeText(context, "Could not open link", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("About") },
+                title = { Text("About PixChive", fontWeight = FontWeight.SemiBold) },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = {
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_SUBJECT, "PixChive")
+                            putExtra(
+                                Intent.EXTRA_TEXT,
+                                "Check out PixChive — a modern, fast, and private offline gallery & comic reader for Android!\nhttps://github.com/DevSon1024/PixChive"
+                            )
+                        }
+                        context.startActivity(Intent.createChooser(shareIntent, "Share PixChive"))
+                    }) {
+                        Icon(Icons.Default.Share, contentDescription = "Share App")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { paddingValues ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                top = paddingValues.calculateTopPadding() + 8.dp,
+                bottom = paddingValues.calculateBottomPadding() + 40.dp,
+                start = 16.dp,
+                end = 16.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // 1. Hero App Identity Card
+            item {
+                AppHeroCard(
+                    versionName = versionName,
+                    versionCode = versionCode
+                )
+            }
+
+            // 2. Build & System Info Card
+            item {
+                SystemInfoCard(
+                    versionName = versionName,
+                    versionCode = versionCode,
+                    androidVersion = androidVersion,
+                    apiLevel = apiLevel,
+                    abis = abis,
+                    onCopy = {
+                        val buildInfo = """
+                            PixChive: v$versionName ($versionCode)
+                            Android OS: $androidVersion (API $apiLevel)
+                            Device: ${Build.MANUFACTURER} ${Build.MODEL}
+                            ABIs: $abis
+                        """.trimIndent()
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                        val clip = ClipData.newPlainText("PixChive System Info", buildInfo)
+                        clipboard?.setPrimaryClip(clip)
+                        Toast.makeText(context, "System details copied to clipboard", Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }
+
+            // 3. Project & Community Section
+            item {
+                AboutSectionLabel("Project & Community")
+                M3CardContainer {
+                    M3ActionRow(
+                        icon = Icons.Outlined.Code,
+                        iconTint = MaterialTheme.colorScheme.primary,
+                        title = "Source Code",
+                        subtitle = "Explore the repository on GitHub",
+                        onClick = { openUrl("https://github.com/DevSon1024/PixChive") }
+                    )
+                    M3RowDivider()
+                    M3ActionRow(
+                        icon = Icons.AutoMirrored.Filled.MenuBook,
+                        iconTint = MaterialTheme.colorScheme.secondary,
+                        title = "Readme & Documentation",
+                        subtitle = "Learn about features and architecture",
+                        onClick = { openUrl("https://github.com/DevSon1024/PixChive/blob/main/README.md") }
+                    )
+                    M3RowDivider()
+                    M3ActionRow(
+                        icon = Icons.Outlined.NewReleases,
+                        iconTint = MaterialTheme.colorScheme.tertiary,
+                        title = "Releases & Changelog",
+                        subtitle = "View latest updates and release notes",
+                        onClick = { openUrl("https://github.com/DevSon1024/PixChive/releases") }
+                    )
+                    M3RowDivider()
+                    M3ActionRow(
+                        icon = Icons.Outlined.BugReport,
+                        iconTint = MaterialTheme.colorScheme.error,
+                        title = "Report an Issue",
+                        subtitle = "Submit bugs or request new features",
+                        onClick = { openUrl("https://github.com/DevSon1024/PixChive/issues/new") }
+                    )
+                    M3RowDivider()
+                    M3ActionRow(
+                        icon = Icons.AutoMirrored.Filled.Send,
+                        iconTint = Color(0xFF2AABEE), // Telegram blue accent
+                        title = "Telegram Channel",
+                        subtitle = "Join our community updates @pixchive",
+                        onClick = { openUrl("https://t.me/pixchive") }
+                    )
+                }
+            }
+
+            // 4. Developer & Contribution Section
+            item {
+                AboutSectionLabel("Developer")
+                DeveloperCard(
+                    onGitHubClick = { openUrl("https://github.com/DevSon1024") },
+                    onSponsorClick = { openUrl("https://github.com/sponsors/DevSon1024") }
+                )
+            }
+
+            // 5. Open Source & Licenses Section
+            item {
+                AboutSectionLabel("Acknowledgements")
+                M3CardContainer {
+                    M3ActionRow(
+                        icon = Icons.Outlined.VolunteerActivism,
+                        iconTint = MaterialTheme.colorScheme.primary,
+                        title = "Open Source Libraries",
+                        subtitle = "${openSourceLibraries.size} libraries powering PixChive",
+                        trailing = {
+                            FilledTonalButton(
+                                onClick = onShowCredits,
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                                shape = RoundedCornerShape(50)
+                            ) {
+                                Text("View All", style = MaterialTheme.typography.labelMedium)
+                                Spacer(Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                            }
+                        },
+                        onClick = onShowCredits
+                    )
+                }
+            }
+
+            // 6. Footer Section
+            item {
+                AboutFooter()
+            }
+        }
+    }
+}
+
+
+// Hero App Card (Material You)
+
+
+@Composable
+private fun AppHeroCard(
+    versionName: String,
+    versionCode: String
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        tonalElevation = 2.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Glowing App Icon
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .shadow(12.dp, CircleShape, spotColor = MaterialTheme.colorScheme.primary)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.linearGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.primary,
+                                MaterialTheme.colorScheme.primaryContainer
+                            )
+                        )
+                    )
+                    .border(
+                        2.dp,
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.PhotoLibrary,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(40.dp)
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // App Name
+            Text(
+                text = "PixChive",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(Modifier.height(4.dp))
+
+            // Tagline
+            Text(
+                text = "Modern, Fast & Private Gallery & Reader",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(Modifier.height(14.dp))
+
+            // Feature Badges
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                HeroBadge(text = "v$versionName ($versionCode)", icon = Icons.Outlined.CheckCircle)
+                HeroBadge(text = "Material You", icon = Icons.Outlined.Palette)
+                HeroBadge(text = "100% Offline", icon = Icons.Outlined.Shield)
+                HeroBadge(text = "Open Source", icon = Icons.Outlined.Code)
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeroBadge(text: String, icon: ImageVector) {
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(13.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+}
+
+
+// System Info Card
+
+
+@Composable
+private fun SystemInfoCard(
+    versionName: String,
+    versionCode: String,
+    androidVersion: String,
+    apiLevel: Int,
+    abis: String,
+    onCopy: () -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .clickable { expanded = !expanded },
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        tonalElevation = 1.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(18.dp)
+                .animateContentSize()
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Info,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Version $versionName",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Build $versionCode · Android $androidVersion (API $apiLevel)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                IconButton(onClick = onCopy) {
+                    Icon(
+                        imageVector = Icons.Outlined.ContentCopy,
+                        contentDescription = "Copy Build Info",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column(modifier = Modifier.padding(top = 14.dp)) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Spacer(Modifier.height(12.dp))
+
+                    InfoRowItem(label = "Device", value = "${Build.MANUFACTURER} ${Build.MODEL}")
+                    InfoRowItem(label = "Android Release", value = "Android $androidVersion (API $apiLevel)")
+                    InfoRowItem(label = "Architecture", value = abis)
+                    InfoRowItem(label = "Package", value = "com.devson.pixchive")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InfoRowItem(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+
+// Developer Card
+
+
+@Composable
+private fun DeveloperCard(
+    onGitHubClick: () -> Unit,
+    onSponsorClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        tonalElevation = 1.dp
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                // Developer Initial Badge
+                Box(
+                    modifier = Modifier
+                        .size(52.dp)
+                        .clip(CircleShape)
+                        .background(
+                            Brush.linearGradient(
+                                listOf(
+                                    MaterialTheme.colorScheme.secondary,
+                                    MaterialTheme.colorScheme.secondaryContainer
+                                )
+                            )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "D",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSecondary
+                    )
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = "Devson",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            Text(
+                                text = "Author",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                    Text(
+                        text = "Creator & maintainer of PixChive",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // Action Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onGitHubClick,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Code,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text("GitHub Profile", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+
+                Button(
+                    onClick = onSponsorClick,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Favorite,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text("Sponsor", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
+    }
+}
+
+
+// Credits / Open Source Screen (Filtered & Material You)
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CreditsScreen(
+    onNavigateBack: () -> Unit
+) {
+    val context = LocalContext.current
+    val categories = remember {
+        listOf("All") + openSourceLibraries.map { it.category }.distinct()
+    }
+    var selectedCategory by remember { mutableStateOf("All") }
+
+    val filteredLibraries = remember(selectedCategory) {
+        if (selectedCategory == "All") {
+            openSourceLibraries
+        } else {
+            openSourceLibraries.filter { it.category == selectedCategory }
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Open Source Credits", fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -235,344 +773,112 @@ private fun MainAboutScreen(
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
-                top = paddingValues.calculateTopPadding(),
-                bottom = paddingValues.calculateBottomPadding() + 32.dp
-            )
+                top = paddingValues.calculateTopPadding() + 8.dp,
+                bottom = paddingValues.calculateBottomPadding() + 32.dp,
+                start = 16.dp,
+                end = 16.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            // Header Info Card
             item {
-                DeveloperSection(
-                    onLinkClick = { url ->
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                    }
-                )
-            }
-
-            item {
-                Column(modifier = Modifier.padding(top = 8.dp)) {
-                    AboutActionItem(
-                        icon = Icons.Default.Info,
-                        title = "App Version $versionName ($versionCode)",
-                        subtitle = "Device Information: Android $androidVersion (API $apiLevel)\nSupported ABIs: [$abis]",
-                        onClick = {}
-                    )
-                    
-                    AboutActionItem(
-                        icon = Icons.AutoMirrored.Filled.List,
-                        title = "Readme",
-                        subtitle = "Check the GitHub repository and the readme",
-                        onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/DevSon1024/pixchive/blob/main/README.md"))) }
-                    )
-                    
-                    AboutActionItem(
-                        icon = Icons.Default.Star,
-                        title = "Latest Release",
-                        subtitle = "Look for changelogs and new versions",
-                        onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/DevSon1024/pixchive/releases/latest"))) }
-                    )
-                    
-                    AboutActionItem(
-                        icon = Icons.Default.Build,
-                        title = "Github Issue",
-                        subtitle = "Submit an issue for bug report or feature request",
-                        onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/DevSon1024/pixchive/issues/new"))) }
-                    )
-                    
-                    AboutActionItem(
-                        icon = Icons.Default.Favorite,
-                        title = "Sponsor",
-                        subtitle = "Support this app by sponsoring on github [coming soon]",
-                        onClick = {}
-                    )
-
-                    AboutActionItem(
-                        icon = Icons.AutoMirrored.Filled.Send,
-                        title = "Telegram channel",
-                        subtitle = "https://t.me/pixchive",
-                        onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/pixchive"))) }
-                    )
-                    
-                    AboutActionItem(
-                        icon = Icons.Default.Code,
-                        title = "Credits",
-                        subtitle = "Open source libraries used in this project",
-                        onClick = onShowCredits
-                    )
-                    
-                    AboutActionItem(
-                        icon = Icons.Default.Sync,
-                        title = "Auto Update",
-                        subtitle = "Coming Soon",
-                        onClick = {}
-                    )
-                }
-            }
-
-            item {
-                FooterSection()
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun CreditsScreen(
-    onNavigateBack: () -> Unit
-) {
-    val context = LocalContext.current
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Credits") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.background
-    ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            contentPadding = PaddingValues(bottom = 32.dp)
-        ) {
-            item {
-                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = "Open Source Libraries",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "PixChive is built on the shoulders of these amazing open-source projects. Huge thanks to all the authors! 🙌",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
-                    )
-                    HorizontalDivider()
-                }
-            }
-
-            items(openSourceLibraries) { library ->
-                LibraryCard(
-                    library = library,
-                    onViewSource = {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(library.url)))
-                    }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun AboutActionItem(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier.size(24.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
-        Spacer(Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-// Developer section
-@Composable
-private fun DeveloperSection(onLinkClick: (String) -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-    ) {
-        Text(
-            text = "Developer",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-            tonalElevation = 1.dp
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    tonalElevation = 1.dp
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Column(modifier = Modifier.padding(18.dp)) {
                         Text(
-                            text = "D",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = MaterialTheme.colorScheme.onPrimary
+                            text = "Built with Open Source ❤️",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
                         )
-                    }
-                    Column {
+                        Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "Devson",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Developer & designer of PixChive",
+                            text = "PixChive stands on the shoulders of these remarkable open-source projects. Immense gratitude to all developers and maintainers.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
+            }
 
-                Spacer(Modifier.height(12.dp))
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Spacer(Modifier.height(12.dp))
+            // Category Filter Chips
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    categories.forEach { cat ->
+                        FilterChip(
+                            selected = selectedCategory == cat,
+                            onClick = { selectedCategory = cat },
+                            label = { Text(cat) },
+                            shape = RoundedCornerShape(50)
+                        )
+                    }
+                }
+            }
 
-                LinkRow(
-                    icon = Icons.Default.Code,
-                    label = "GitHub Profile",
-                    url = "https://github.com/DevSon1024",
-                    onClick = onLinkClick
-                )
-                Spacer(Modifier.height(8.dp))
-                LinkRow(
-                    icon = Icons.Default.FolderOpen,
-                    label = "PixChive Repository",
-                    url = "https://github.com/DevSon1024/PixChive",
-                    onClick = onLinkClick
+            // Library Cards
+            items(filteredLibraries, key = { it.name }) { library ->
+                ModernLibraryCard(
+                    library = library,
+                    onViewSource = {
+                        try {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(library.url)))
+                        } catch (_: Exception) {
+                            Toast.makeText(context, "Could not open link", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 )
             }
         }
-
-        Spacer(Modifier.height(16.dp))
-        HorizontalDivider()
     }
 }
 
 @Composable
-private fun LinkRow(
-    icon: ImageVector,
-    label: String,
-    url: String,
-    onClick: (String) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .clickable { onClick(url) }
-            .padding(vertical = 10.dp, horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Column {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = url.removePrefix("https://"),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-            contentDescription = "Open link",
-            modifier = Modifier.size(18.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-// Library card
-@Composable
-private fun LibraryCard(
+private fun ModernLibraryCard(
     library: OpenSourceLibrary,
     onViewSource: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val catColor = categoryColor(library.category)
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 5.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(18.dp))
             .clickable { expanded = !expanded },
-        shape = RoundedCornerShape(14.dp),
-        tonalElevation = 1.dp,
-        color = MaterialTheme.colorScheme.surfaceContainerLow
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        tonalElevation = 1.dp
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .animateContentSize()
+        ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Color accent dot
+                // Category icon dot
                 Box(
                     modifier = Modifier
                         .size(10.dp)
                         .clip(CircleShape)
-                        .background(catColor)
+                        .background(MaterialTheme.colorScheme.primary)
                 )
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = library.name,
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -583,40 +889,34 @@ private fun LibraryCard(
                     )
                 }
 
-                // Category chip
+                // Category pill
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = catColor.copy(alpha = 0.12f),
-                    border = BorderStroke(
-                        0.5.dp, catColor.copy(alpha = 0.4f)
-                    )
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
                 ) {
                     Text(
                         text = library.category,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                         style = MaterialTheme.typography.labelSmall,
-                        color = catColor,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
 
-                // Expand chevron
                 Icon(
                     imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                     contentDescription = if (expanded) "Collapse" else "Expand",
-                    modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
                 )
             }
 
-            // Expandable content
             AnimatedVisibility(
                 visible = expanded,
-                enter = expandVertically(),
-                exit = shrinkVertically()
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
             ) {
-                Column {
-                    Spacer(Modifier.height(10.dp))
+                Column(modifier = Modifier.padding(top = 12.dp)) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Spacer(Modifier.height(10.dp))
 
@@ -624,20 +924,19 @@ private fun LibraryCard(
                         text = library.description,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        lineHeight = 18.sp
+                        lineHeight = 19.sp
                     )
 
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(14.dp))
 
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // License badge
                         Surface(
                             shape = RoundedCornerShape(50),
-                            color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.6f)
+                            color = MaterialTheme.colorScheme.tertiaryContainer
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -658,23 +957,19 @@ private fun LibraryCard(
                             }
                         }
 
-                        // View source button
                         OutlinedButton(
                             onClick = onViewSource,
                             shape = RoundedCornerShape(50),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                            modifier = Modifier.height(32.dp)
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                            modifier = Modifier.height(34.dp)
                         ) {
                             Icon(
-                                Icons.AutoMirrored.Filled.OpenInNew,
+                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
                                 contentDescription = null,
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(13.dp)
                             )
                             Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = "View Source",
-                                style = MaterialTheme.typography.labelSmall
-                            )
+                            Text("Source", style = MaterialTheme.typography.labelSmall)
                         }
                     }
                 }
@@ -683,31 +978,129 @@ private fun LibraryCard(
     }
 }
 
-// Footer
+
+// Common Material You UI Components
+
+
 @Composable
-private fun FooterSection() {
+private fun AboutSectionLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 4.dp, top = 6.dp, bottom = 2.dp)
+    )
+}
+
+@Composable
+private fun M3CardContainer(
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        tonalElevation = 1.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp),
+            content = content
+        )
+    }
+}
+
+@Composable
+private fun M3ActionRow(
+    icon: ImageVector,
+    iconTint: Color,
+    title: String,
+    subtitle: String,
+    trailing: (@Composable () -> Unit)? = null,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(iconTint.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = iconTint
+            )
+        }
+
+        Spacer(Modifier.width(14.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        if (trailing != null) {
+            trailing()
+        } else {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun M3RowDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(horizontal = 16.dp),
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+    )
+}
+
+@Composable
+private fun AboutFooter() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 24.dp, bottom = 8.dp),
+            .padding(top = 16.dp, bottom = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Made with ❤️ by Devson",
+            text = "Crafted with ❤️ by Devson",
             style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(3.dp))
         Text(
-            text = "Licensed under GNU GPL v3.0",
-            style = MaterialTheme.typography.bodySmall,
+            text = "Licensed under GNU General Public License v3.0",
+            style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             textAlign = TextAlign.Center
         )
     }
 }
-
-// Brush extension helper (linear gradient for Box)
-private fun Brush.Companion.linearGradientBrush(colors: List<Color>) =
-    linearGradient(colors)

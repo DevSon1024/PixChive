@@ -166,9 +166,9 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-    // ---------------------------------------------------------------------------
+    
     // Public API
-    // ---------------------------------------------------------------------------
+    
 
     /**
      * Set the folder to display. Updating _currentBucketId triggers a new pager

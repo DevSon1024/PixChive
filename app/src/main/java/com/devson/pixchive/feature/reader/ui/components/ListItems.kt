@@ -1,5 +1,7 @@
 package com.devson.pixchive.feature.reader.ui.components
 
+import android.graphics.Bitmap
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -16,6 +18,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -23,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.devson.pixchive.core.data.Chapter
 import com.devson.pixchive.core.data.local.ImageEntity
@@ -52,8 +56,10 @@ fun ChapterListItem(
         colors = CardDefaults.outlinedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),
-        border = CardDefaults.outlinedCardBorder().copy(
-            width = 1.dp
+        border = BorderStroke(
+            1.dp,
+            if (isCompleted) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
         ),
         modifier = Modifier
             .fillMaxWidth()
@@ -67,18 +73,24 @@ fun ChapterListItem(
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Card(
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.size(52.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                // Portrait cover thumbnail
+                Box(
+                    modifier = Modifier
+                        .size(width = 46.dp, height = 62.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                    contentAlignment = Alignment.Center
                 ) {
                     val firstImage = chapter.images.firstOrNull()
                     if (firstImage != null) {
                         AsyncImage(
                             model = ImageRequest.Builder(LocalContext.current)
                                 .data(if (firstImage.path.isNotEmpty()) File(firstImage.path) else firstImage.uri)
-                                .size(256)
+                                .size(240)
+                                .bitmapConfig(Bitmap.Config.RGB_565)
                                 .allowHardware(true)
+                                .memoryCachePolicy(CachePolicy.ENABLED)
+                                .diskCachePolicy(CachePolicy.ENABLED)
                                 .crossfade(false)
                                 .build(),
                             contentDescription = null,
@@ -86,19 +98,24 @@ fun ChapterListItem(
                             contentScale = ContentScale.Crop
                         )
                     } else {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.Folder, null, tint = MaterialTheme.colorScheme.primary)
-                        }
+                        Icon(
+                            Icons.Default.Folder,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(14.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = chapter.displayName,
                         style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = if (isCompleted) FontWeight.Normal else FontWeight.SemiBold,
+                        color = if (isCompleted) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
+                               else MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -108,48 +125,53 @@ fun ChapterListItem(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "${chapter.imageCount} pages",
+                            text = if (isCompleted) {
+                                "${chapter.imageCount} pages"
+                            } else if (savedPage > 0) {
+                                "Page ${savedPage + 1}/${chapter.imageCount}"
+                            } else {
+                                "${chapter.imageCount} pages"
+                            },
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = if (isCompleted) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                   else MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
-                        if (savedPage > 0 && chapter.imageCount > 0) {
-                            if (isCompleted) {
-                                Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                        if (isCompleted) {
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(2.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(12.dp)
-                                        )
-                                        Text(
-                                            text = "Read",
-                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                }
-                            } else {
-                                val progressPercent = (progressFraction * 100).toInt()
-                                Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = MaterialTheme.colorScheme.primaryContainer
-                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(12.dp)
+                                    )
                                     Text(
-                                        text = "$progressPercent%",
+                                        text = "Read",
                                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        color = MaterialTheme.colorScheme.primary
                                     )
                                 }
+                            }
+                        } else if (progressFraction > 0f) {
+                            val progressPercent = (progressFraction * 100).toInt()
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer
+                            ) {
+                                Text(
+                                    text = "$progressPercent%",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
                             }
                         }
                     }
@@ -179,19 +201,14 @@ fun ChapterListItem(
 
             // Linear accent progress bar along bottom
             if (progressFraction > 0f) {
-                Box(
+                LinearProgressIndicator(
+                    progress = { progressFraction },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(3.dp)
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(progressFraction)
-                            .fillMaxHeight()
-                            .background(MaterialTheme.colorScheme.primary)
-                    )
-                }
+                        .height(3.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                )
             }
         }
     }
@@ -217,8 +234,9 @@ fun ChapterImageListItem(
         colors = CardDefaults.outlinedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),
-        border = CardDefaults.outlinedCardBorder().copy(
-            width = 1.dp
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
         ),
         modifier = modifier
             .fillMaxWidth()
@@ -231,16 +249,21 @@ fun ChapterImageListItem(
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Card(
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.size(48.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            Box(
+                modifier = Modifier
+                    .size(width = 44.dp, height = 56.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                contentAlignment = Alignment.Center
             ) {
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(if (image.path.isNotEmpty()) File(image.path) else image.uri)
                         .size(200)
+                        .bitmapConfig(Bitmap.Config.RGB_565)
                         .allowHardware(true)
+                        .memoryCachePolicy(CachePolicy.ENABLED)
+                        .diskCachePolicy(CachePolicy.ENABLED)
                         .crossfade(false)
                         .build(),
                     contentDescription = null,
@@ -249,10 +272,17 @@ fun ChapterImageListItem(
                 )
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(14.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(image.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    text = image.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "${formatSize(image.size)} | ${formatDateString(image.dateModified)}",
@@ -316,4 +346,4 @@ private fun formatDateString(timestamp: Long): String {
     if (timestamp == 0L) return "Unknown Date"
     val sdf = SimpleDateFormat("d MMMM", Locale.getDefault())
     return sdf.format(Date(timestamp))
-}
+}

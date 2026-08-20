@@ -1,5 +1,7 @@
 package com.devson.pixchive.feature.reader.ui.components
 
+import android.graphics.Bitmap
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -14,8 +16,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.devson.pixchive.core.data.Chapter
 import com.devson.pixchive.core.designsystem.component.OptionItem
@@ -43,42 +44,43 @@ fun ChapterGridItem(
     val haptics = LocalHapticFeedback.current
     var showMenu by remember { mutableStateOf(false) }
 
-    val showDetails = columns <= 2
-    val showName = columns <= 4
-    val fetchSize = if (columns <= 2) 400 else 256
-
+    val fetchSize = if (columns <= 2) 360 else 240
     val firstImagePath = chapter.images.firstOrNull()?.path
     val imageRequest = remember(firstImagePath, fetchSize) {
         if (firstImagePath != null) {
             ImageRequest.Builder(context)
                 .data(File(firstImagePath))
                 .size(fetchSize)
+                .bitmapConfig(Bitmap.Config.RGB_565)
                 .allowHardware(true)
+                .memoryCachePolicy(CachePolicy.ENABLED)
+                .diskCachePolicy(CachePolicy.ENABLED)
                 .crossfade(false)
                 .build()
         } else null
     }
 
-    val shape = RoundedCornerShape(14.dp)
     val isCompleted = chapter.imageCount > 0 && savedPage >= (chapter.imageCount - 1)
     val progressFraction = if (chapter.imageCount > 0 && savedPage > 0) {
         ((savedPage + 1).toFloat() / chapter.imageCount).coerceIn(0f, 1f)
     } else 0f
 
-    Box(modifier = Modifier.padding(3.dp)) {
+    Box(modifier = Modifier.padding(2.dp)) {
         OutlinedCard(
-            shape = shape,
+            shape = RoundedCornerShape(14.dp),
             colors = CardDefaults.outlinedCardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow
             ),
-            border = CardDefaults.outlinedCardBorder().copy(
-                width = 1.dp
+            border = BorderStroke(
+                1.dp,
+                if (isCompleted) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
             ),
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(0.75f)
+                .aspectRatio(0.7f)
         ) {
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .combinedClickable(
@@ -89,86 +91,51 @@ fun ChapterGridItem(
                         }
                     )
             ) {
-                if (firstImagePath != null) {
-                    AsyncImage(
-                        model = imageRequest,
-                        contentDescription = chapter.displayName,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.surfaceVariant),
-                        contentAlignment = Alignment.Center
-                    ) {
+                // Top section: Comic / Manga cover art
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .clip(RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (firstImagePath != null) {
+                        AsyncImage(
+                            model = imageRequest,
+                            contentDescription = chapter.displayName,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
                         Icon(
                             Icons.Default.Folder,
                             null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.primary
+                            modifier = Modifier.size(36.dp),
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
                         )
                     }
-                }
 
-                // Bottom gradient label & chapter information
-                if (showName) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .align(Alignment.BottomCenter)
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.Transparent,
-                                        Color.Black.copy(alpha = 0.5f),
-                                        Color.Black.copy(alpha = 0.88f)
-                                    )
-                                )
-                            )
-                            .padding(horizontal = 8.dp, vertical = 8.dp)
-                    ) {
-                        Column {
-                            Text(
-                                text = chapter.displayName,
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = Color.White,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            if (showDetails) {
-                                Text(
-                                    text = "${chapter.imageCount} pages",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White.copy(alpha = 0.8f)
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Progress Badge at Top-End
-                if (savedPage > 0 && chapter.imageCount > 0) {
+                    // Top-right status badge
                     if (isCompleted) {
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(6.dp),
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
-                                .padding(8.dp),
-                            shadowElevation = 3.dp
+                                .padding(6.dp),
+                            shadowElevation = 2.dp
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(2.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Check,
-                                    contentDescription = "Completed",
+                                    contentDescription = "Read",
                                     tint = MaterialTheme.colorScheme.onPrimary,
-                                    modifier = Modifier.size(12.dp)
+                                    modifier = Modifier.size(11.dp)
                                 )
                                 Text(
                                     text = "Read",
@@ -177,42 +144,94 @@ fun ChapterGridItem(
                                 )
                             }
                         }
-                    } else {
+                    } else if (progressFraction > 0f) {
                         val progressPercent = (progressFraction * 100).toInt()
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(6.dp),
                             color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.95f),
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
-                                .padding(8.dp),
+                                .padding(6.dp),
                             shadowElevation = 2.dp
                         ) {
                             Text(
                                 text = "$progressPercent%",
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                            )
+                        }
+                    } else if (chapter.imageCount > 0) {
+                        Badge(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.92f),
+                            contentColor = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(6.dp)
+                        ) {
+                            Text(
+                                text = "${chapter.imageCount}p",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
                             )
                         }
                     }
                 }
 
-                // Linear accent progress bar along bottom
-                if (progressFraction > 0f) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(3.dp)
-                            .align(Alignment.BottomStart)
-                            .background(Color.Black.copy(alpha = 0.3f))
-                    ) {
-                        Box(
+                // Bottom section: Title, progress bar, and page count
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = chapter.displayName,
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = if (isCompleted) FontWeight.Normal else FontWeight.SemiBold
+                        ),
+                        color = if (isCompleted) {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    if (progressFraction > 0f) {
+                        LinearProgressIndicator(
+                            progress = { progressFraction },
                             modifier = Modifier
-                                .fillMaxWidth(progressFraction)
-                                .fillMaxHeight()
-                                .background(MaterialTheme.colorScheme.primary)
+                                .fillMaxWidth()
+                                .height(3.dp)
+                                .clip(RoundedCornerShape(2.dp)),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
                         )
+                    } else {
+                        Spacer(modifier = Modifier.height(3.dp))
                     }
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    Text(
+                        text = if (isCompleted) {
+                            "${chapter.imageCount} pages"
+                        } else if (savedPage > 0) {
+                            "Page ${savedPage + 1}/${chapter.imageCount}"
+                        } else {
+                            "${chapter.imageCount} pages"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (isCompleted) {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                        },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
         }
@@ -233,4 +252,4 @@ fun ChapterGridItem(
             )
         }
     }
-}
+}

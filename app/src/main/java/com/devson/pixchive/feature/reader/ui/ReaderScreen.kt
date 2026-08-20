@@ -1,20 +1,28 @@
 package com.devson.pixchive.feature.reader.ui
 
 import android.app.Activity
+import android.graphics.Bitmap
 import android.media.AudioManager
 import android.view.KeyEvent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -22,63 +30,54 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.VolumeOff
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import coil.imageLoader
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import coil.size.Precision
 import coil.size.Scale
 import com.devson.pixchive.core.data.PreferencesManager
+import com.devson.pixchive.core.data.local.ImageEntity
 import com.devson.pixchive.feature.reader.ui.components.ReaderBottomBar
 import com.devson.pixchive.feature.reader.ui.components.ReaderTopBar
 import com.devson.pixchive.feature.reader.utils.urisMatch
 import com.devson.pixchive.feature.reader.viewmodel.FolderViewModel
-import com.devson.pixchive.core.data.local.ImageEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import me.saket.telephoto.zoomable.ZoomSpec
 import me.saket.telephoto.zoomable.coil.ZoomableAsyncImage
 import me.saket.telephoto.zoomable.rememberZoomableImageState
 import me.saket.telephoto.zoomable.rememberZoomableState
-import me.saket.telephoto.zoomable.ZoomSpec
 import java.io.File
-import androidx.compose.animation.Crossfade
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.BlurredEdgeTreatment
-import coil.compose.AsyncImage
-import androidx.compose.foundation.BorderStroke
-import coil.size.Precision
-import androidx.compose.ui.text.font.FontWeight
 
 @Composable
 fun ReaderScreen(
@@ -127,15 +126,11 @@ fun ReaderScreen(
 
     val rotationStates = remember { mutableStateMapOf<Int, Float>() }
 
-    //  AUTO-RESUME: resolved initial page 
-    // IMPORTANT: do NOT coerce against pageCount here - for flat view, flatImageCount
-    // is 0 at first composition (the StateFlow hasn't emitted yet), so coerceIn(0,0)
-    // would silently clamp ANY clicked index to 0. Pass initialIndex raw instead;
-    // the pageCount lambda in rememberPagerState keeps the pager bounded live.
+    // AUTO-RESUME: resolved initial page
     var resolvedInitialPage by remember { mutableStateOf(initialIndex) }
 
     val pagerState = rememberPagerState(
-        initialPage = initialIndex,          // raw - never clamp against stale pageCount
+        initialPage = initialIndex,
         pageCount = { pageCount }
     )
 
@@ -153,13 +148,13 @@ fun ReaderScreen(
             pagerState.scrollToPage(target)
             didScrollToInitial = true
         } else if (pageCount > 0 && resolvedInitialPage == 0) {
-            didScrollToInitial = true   // page 0 needs no scrolling
+            didScrollToInitial = true // page 0 needs no scrolling
         }
     }
 
     // Webtoon scroll state (shared list state so we can read current position)
     val webtoonListState = rememberLazyListState(
-        initialFirstVisibleItemIndex = initialIndex  // raw - same reason as pagerState above
+        initialFirstVisibleItemIndex = initialIndex
     )
 
     // Track current page for both modes
@@ -203,20 +198,65 @@ fun ReaderScreen(
         else -> false
     }
 
-    // SYSTEM BARS BEHAVIOR
-    // Dynamically show/hide status and navigation bars to match ImageViewScreen behavior
+    // AGGRESSIVE BACKGROUND PRE-CACHING FOR ADJACENT PAGES
+    val imageLoader = remember { context.imageLoader }
+    LaunchedEffect(currentPage, pageCount, chapterImages, isFlatView) {
+        if (pageCount <= 0) return@LaunchedEffect
+        val pagesToPreload = listOf(
+            currentPage + 1,
+            currentPage + 2,
+            currentPage + 3,
+            currentPage - 1
+        ).filter { it in 0 until pageCount }
+
+        withContext(Dispatchers.IO) {
+            for (targetPage in pagesToPreload) {
+                val targetImage: Any? = if (isFlatView) {
+                    flatImageCache[targetPage] ?: viewModel.getFlatImageAt(targetPage, folderId)?.also {
+                        flatImageCache[targetPage] = it
+                    }
+                } else {
+                    chapterImages.getOrNull(targetPage)
+                }
+
+                val targetModel = when (targetImage) {
+                    is ImageEntity -> if (targetImage.path.isNotEmpty()) File(targetImage.path) else targetImage.uri
+                    is com.devson.pixchive.core.data.ImageFile -> if (targetImage.path.isNotEmpty()) File(targetImage.path) else targetImage.uri
+                    else -> null
+                }
+
+                if (targetModel != null) {
+                    val preloadRequest = ImageRequest.Builder(context)
+                        .data(targetModel)
+                        .size(2048)
+                        .scale(Scale.FIT)
+                        .bitmapConfig(Bitmap.Config.RGB_565)
+                        .allowHardware(true)
+                        .memoryCachePolicy(CachePolicy.ENABLED)
+                        .diskCachePolicy(CachePolicy.ENABLED)
+                        .crossfade(false)
+                        .build()
+                    imageLoader.enqueue(preloadRequest)
+                }
+            }
+        }
+    }
+
+    // SYSTEM BARS BEHAVIOR (Jitter-free edge-to-edge full screen)
     val window = activity?.window
     val insetsController = remember(window, view) {
         window?.let { WindowCompat.getInsetsController(it, view) }
     }
 
     DisposableEffect(window, view) {
+        window?.let { WindowCompat.setDecorFitsSystemWindows(it, false) }
         val originalLightStatus = insetsController?.isAppearanceLightStatusBars ?: true
         val originalLightNav = insetsController?.isAppearanceLightNavigationBars ?: true
         val originalBehavior = insetsController?.systemBarsBehavior ?: WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
 
         insetsController?.isAppearanceLightStatusBars = false
         insetsController?.isAppearanceLightNavigationBars = false
+        insetsController?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
 
         onDispose {
             insetsController?.isAppearanceLightStatusBars = originalLightStatus
@@ -229,15 +269,12 @@ fun ReaderScreen(
     LaunchedEffect(showUI) {
         if (showUI) {
             insetsController?.show(WindowInsetsCompat.Type.systemBars())
-            insetsController?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
         } else {
             insetsController?.hide(WindowInsetsCompat.Type.systemBars())
-            insetsController?.systemBarsBehavior =
-                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
     }
 
-    //  VOLUME BUTTON NAVIGATION 
+    // VOLUME BUTTON NAVIGATION
     val audioManager = remember { context.getSystemService(android.content.Context.AUDIO_SERVICE) as AudioManager }
     val focusRequester = remember { FocusRequester() }
 
@@ -383,7 +420,7 @@ fun ReaderScreen(
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = Color.White)
         } else if (pageCount > 0) {
 
-            //  WEBTOON MODE 
+            // WEBTOON MODE
             if (readerScrollMode == "webtoon") {
                 WebtoonReader(
                     folderId = folderId,
@@ -400,11 +437,11 @@ fun ReaderScreen(
                     viewModel = viewModel
                 )
             } else {
-                //  HORIZONTAL PAGER MODE (with optional Manga RTL) 
+                // HORIZONTAL PAGER MODE (with optional Manga RTL and 2 pages pre-rendering)
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize(),
-                    beyondViewportPageCount = 1,
+                    beyondViewportPageCount = 2,
                     reverseLayout = mangaMode
                 ) { page ->
                     key(page) {
@@ -435,6 +472,7 @@ fun ReaderScreen(
                                     .data(model)
                                     .size(2048)
                                     .scale(Scale.FIT)
+                                    .bitmapConfig(Bitmap.Config.RGB_565)
                                     .allowHardware(true)
                                     .memoryCachePolicy(CachePolicy.ENABLED)
                                     .diskCachePolicy(CachePolicy.ENABLED)
@@ -467,8 +505,6 @@ fun ReaderScreen(
         }
 
         // --- UI Overlay: gradient scrim + top bar ---
-        // A dark-to-transparent scrim sits behind the top bar at all times,
-        // guaranteeing white icons are always readable on any image color.
         AnimatedVisibility(
             visible = showUI,
             enter = fadeIn() + slideInVertically(),
@@ -524,7 +560,7 @@ fun ReaderScreen(
                 .padding(bottom = 180.dp)
         ) {
             val scrubPage = sliderDragValue.toInt().coerceIn(0, pageCount - 1)
-            
+
             // For flat view, load preview on-demand
             if (isFlatView && !flatImageCache.containsKey(scrubPage)) {
                 LaunchedEffect(scrubPage) {
@@ -532,18 +568,18 @@ fun ReaderScreen(
                     flatImageCache[scrubPage] = viewModel.getFlatImageAt(scrubPage, folderId)
                 }
             }
-            
+
             val previewImage = if (isFlatView) {
                 flatImageCache[scrubPage]
             } else {
                 chapterImages.getOrNull(scrubPage)
             }
-            
+
             val model = when (previewImage) {
                 is ImageEntity -> previewImage.uri
                 else -> null
             }
-            
+
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
@@ -565,6 +601,7 @@ fun ReaderScreen(
                                 .data(model)
                                 .size(300, 400) // Small preview size to prevent OOM
                                 .precision(Precision.INEXACT)
+                                .bitmapConfig(Bitmap.Config.RGB_565)
                                 .crossfade(true)
                                 .build(),
                             contentDescription = "Scrub Preview",
@@ -580,7 +617,7 @@ fun ReaderScreen(
                             strokeWidth = 3.dp
                         )
                     }
-                    
+
                     // Page indicator badge
                     Surface(
                         shape = RoundedCornerShape(12.dp),

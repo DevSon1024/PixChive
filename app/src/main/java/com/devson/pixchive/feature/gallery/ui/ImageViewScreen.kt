@@ -124,7 +124,7 @@ fun ImageViewScreen(
     }
 
     LaunchedEffect(bucketId) {
-        if (images.isEmpty()) viewModel.loadImages(bucketId)
+        if (images.isEmpty()) viewModel.loadViewerImages(bucketId)
     }
 
     if (isLoading || images.isEmpty()) {

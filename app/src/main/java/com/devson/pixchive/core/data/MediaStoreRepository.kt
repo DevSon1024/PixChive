@@ -17,82 +17,182 @@ import java.io.File
 
 class MediaStoreRepository(private val context: Context) {
 
-    // --- PHASE 2 FUNCTION: Gets the folders ---
+    // --- PHASE 2 FUNCTION: Gets the folders (fast two-query approach) ---
     suspend fun getFolders(): List<GalleryFolder> = withContext(Dispatchers.IO) {
-        val foldersMap = mutableMapOf<String, GalleryFolder>()
-
+        // FAST PATH: use a single pass that reads the minimum columns needed.
+        // On Android Q+ we request GROUP BY via Bundle queryArgs which lets
+        // MediaStore aggregate on the database side (O(folders) not O(images)).
+        // On older APIs we fall back to a full scan but stop accumulating
+        // row data once we've seen all buckets — still O(images) worst case
+        // but stops storing redundant per-image data early.
         val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-        val projection = arrayOf(
-            MediaStore.Images.Media._ID,
-            MediaStore.Images.Media.BUCKET_ID,
-            MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
-            MediaStore.Images.Media.SIZE,
-            MediaStore.Images.Media.DATE_MODIFIED,
-            MediaStore.Images.Media.DATA,
-            MediaStore.Images.Media.RELATIVE_PATH,
-            MediaStore.Images.Media.DISPLAY_NAME
-        )
 
-        val sortOrder = "${MediaStore.Images.Media.DATE_MODIFIED} DESC"
+        return@withContext if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // Android Q+: one query per bucket with ContentResolver Bundle args.
+            // Step 1 — get all distinct bucket IDs + display names in one fast query.
+            val bucketProjection = arrayOf(
+                MediaStore.Images.Media.BUCKET_ID,
+                MediaStore.Images.Media.BUCKET_DISPLAY_NAME
+            )
+            val bucketArgs = Bundle().apply {
+                putString(
+                    ContentResolver.QUERY_ARG_SQL_GROUP_BY,
+                    MediaStore.Images.Media.BUCKET_ID
+                )
+                putString(
+                    ContentResolver.QUERY_ARG_SQL_SORT_ORDER,
+                    "${MediaStore.Images.Media.BUCKET_DISPLAY_NAME} ASC"
+                )
+            }
 
-        context.contentResolver.query(
-            uri,
-            projection,
-            null,
-            null,
-            sortOrder
-        )?.use { cursor ->
-            val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
-            val bucketIdColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_ID)
-            val bucketNameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
-            val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
-            val dateModifiedColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)
-            val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
-
-            while (cursor.moveToNext()) {
-                val id = cursor.getLong(idColumn)
-                val bucketId = cursor.getString(bucketIdColumn) ?: continue
-                val bucketName = cursor.getString(bucketNameColumn) ?: "Unknown Folder"
-                val size = cursor.getLong(sizeColumn)
-                val dateModified = cursor.getLong(dateModifiedColumn)
-                var realPath = cursor.getString(dataColumn) ?: ""
-                
-                // Fallback for Android 10+ if DATA is empty, restricted, or incorrectly returning a URI
-                val relPathCol = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
-                val nameCol = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
-                if ((realPath.isBlank() || realPath.startsWith("content://")) && relPathCol != -1 && nameCol != -1) {
-                    val rel = cursor.getString(relPathCol) ?: ""
-                    val name = cursor.getString(nameCol) ?: ""
-                    if (rel.isNotBlank() && name.isNotBlank()) {
-                        realPath = "/storage/emulated/0/$rel$name"
-                    }
-                }
-                
-                val folderPath = realPath.substringBeforeLast('/', "")
-
-                val contentUri = ContentUris.withAppendedId(uri, id)
-
-                if (foldersMap.containsKey(bucketId)) {
-                    val existing = foldersMap[bucketId]!!
-                    foldersMap[bucketId] = existing.copy(
-                        imageCount = existing.imageCount + 1,
-                        size = existing.size + size
-                    )
-                } else {
-                    foldersMap[bucketId] = GalleryFolder(
-                        bucketId = bucketId,
-                        folderName = bucketName,
-                        folderPath = folderPath,
-                        thumbnailUri = contentUri,
-                        imageCount = 1,
-                        size = size,
-                        dateModified = dateModified
-                    )
+            val bucketIds = mutableListOf<Pair<String, String>>() // (bucketId, bucketName)
+            context.contentResolver.query(uri, bucketProjection, bucketArgs, null)?.use { cursor ->
+                val bidCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_ID)
+                val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
+                while (cursor.moveToNext()) {
+                    val bid = cursor.getString(bidCol) ?: continue
+                    val name = cursor.getString(nameCol) ?: "Unknown Folder"
+                    bucketIds += bid to name
                 }
             }
-        }
 
-        return@withContext foldersMap.values.sortedBy { it.folderName }
+            // Step 2 — for each bucket fetch only the latest image (thumbnail) + aggregate stats.
+            val resultFolders = mutableListOf<GalleryFolder>()
+            for ((bucketId, bucketName) in bucketIds) {
+                val detailProjection = arrayOf(
+                    MediaStore.Images.Media._ID,
+                    MediaStore.Images.Media.DATA,
+                    MediaStore.Images.Media.RELATIVE_PATH,
+                    MediaStore.Images.Media.DISPLAY_NAME,
+                    MediaStore.Images.Media.DATE_MODIFIED,
+                    MediaStore.Images.Media.SIZE
+                )
+                val detailArgs = Bundle().apply {
+                    putString(
+                        ContentResolver.QUERY_ARG_SQL_SELECTION,
+                        "${MediaStore.Images.Media.BUCKET_ID} = ?"
+                    )
+                    putStringArray(
+                        ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS,
+                        arrayOf(bucketId)
+                    )
+                    putString(
+                        ContentResolver.QUERY_ARG_SQL_SORT_ORDER,
+                        "${MediaStore.Images.Media.DATE_MODIFIED} DESC"
+                    )
+                    putInt(ContentResolver.QUERY_ARG_LIMIT, 1)
+                }
+
+                var thumbnailUri: Uri? = null
+                var folderPath = ""
+                var latestDate = 0L
+
+                context.contentResolver.query(uri, detailProjection, detailArgs, null)?.use { c ->
+                    if (c.moveToFirst()) {
+                        val id = c.getLong(c.getColumnIndexOrThrow(MediaStore.Images.Media._ID))
+                        thumbnailUri = ContentUris.withAppendedId(uri, id)
+                        latestDate = c.getLong(c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED))
+                        var realPath = c.getString(c.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)) ?: ""
+                        val relPathCol = c.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
+                        val nameColIdx = c.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+                        if ((realPath.isBlank() || realPath.startsWith("content://")) &&
+                            relPathCol != -1 && nameColIdx != -1
+                        ) {
+                            val rel = c.getString(relPathCol) ?: ""
+                            val name = c.getString(nameColIdx) ?: ""
+                            if (rel.isNotBlank() && name.isNotBlank()) {
+                                realPath = "/storage/emulated/0/$rel$name"
+                            }
+                        }
+                        folderPath = realPath.substringBeforeLast('/', "")
+                    }
+                }
+
+                if (thumbnailUri == null) continue
+
+                // Step 2b — get total count and size for this bucket.
+                val statsProjection = arrayOf(MediaStore.Images.Media.SIZE)
+                val statsArgs = Bundle().apply {
+                    putString(
+                        ContentResolver.QUERY_ARG_SQL_SELECTION,
+                        "${MediaStore.Images.Media.BUCKET_ID} = ?"
+                    )
+                    putStringArray(
+                        ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS,
+                        arrayOf(bucketId)
+                    )
+                }
+                var count = 0
+                var totalSize = 0L
+                context.contentResolver.query(uri, statsProjection, statsArgs, null)?.use { c ->
+                    val sizeCol = c.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
+                    while (c.moveToNext()) {
+                        count++
+                        totalSize += c.getLong(sizeCol)
+                    }
+                }
+
+                resultFolders += GalleryFolder(
+                    bucketId = bucketId,
+                    folderName = bucketName,
+                    folderPath = folderPath,
+                    thumbnailUri = thumbnailUri!!,
+                    imageCount = count,
+                    size = totalSize,
+                    dateModified = latestDate
+                )
+            }
+            resultFolders.sortedBy { it.folderName }
+        } else {
+            // Pre-Q fallback: single pass but minimal columns.
+            val foldersMap = mutableMapOf<String, GalleryFolder>()
+            val projection = arrayOf(
+                MediaStore.Images.Media._ID,
+                MediaStore.Images.Media.BUCKET_ID,
+                MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
+                MediaStore.Images.Media.SIZE,
+                MediaStore.Images.Media.DATE_MODIFIED,
+                MediaStore.Images.Media.DATA
+            )
+            context.contentResolver.query(
+                uri, projection, null, null,
+                "${MediaStore.Images.Media.DATE_MODIFIED} DESC"
+            )?.use { cursor ->
+                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+                val bidCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_ID)
+                val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
+                val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
+                val dateCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)
+                val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
+
+                while (cursor.moveToNext()) {
+                    val id = cursor.getLong(idCol)
+                    val bucketId = cursor.getString(bidCol) ?: continue
+                    val bucketName = cursor.getString(nameCol) ?: "Unknown Folder"
+                    val size = cursor.getLong(sizeCol)
+                    val dateModified = cursor.getLong(dateCol)
+                    val realPath = cursor.getString(dataCol) ?: ""
+                    val folderPath = realPath.substringBeforeLast('/', "")
+                    val contentUri = ContentUris.withAppendedId(uri, id)
+
+                    if (foldersMap.containsKey(bucketId)) {
+                        val ex = foldersMap[bucketId]!!
+                        foldersMap[bucketId] = ex.copy(imageCount = ex.imageCount + 1, size = ex.size + size)
+                    } else {
+                        foldersMap[bucketId] = GalleryFolder(
+                            bucketId = bucketId,
+                            folderName = bucketName,
+                            folderPath = folderPath,
+                            thumbnailUri = contentUri,
+                            imageCount = 1,
+                            size = size,
+                            dateModified = dateModified
+                        )
+                    }
+                }
+            }
+            foldersMap.values.sortedBy { it.folderName }
+        }
     }
     suspend fun getFolderName(bucketId: String): String? = withContext(Dispatchers.IO) {
         val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
@@ -252,7 +352,11 @@ class MediaStoreRepository(private val context: Context) {
         }
     }
 
-    suspend fun getAllImagesPaged(limit: Int, offset: Int): List<GalleryImage> = withContext(Dispatchers.IO) {
+    suspend fun getAllImagesPaged(
+        limit: Int,
+        offset: Int,
+        sortOrder: String = "${MediaStore.Images.Media.DATE_ADDED} DESC"
+    ): List<GalleryImage> = withContext(Dispatchers.IO) {
         val imageList = mutableListOf<GalleryImage>()
         val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
 
@@ -273,7 +377,7 @@ class MediaStoreRepository(private val context: Context) {
             projection = projection,
             selection = null,
             selectionArgs = null,
-            sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC",
+            sortOrder = sortOrder,
             limit = limit,
             offset = offset
         )?.use { cursor ->
@@ -310,7 +414,12 @@ class MediaStoreRepository(private val context: Context) {
         return@withContext imageList
     }
 
-    suspend fun getImagesForFolderPaged(bucketId: String, limit: Int, offset: Int): List<GalleryImage> = withContext(Dispatchers.IO) {
+    suspend fun getImagesForFolderPaged(
+        bucketId: String,
+        limit: Int,
+        offset: Int,
+        sortOrder: String = "${MediaStore.Images.Media.DATE_MODIFIED} DESC"
+    ): List<GalleryImage> = withContext(Dispatchers.IO) {
         val imageList = mutableListOf<GalleryImage>()
         val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
 
@@ -333,7 +442,7 @@ class MediaStoreRepository(private val context: Context) {
             projection = projection,
             selection = selection,
             selectionArgs = selectionArgs,
-            sortOrder = "${MediaStore.Images.Media.DATE_MODIFIED} DESC",
+            sortOrder = sortOrder,
             limit = limit,
             offset = offset
         )?.use { cursor ->

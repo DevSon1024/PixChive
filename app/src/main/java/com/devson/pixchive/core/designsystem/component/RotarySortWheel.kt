@@ -7,7 +7,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -39,7 +40,7 @@ import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
 
-enum class SortField { TITLE, DATE, SIZE, RESOLUTION, PATH, TYPE }
+enum class SortField { TITLE, DATE, SIZE }
 enum class SortDirection { ASCENDING, DESCENDING }
 
 fun formatSortField(field: SortField): String {
@@ -47,9 +48,6 @@ fun formatSortField(field: SortField): String {
         SortField.TITLE -> "Title"
         SortField.DATE -> "Date"
         SortField.SIZE -> "Size"
-        SortField.RESOLUTION -> "Res."
-        SortField.PATH -> "Path"
-        SortField.TYPE -> "Type"
     }
 }
 
@@ -58,27 +56,22 @@ fun getSortDirectionLabels(field: SortField): Pair<String, String> {
         SortField.TITLE -> "A → Z" to "Z → A"
         SortField.DATE -> "Oldest" to "Newest"
         SortField.SIZE -> "Smallest" to "Largest"
-        SortField.RESOLUTION -> "Lowest" to "Highest"
-        SortField.PATH -> "Asc" to "Desc"
-        SortField.TYPE -> "Asc" to "Desc"
     }
 }
 
 fun parseSortOption(option: String): Pair<SortField, SortDirection> {
-    return when (option) {
-        "name_asc" -> SortField.TITLE to SortDirection.ASCENDING
-        "name_desc" -> SortField.TITLE to SortDirection.DESCENDING
-        "date_newest" -> SortField.DATE to SortDirection.DESCENDING
-        "date_oldest" -> SortField.DATE to SortDirection.ASCENDING
+    return when (option.lowercase()) {
+        "name_asc", "title_asc" -> SortField.TITLE to SortDirection.ASCENDING
+        "name_desc", "title_desc" -> SortField.TITLE to SortDirection.DESCENDING
+        "date_newest", "date_desc" -> SortField.DATE to SortDirection.DESCENDING
+        "date_oldest", "date_asc" -> SortField.DATE to SortDirection.ASCENDING
         "size_asc" -> SortField.SIZE to SortDirection.ASCENDING
         "size_desc" -> SortField.SIZE to SortDirection.DESCENDING
-        "resolution_asc" -> SortField.RESOLUTION to SortDirection.ASCENDING
-        "resolution_desc" -> SortField.RESOLUTION to SortDirection.DESCENDING
-        "path_asc" -> SortField.PATH to SortDirection.ASCENDING
-        "path_desc" -> SortField.PATH to SortDirection.DESCENDING
-        "type_asc" -> SortField.TYPE to SortDirection.ASCENDING
-        "type_desc" -> SortField.TYPE to SortDirection.DESCENDING
-        else -> SortField.TITLE to SortDirection.ASCENDING
+        // Legacy options: gracefully fall back to date-newest
+        "resolution_asc", "resolution_desc",
+        "path_asc", "path_desc",
+        "type_asc", "type_desc" -> SortField.DATE to SortDirection.DESCENDING
+        else -> SortField.DATE to SortDirection.DESCENDING
     }
 }
 
@@ -87,9 +80,6 @@ fun formatSortOption(field: SortField, direction: SortDirection): String {
         SortField.TITLE -> if (direction == SortDirection.ASCENDING) "name_asc" else "name_desc"
         SortField.DATE -> if (direction == SortDirection.DESCENDING) "date_newest" else "date_oldest"
         SortField.SIZE -> if (direction == SortDirection.ASCENDING) "size_asc" else "size_desc"
-        SortField.RESOLUTION -> if (direction == SortDirection.ASCENDING) "resolution_asc" else "resolution_desc"
-        SortField.PATH -> if (direction == SortDirection.ASCENDING) "path_asc" else "path_desc"
-        SortField.TYPE -> if (direction == SortDirection.ASCENDING) "type_asc" else "type_desc"
     }
 }
 
@@ -204,7 +194,12 @@ fun RotarySortWheelDialog(
                             // Direction pill
                             Surface(
                                 shape = RoundedCornerShape(50),
-                                color = MaterialTheme.colorScheme.primaryContainer
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                modifier = Modifier.clickable {
+                                    val nextDir = if (sortDirection == SortDirection.ASCENDING)
+                                        SortDirection.DESCENDING else SortDirection.ASCENDING
+                                    onSortOrderToggled(nextDir)
+                                }
                             ) {
                                 Text(
                                     text = if (sortDirection == SortDirection.ASCENDING)
@@ -230,7 +225,7 @@ fun RotarySortWheel(
     onSortFieldSelected: (SortField) -> Unit,
     onSortOrderToggled: (SortDirection) -> Unit
 ) {
-    val items = SortField.values()
+    val items = remember { SortField.values() }
     val itemCount = items.size
     val initialSelectedIndex = items.indexOf(currentSortField).takeIf { it >= 0 } ?: 0
     val anglePerItem = 360f / itemCount
@@ -238,11 +233,30 @@ fun RotarySortWheel(
     val rotationAngle = remember { Animatable(-(initialSelectedIndex * anglePerItem)) }
     val coroutineScope = rememberCoroutineScope()
 
-    // Slightly larger wheel for comfortable touch targets
+    // Sync wheel angle whenever the externally-committed sort field changes.
+    LaunchedEffect(currentSortField) {
+        val targetIndex = items.indexOf(currentSortField).takeIf { it >= 0 } ?: 0
+        val currentRawIndex = Math.round(-rotationAngle.value / anglePerItem).toInt()
+        val currentIndex = ((currentRawIndex % itemCount) + itemCount) % itemCount
+        var diff = targetIndex - currentIndex
+        if (diff > itemCount / 2) diff -= itemCount
+        if (diff < -itemCount / 2) diff += itemCount
+        val targetRawIndex = currentRawIndex + diff
+        val targetAngle = -(targetRawIndex * anglePerItem)
+        if (rotationAngle.value != targetAngle) {
+            rotationAngle.animateTo(
+                targetValue = targetAngle,
+                animationSpec = spring(dampingRatio = 0.65f, stiffness = 180f)
+            )
+        }
+    }
+
+    // Wheel dimensions
     val wheelDiameterDp = 300.dp
     val radiusDp = 102.dp
     val density = LocalDensity.current
     val radiusPx = with(density) { radiusDp.toPx() }
+    val centerHubRadiusPx = with(density) { 62.dp.toPx() }
 
     Box(
         modifier = Modifier
@@ -254,26 +268,51 @@ fun RotarySortWheel(
                 spotColor = MaterialTheme.colorScheme.primary
             )
             .clip(CircleShape)
-            // More opaque ring so it's clearly visible on the dark scrim
             .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.95f))
             .border(
                 width = 2.dp,
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
                 shape = CircleShape
             )
-            .pointerInput(Unit) {
-                detectDragGestures(
-                    onDragCancel = {
-                        val rawIndex = Math.round(-rotationAngle.value / anglePerItem)
-                        coroutineScope.launch {
-                            rotationAngle.animateTo(
-                                targetValue = -(rawIndex * anglePerItem),
-                                animationSpec = spring(dampingRatio = 0.7f, stiffness = 100f)
-                            )
+            .pointerInput(itemCount) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val center = Offset(size.width / 2f, size.height / 2f)
+                    val distFromCenter = (down.position - center).getDistance()
+
+                    // If user touches inside the center hub, let the buttons handle it directly
+                    if (distFromCenter < centerHubRadiusPx) {
+                        return@awaitEachGesture
+                    }
+
+                    var prevAngle = atan2(down.position.y - center.y, down.position.x - center.x)
+                    var totalDragAngle = 0f
+
+                    do {
+                        val event = awaitPointerEvent()
+                        val currentChange = event.changes.firstOrNull { it.id == down.id } ?: break
+                        if (!currentChange.pressed) break
+
+                        val currentPos = currentChange.position
+                        val currAngle = atan2(currentPos.y - center.y, currentPos.x - center.x)
+
+                        var angleDiff = Math.toDegrees((currAngle - prevAngle).toDouble()).toFloat()
+                        if (angleDiff > 180f) angleDiff -= 360f
+                        if (angleDiff < -180f) angleDiff += 360f
+
+                        if (Math.abs(angleDiff) > 0.05f) {
+                            totalDragAngle += Math.abs(angleDiff)
+                            currentChange.consume()
+                            coroutineScope.launch {
+                                rotationAngle.snapTo(rotationAngle.value + angleDiff)
+                            }
+                            prevAngle = currAngle
                         }
-                    },
-                    onDragEnd = {
-                        val rawIndex = Math.round(-rotationAngle.value / anglePerItem)
+                    } while (true)
+
+                    // On drag release, snap to nearest item
+                    if (totalDragAngle > 4f) {
+                        val rawIndex = Math.round(-rotationAngle.value / anglePerItem).toInt()
                         var index = rawIndex % itemCount
                         if (index < 0) index += itemCount
                         val nextField = items[index]
@@ -281,28 +320,11 @@ fun RotarySortWheel(
                         coroutineScope.launch {
                             rotationAngle.animateTo(
                                 targetValue = -(rawIndex * anglePerItem),
-                                animationSpec = spring(dampingRatio = 0.6f, stiffness = 150f)
+                                animationSpec = spring(dampingRatio = 0.65f, stiffness = 180f)
                             )
                         }
-                    },
-                    onDrag = { change, _ ->
-                        change.consume()
-                        val center = Offset(size.width / 2f, size.height / 2f)
-                        val prevVector = change.previousPosition - center
-                        val currVector = change.position - center
-
-                        val prevAngle = atan2(prevVector.y, prevVector.x)
-                        val currAngle = atan2(currVector.y, currVector.x)
-
-                        var angleDiff = Math.toDegrees((currAngle - prevAngle).toDouble()).toFloat()
-                        if (angleDiff > 180f) angleDiff -= 360f
-                        if (angleDiff < -180f) angleDiff += 360f
-
-                        coroutineScope.launch {
-                            rotationAngle.snapTo(rotationAngle.value + angleDiff)
-                        }
                     }
-                )
+                }
             },
         contentAlignment = Alignment.Center
     ) {
@@ -344,14 +366,12 @@ fun RotarySortWheel(
                         y = with(density) { yOffset.toDp() }
                     )
                     .scale(scale)
-                    // Larger minimum touch target for comfort
                     .defaultMinSize(minWidth = 60.dp, minHeight = 36.dp)
                     .then(
                         if (isSelected) {
                             Modifier
                                 .shadow(6.dp, RoundedCornerShape(24.dp))
                                 .clip(RoundedCornerShape(24.dp))
-                                // Use primary directly for stronger selected contrast
                                 .background(MaterialTheme.colorScheme.primary)
                         } else {
                             Modifier
@@ -369,25 +389,12 @@ fun RotarySortWheel(
                         indication = null
                     ) {
                         onSortFieldSelected(field)
-                        val currentRawIndex = Math.round(-rotationAngle.value / anglePerItem)
-                        val currentIndex = (currentRawIndex % itemCount + itemCount) % itemCount
-                        var indexDiff = index - currentIndex
-                        if (indexDiff > itemCount / 2) indexDiff -= itemCount
-                        if (indexDiff < -itemCount / 2) indexDiff += itemCount
-                        val targetRawIndex = currentRawIndex + indexDiff
-                        coroutineScope.launch {
-                            rotationAngle.animateTo(
-                                targetValue = -(targetRawIndex * anglePerItem),
-                                animationSpec = spring(dampingRatio = 0.6f, stiffness = 150f)
-                            )
-                        }
                     }
                     .padding(horizontal = 14.dp, vertical = 8.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = formatSortField(field),
-                    // onPrimary for selected (white on primary colour), high-contrast unselected
                     color = if (isSelected)
                         MaterialTheme.colorScheme.onPrimary
                     else
@@ -398,7 +405,7 @@ fun RotarySortWheel(
             }
         }
 
-        // Center hub — tonal surface so it stands out from the ring
+        // Center hub — tonal surface for ASCENDING/DESCENDING toggle buttons
         Surface(
             modifier = Modifier.size(118.dp),
             shape = CircleShape,
@@ -463,8 +470,11 @@ private fun SortOrderButton(
                         MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.08f)
                     )
             )
-            .clickable(onClick = onClick)
-            // Taller hit area for easier tapping
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
             .padding(horizontal = 6.dp, vertical = 7.dp)
     ) {
         Icon(

@@ -2,60 +2,128 @@ package com.devson.pixchive.feature.gallery.viewmodel
 
 import android.app.Application
 import android.net.Uri
+import android.provider.MediaStore
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
+import com.devson.pixchive.core.data.MediaStorePagingSource
 import com.devson.pixchive.core.data.MediaStoreRepository
-import com.devson.pixchive.core.data.models.GalleryImage
 import com.devson.pixchive.core.data.PreferencesManager
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.stateIn
+import com.devson.pixchive.core.data.models.GalleryImage
+import com.devson.pixchive.core.data.models.GalleryViewSettings
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.Dispatchers
-import com.devson.pixchive.core.data.models.GalleryViewSettings
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
-@OptIn(FlowPreview::class)
+/**
+ * Converts a sort-option string (persisted preference) into a MediaStore ORDER BY clause.
+ * Only the three supported options (Title, Date, Size) are mapped here.
+ * Removed options (resolution, path, type) are redirected to date_newest.
+ */
+private fun sortOptionToMediaStoreOrder(option: String): String = when (option) {
+    "name_asc" -> "${MediaStore.Images.Media.DISPLAY_NAME} ASC"
+    "name_desc" -> "${MediaStore.Images.Media.DISPLAY_NAME} DESC"
+    "date_oldest" -> "${MediaStore.Images.Media.DATE_MODIFIED} ASC"
+    "size_asc" -> "${MediaStore.Images.Media.SIZE} ASC"
+    "size_desc" -> "${MediaStore.Images.Media.SIZE} DESC"
+    else -> "${MediaStore.Images.Media.DATE_MODIFIED} DESC" // date_newest (default)
+}
+
+@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class GalleryFolderViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = MediaStoreRepository(application)
 
-    private val _images = MutableStateFlow<List<GalleryImage>>(emptyList())
+    private val repository = MediaStoreRepository(application)
     private val preferencesManager = PreferencesManager(application)
 
+    // --- Selection state ---
     private val _selectedIds = MutableStateFlow<Set<Long>>(emptySet())
     val selectedIds: StateFlow<Set<Long>> = _selectedIds.asStateFlow()
 
+    // --- Sort & bucket state ---
     val sortOption: StateFlow<String> = preferencesManager.gallerySortOptionFlow
         .stateIn(viewModelScope, SharingStarted.Lazily, "date_newest")
+
     private val _currentBucketId = MutableStateFlow("")
     private val _folderName = MutableStateFlow("Folder Images")
     val folderName: StateFlow<String> = _folderName.asStateFlow()
 
-    init {
-        viewModelScope.launch(Dispatchers.IO) {
-            repository.observeMediaStoreChanges()
-                .debounce(500L)
-                .collect {
-                    val bucketId = _currentBucketId.value
-                    if (bucketId.isNotEmpty()) {
-                        loadImages(bucketId, forceRefresh = true)
+    // --- Active paging source reference (for invalidation on media changes) ---
+    private var activePagingSource: MediaStorePagingSource? = null
+
+    /**
+     * Paged images driven by the current (bucketId, sortOption) pair.
+     * When either changes the pager re-creates a fresh PagingSource via
+     * flatMapLatest, which automatically cancels the old one.
+     */
+    val pagedImages: Flow<PagingData<GalleryImage>> =
+        combine(_currentBucketId, sortOption) { bucket, sort -> bucket to sort }
+            .flatMapLatest { (bucket, sort) ->
+                val msOrder = sortOptionToMediaStoreOrder(sort)
+                Pager(
+                    config = PagingConfig(
+                        pageSize = 90,
+                        prefetchDistance = 60,
+                        enablePlaceholders = true,
+                        initialLoadSize = 90
+                    ),
+                    pagingSourceFactory = {
+                        MediaStorePagingSource(
+                            repository = repository,
+                            bucketId = bucket.takeIf { it.isNotEmpty() && it != "all_images" },
+                            sortOrder = msOrder
+                        ).also { activePagingSource = it }
                     }
+                ).flow
+            }
+            .cachedIn(viewModelScope)
+
+    // --- Loading state for the full-screen viewer (ImageViewScreen) ---
+    // The paged grid doesn't need a loading flag — pager LoadState handles it.
+    // But the HorizontalPager viewer needs a flat list, loaded on demand.
+    private val _viewerImages = MutableStateFlow<List<GalleryImage>>(emptyList())
+    val images: StateFlow<List<GalleryImage>> = _viewerImages.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    /**
+     * Called by ImageViewScreen to pre-load all images in a bucket for pager navigation.
+     * This is intentionally a flat unbounded query because HorizontalPager needs
+     * random access by index. Only called once per bucket open.
+     */
+    fun loadViewerImages(bucketId: String) {
+        if (_viewerImages.value.isNotEmpty()) return // already loaded
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val imgs = when {
+                    bucketId == "all_images" -> repository.getAllImages()
+                    bucketId.startsWith("search:") -> repository.searchImages(bucketId.removePrefix("search:"))
+                    else -> repository.getImagesForFolder(bucketId)
                 }
+                _viewerImages.value = imgs
+            } catch (_: Exception) {
+                _viewerImages.value = emptyList()
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 
-    val images: StateFlow<List<GalleryImage>> = combine(_images, sortOption, _currentBucketId) { imgs, sort, bucket ->
-        if (bucket == "all_images" || bucket.startsWith("search:")) imgs else sortImages(imgs, sort)
-    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
-
-    private val _isLoading = MutableStateFlow(true)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
-
+    // --- Preferences-backed UI settings ---
     val gridCellsIndex: StateFlow<Int> = preferencesManager.galleryGridCellsIndex
         .stateIn(viewModelScope, SharingStarted.Lazily, 2)
 
@@ -72,96 +140,83 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
         preferencesManager.galleryShowPath,
         preferencesManager.galleryShowSize,
         preferencesManager.galleryShowDate
-    ) { settingsArray ->
+    ) { arr ->
         GalleryViewSettings(
-            showThumbnail = settingsArray[0],
-            showFileExt = settingsArray[1],
-            showResolution = settingsArray[2],
-            showPath = settingsArray[3],
-            showSize = settingsArray[4],
-            showDate = settingsArray[5]
+            showThumbnail = arr[0],
+            showFileExt = arr[1],
+            showResolution = arr[2],
+            showPath = arr[3],
+            showSize = arr[4],
+            showDate = arr[5]
         )
     }.stateIn(viewModelScope, SharingStarted.Lazily, GalleryViewSettings())
-
-    fun setLayoutMode(mode: String) {
-        viewModelScope.launch {
-            preferencesManager.setGalleryLayoutMode(mode)
-        }
-    }
-
-    fun setGridCellsIndex(index: Int) {
-        viewModelScope.launch {
-            preferencesManager.setGalleryGridCellsIndex(index)
-        }
-    }
-
-    fun setSortOption(option: String) {
-        viewModelScope.launch {
-            preferencesManager.setGallerySortOption(option)
-        }
-    }
-
-    fun updateViewSettings(settings: GalleryViewSettings) {
-        viewModelScope.launch {
-            preferencesManager.setGalleryShowThumbnail(settings.showThumbnail)
-            preferencesManager.setGalleryShowFileExt(settings.showFileExt)
-            preferencesManager.setGalleryShowResolution(settings.showResolution)
-            preferencesManager.setGalleryShowPath(settings.showPath)
-            preferencesManager.setGalleryShowSize(settings.showSize)
-            preferencesManager.setGalleryShowDate(settings.showDate)
-        }
-    }
 
     val favorites: StateFlow<Set<String>> = preferencesManager.favoritesFlow
         .stateIn(viewModelScope, SharingStarted.Lazily, emptySet())
 
-    fun toggleFavorite(uri: Uri) {
-        viewModelScope.launch {
-            preferencesManager.toggleFavorite(uri.toString())
+    // --- MediaStore change observer ---
+    init {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.observeMediaStoreChanges()
+                .debounce(500L)
+                .collect {
+                    // Invalidate paging source so the grid refreshes without a full reload.
+                    activePagingSource?.invalidate()
+                }
         }
     }
 
+    // ---------------------------------------------------------------------------
+    // Public API
+    // ---------------------------------------------------------------------------
+
+    /**
+     * Set the folder to display. Updating _currentBucketId triggers a new pager
+     * via flatMapLatest — no explicit coroutine needed.
+     */
     fun loadImages(bucketId: String, forceRefresh: Boolean = false) {
-        // If we are already displaying this bucket and not forcing a refresh, do nothing.
-        if (_currentBucketId.value == bucketId && !forceRefresh && _images.value.isNotEmpty()) {
-            return
-        }
-
-        val isNewBucket = _currentBucketId.value != bucketId
-        _currentBucketId.value = bucketId
+        if (_currentBucketId.value == bucketId && !forceRefresh) return
 
         viewModelScope.launch {
-            // Only show loading spinner if it's a new bucket or we currently have no images
-            if (isNewBucket || _images.value.isEmpty()) {
-                _isLoading.value = true
+            // Resolve folder name in the background.
+            val name = when {
+                bucketId == "all_images" -> "All Photos"
+                bucketId.startsWith("search:") -> "Search Results"
+                else -> repository.getFolderName(bucketId) ?: "Folder Images"
             }
-
-            try {
-                val newImages = when {
-                    bucketId == "all_images" -> {
-                        _folderName.value = "All Photos"
-                        repository.getAllImages()
-                    }
-                    bucketId.startsWith("search:") -> {
-                        _folderName.value = "Search Results"
-                        repository.searchImages(bucketId.removePrefix("search:"))
-                    }
-                    else -> {
-                        _folderName.value = repository.getFolderName(bucketId) ?: "Folder Images"
-                        repository.getImagesForFolder(bucketId)
-                    }
-                }
-                _images.value = newImages
-            } catch (e: Exception) {
-                if (isNewBucket) {
-                    _images.value = emptyList()
-                }
-            } finally {
-                _isLoading.value = false
-            }
+            _folderName.value = name
         }
+
+        _currentBucketId.value = bucketId
     }
 
+    fun setLayoutMode(mode: String) = viewModelScope.launch {
+        preferencesManager.setGalleryLayoutMode(mode)
+    }
+
+    fun setGridCellsIndex(index: Int) = viewModelScope.launch {
+        preferencesManager.setGalleryGridCellsIndex(index)
+    }
+
+    fun setSortOption(option: String) = viewModelScope.launch {
+        preferencesManager.setGallerySortOption(option)
+        // flatMapLatest picks up the new sort automatically via sortOption flow.
+    }
+
+    fun updateViewSettings(settings: GalleryViewSettings) = viewModelScope.launch {
+        preferencesManager.setGalleryShowThumbnail(settings.showThumbnail)
+        preferencesManager.setGalleryShowFileExt(settings.showFileExt)
+        preferencesManager.setGalleryShowResolution(settings.showResolution)
+        preferencesManager.setGalleryShowPath(settings.showPath)
+        preferencesManager.setGalleryShowSize(settings.showSize)
+        preferencesManager.setGalleryShowDate(settings.showDate)
+    }
+
+    fun toggleFavorite(uri: Uri) = viewModelScope.launch {
+        preferencesManager.toggleFavorite(uri.toString())
+    }
+
+    // --- Selection helpers ---
     fun toggleSelection(id: Long) {
         _selectedIds.value = _selectedIds.value.toMutableSet().apply {
             if (!add(id)) remove(id)
@@ -172,46 +227,25 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
         _selectedIds.value = emptySet()
     }
 
-    fun selectAll() {
-        _selectedIds.value = _images.value.map { it.id }.toSet()
-    }
-
-    fun renameSelectedImage(newName: String) {
-        val selectedId = _selectedIds.value.firstOrNull() ?: return
-        val image = _images.value.find { it.id == selectedId } ?: return
-        val bucketId = _currentBucketId.value
-
-        viewModelScope.launch {
-            if (repository.renameImage(image.id, newName)) {
-                loadImages(bucketId, forceRefresh = true)
-                clearSelection()
-            }
-        }
+    fun selectAll(images: List<GalleryImage>) {
+        _selectedIds.value = images.map { it.id }.toSet()
     }
 
     fun removeImagesLocally(uris: List<Uri>) {
-        val uriSet = uris.toSet()
-        val currentImages = _images.value
-        val newImages = currentImages.filter { it.uri !in uriSet }
-        _images.value = newImages
-        _selectedIds.value = _selectedIds.value.filter { id -> newImages.any { it.id == id } }.toSet()
+        // Invalidate so pager re-fetches without the deleted items.
+        activePagingSource?.invalidate()
+        _selectedIds.value = emptySet()
     }
 
-    private fun sortImages(images: List<GalleryImage>, sort: String): List<GalleryImage> {
-        return when (sort) {
-            "name_asc" -> images.sortedBy { it.realPath.substringAfterLast('/').lowercase() }
-            "name_desc" -> images.sortedByDescending { it.realPath.substringAfterLast('/').lowercase() }
-            "date_newest" -> images.sortedByDescending { it.dateModified }
-            "date_oldest" -> images.sortedBy { it.dateModified }
-            "size_desc" -> images.sortedByDescending { it.size }
-            "size_asc" -> images.sortedBy { it.size }
-            "resolution_desc" -> images.sortedByDescending { it.width * it.height }
-            "resolution_asc" -> images.sortedBy { it.width * it.height }
-            "path_asc" -> images.sortedBy { it.realPath.substringBeforeLast('/').lowercase() }
-            "path_desc" -> images.sortedByDescending { it.realPath.substringBeforeLast('/').lowercase() }
-            "type_asc" -> images.sortedBy { it.realPath.substringAfterLast('.', "").lowercase() }
-            "type_desc" -> images.sortedByDescending { it.realPath.substringAfterLast('.', "").lowercase() }
-            else -> images.sortedByDescending { it.dateModified }
+    fun renameSelectedImage(newName: String, images: List<GalleryImage>) {
+        val selectedId = _selectedIds.value.firstOrNull() ?: return
+        val image = images.find { it.id == selectedId } ?: return
+
+        viewModelScope.launch {
+            if (repository.renameImage(image.id, newName)) {
+                activePagingSource?.invalidate()
+                clearSelection()
+            }
         }
     }
 }

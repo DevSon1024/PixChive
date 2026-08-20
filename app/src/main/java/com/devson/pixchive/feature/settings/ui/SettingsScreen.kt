@@ -41,7 +41,8 @@ fun SettingsScreen(
     onNavigateToPrivacyPolicy: () -> Unit = {},
     onNavigateToDeveloperOptions: () -> Unit = {},
     onNavigateToAppearance: () -> Unit = {},
-    onNavigateToCustomHome: () -> Unit = {}
+    onNavigateToCustomHome: () -> Unit = {},
+    onNavigateToRecycleBin: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -212,6 +213,13 @@ fun SettingsScreen(
             //  Data & Backup 
             SettingsSectionLabel("Data & Backup")
             SettingsCard {
+                SettingsRow(
+                    icon = Icons.Filled.RestoreFromTrash,
+                    title = "Recycle Bin",
+                    subtitle = "View, restore, or permanently delete media",
+                    onClick = onNavigateToRecycleBin
+                )
+                SettingsDivider()
                 SettingsRow(
                     icon = Icons.Default.Backup,
                     title = "Create Backup",

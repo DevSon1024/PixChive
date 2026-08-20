@@ -377,6 +377,8 @@ fun PhotosScreen(
 
         val galleryViewMode by viewModel.galleryViewMode.collectAsState()
 
+        val sortOption by viewModel.sortOption.collectAsState()
+
         if (showSettingsSheet) {
             GalleryViewSettingsBottomSheet(
                 layoutMode = layoutMode,
@@ -385,8 +387,8 @@ fun PhotosScreen(
                 onGridCellsIndexChange = { viewModel.setGridCellsIndex(it) },
                 viewSettings = viewSettings,
                 onViewSettingsChange = { viewModel.updateViewSettings(it) },
-                sortOption = "date_newest",
-                onSortOptionChange = {},
+                sortOption = sortOption,
+                onSortOptionChange = { viewModel.setSortOption(it) },
                 isRootFolderView = false,
                 showFolderThumbnail = false,
                 onShowFolderThumbnailChange = {},

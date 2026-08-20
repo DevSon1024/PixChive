@@ -165,7 +165,7 @@ fun GalleryImageItem(
         else -> 160
     }
 
-    val imageRequest = remember(image.uri, fetchSize) {
+    val imageRequest = remember(image.id) {
         ImageRequest.Builder(context)
             .data(image.uri)
             .size(fetchSize)

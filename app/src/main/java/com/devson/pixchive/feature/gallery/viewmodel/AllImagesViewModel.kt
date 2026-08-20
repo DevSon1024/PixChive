@@ -9,12 +9,15 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import androidx.paging.insertSeparators
+import androidx.paging.map
 import com.devson.pixchive.core.data.PreferencesManager
 import com.devson.pixchive.core.data.MediaStorePagingSource
 import com.devson.pixchive.core.data.MediaStoreRepository
 import com.devson.pixchive.core.data.models.GalleryImage
 import com.devson.pixchive.core.data.models.GalleryViewSettings
+import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +26,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -41,7 +45,7 @@ sealed class AllImagesState {
     data class Error(val message: String) : AllImagesState()
 }
 
-@OptIn(FlowPreview::class)
+@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class AllImagesViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = MediaStoreRepository(application)
@@ -84,30 +88,50 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), GalleryViewSettings())
 
+    val sortOption: StateFlow<String> = preferencesManager.gallerySortOptionFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "date_newest")
+
     private var pagingSource: MediaStorePagingSource? = null
 
-    val pagedGridItems: Flow<PagingData<Any>> = Pager(
-        config = PagingConfig(
-            pageSize = 60,
-            prefetchDistance = 20,
-            enablePlaceholders = false
-        ),
-        pagingSourceFactory = {
-            MediaStorePagingSource(repository).also { pagingSource = it }
-        }
-    ).flow
-        .map { pagingData ->
-            pagingData.insertSeparators { before: GalleryImage?, after: GalleryImage? ->
-                if (after == null) {
-                    null
-                } else if (before == null) {
-                    getDateLabel(after)
-                } else {
-                    val labelBefore = getDateLabel(before)
-                    val labelAfter = getDateLabel(after)
-                    if (labelBefore != labelAfter) labelAfter else null
-                }
+    val pagedGridItems: Flow<PagingData<Any>> = sortOption
+        .flatMapLatest { sort ->
+            val msOrder = when (sort) {
+                "name_asc" -> "${MediaStore.Images.Media.DISPLAY_NAME} ASC"
+                "name_desc" -> "${MediaStore.Images.Media.DISPLAY_NAME} DESC"
+                "date_oldest" -> "${MediaStore.Images.Media.DATE_MODIFIED} ASC"
+                "size_asc" -> "${MediaStore.Images.Media.SIZE} ASC"
+                "size_desc" -> "${MediaStore.Images.Media.SIZE} DESC"
+                else -> "${MediaStore.Images.Media.DATE_MODIFIED} DESC"
             }
+            val isDateSort = sort == "date_newest" || sort == "date_oldest"
+            Pager(
+                config = PagingConfig(
+                    pageSize = 90,
+                    prefetchDistance = 60,
+                    enablePlaceholders = true,
+                    initialLoadSize = 90
+                ),
+                pagingSourceFactory = {
+                    MediaStorePagingSource(repository, sortOrder = msOrder).also { pagingSource = it }
+                }
+            ).flow
+                .map { pagingData: PagingData<GalleryImage> ->
+                    if (isDateSort) {
+                        pagingData.insertSeparators { before: GalleryImage?, after: GalleryImage? ->
+                            if (after == null) {
+                                null
+                            } else if (before == null) {
+                                getDateLabel(after)
+                            } else {
+                                val labelBefore = getDateLabel(before)
+                                val labelAfter = getDateLabel(after)
+                                if (labelBefore != labelAfter) labelAfter else null
+                            }
+                        }
+                    } else {
+                        pagingData.map { it as Any }
+                    }
+                }
         }
         .cachedIn(viewModelScope)
 
@@ -156,6 +180,10 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun setGridCellsIndex(index: Int) = viewModelScope.launch {
         preferencesManager.setGalleryGridCellsIndex(index)
+    }
+
+    fun setSortOption(option: String) = viewModelScope.launch {
+        preferencesManager.setGallerySortOption(option)
     }
 
     fun updateViewSettings(settings: GalleryViewSettings) = viewModelScope.launch {

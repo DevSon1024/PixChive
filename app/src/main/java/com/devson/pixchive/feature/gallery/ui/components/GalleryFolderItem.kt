@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,12 +21,15 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 import com.devson.pixchive.core.data.models.GalleryFolder
 import com.devson.pixchive.core.data.models.GalleryViewSettings
 import java.text.SimpleDateFormat
@@ -48,8 +52,10 @@ private fun formatDate(timestamp: Long): String {
 private fun FolderThumbnail(
     folder: GalleryFolder,
     showThumbnail: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    thumbnailSizePx: Int = 256
 ) {
+    val context = LocalContext.current
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(10.dp))
@@ -57,8 +63,19 @@ private fun FolderThumbnail(
         contentAlignment = Alignment.Center
     ) {
         if (showThumbnail) {
+            val request = remember(folder.bucketId, thumbnailSizePx) {
+                ImageRequest.Builder(context)
+                    .data(folder.thumbnailUri)
+                    .size(thumbnailSizePx)
+                    .crossfade(false)
+                    .bitmapConfig(android.graphics.Bitmap.Config.RGB_565)
+                    .allowHardware(true)
+                    .memoryCachePolicy(CachePolicy.ENABLED)
+                    .diskCachePolicy(CachePolicy.ENABLED)
+                    .build()
+            }
             AsyncImage(
-                model = folder.thumbnailUri,
+                model = request,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
@@ -385,8 +402,20 @@ fun GalleryFolderItem(
                 ) {
                     // Thumbnail fills whole card
                     if (showThumbnail) {
+                        val context = LocalContext.current
+                        val request = remember(folder.bucketId) {
+                            ImageRequest.Builder(context)
+                                .data(folder.thumbnailUri)
+                                .size(256)
+                                .crossfade(false)
+                                .bitmapConfig(android.graphics.Bitmap.Config.RGB_565)
+                                .allowHardware(true)
+                                .memoryCachePolicy(CachePolicy.ENABLED)
+                                .diskCachePolicy(CachePolicy.ENABLED)
+                                .build()
+                        }
                         AsyncImage(
-                            model = folder.thumbnailUri,
+                            model = request,
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize()

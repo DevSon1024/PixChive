@@ -32,6 +32,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 import com.devson.pixchive.core.data.PreferencesManager
 import com.devson.pixchive.core.data.local.HistoryEntity
 import com.devson.pixchive.core.designsystem.component.*
@@ -401,9 +403,22 @@ fun HistoryCard(
             elevation = CardDefaults.elevatedCardElevation(defaultElevation = 3.dp)
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
-                // Cover image
+                // Cover image — sized hint so Coil uses the fast thumbnail API
+                // instead of decoding a full-resolution image for a small card.
+                val context = LocalContext.current
+                val coverRequest = remember(entry.coverImageUri) {
+                    ImageRequest.Builder(context)
+                        .data(entry.coverImageUri)
+                        .size(320)
+                        .crossfade(false)
+                        .bitmapConfig(android.graphics.Bitmap.Config.RGB_565)
+                        .allowHardware(true)
+                        .memoryCachePolicy(CachePolicy.ENABLED)
+                        .diskCachePolicy(CachePolicy.ENABLED)
+                        .build()
+                }
                 AsyncImage(
-                    model = entry.coverImageUri,
+                    model = coverRequest,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()

@@ -30,19 +30,19 @@ class PixChiveApplication : Application(), ImageLoaderFactory {
             }
             .memoryCache {
                 MemoryCache.Builder(this)
-                    // 40% of available RAM - keeps more decoded bitmaps warm
-                    // so the Pager reload stutter is less noticeable even if
-                    // a page is briefly evicted.
-                    .maxSizePercent(0.40)
+                    // 50% of available RAM — keeps decoded bitmaps warm across
+                    // rapid scrolling and screen transitions. Raised from 40%
+                    // to further reduce pager-reload stutter.
+                    .maxSizePercent(0.50)
                     .build()
             }
             .diskCache {
                 DiskCache.Builder()
                     .directory(cacheDir.resolve("image_cache"))
-                    // 10% of free disk - large enough to keep thousands of
-                    // thumbnails cached across sessions. 5% was too small and
-                    // caused constant re-decode from storage.
-                    .maxSizePercent(0.10)
+                    // 15% of free disk — large enough to keep tens of thousands
+                    // of thumbnails cached across app restarts. Raised from 10%
+                    // to reduce cold-start re-decode from storage.
+                    .maxSizePercent(0.15)
                     .build()
             }
             .memoryCachePolicy(CachePolicy.ENABLED)

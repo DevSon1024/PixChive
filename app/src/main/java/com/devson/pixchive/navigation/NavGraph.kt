@@ -125,7 +125,6 @@ fun NavGraph(
                 com.devson.pixchive.feature.gallery.ui.GalleryMainScreen(
                     onNavigateBack = safeNavigateBack,
                     onSettingsClick = { navController.navigate(SettingsDestination) },
-                    onRecycleBinClick = { navController.navigate(RecycleBinDestination) },
                     onFolderClick = { bucketId ->
                         navController.navigate(ImageFolderDestination(bucketId))
                     },
@@ -186,7 +185,8 @@ fun NavGraph(
                     onNavigateToPrivacyPolicy = { navController.navigate(PrivacyPolicyDestination) },
                     onNavigateToDeveloperOptions = { navController.navigate(DeveloperOptionsDestination) },
                     onNavigateToAppearance = { navController.navigate(AppearanceSettingsDestination) },
-                    onNavigateToCustomHome = { navController.navigate(CustomHomeSettingsDestination) }
+                    onNavigateToCustomHome = { navController.navigate(CustomHomeSettingsDestination) },
+                    onNavigateToRecycleBin = { navController.navigate(RecycleBinDestination) }
                 )
             }
 

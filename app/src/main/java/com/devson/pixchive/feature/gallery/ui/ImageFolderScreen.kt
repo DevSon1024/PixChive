@@ -36,7 +36,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.paging.LoadState
+import androidx.paging.compose.LazyPagingItems
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import com.devson.pixchive.core.data.FileOperationsViewModel
+import com.devson.pixchive.core.data.models.GalleryImage
 import com.devson.pixchive.core.designsystem.component.PixChiveEmptyState
 import com.devson.pixchive.core.designsystem.component.SkeletonLoadingView
 import com.devson.pixchive.feature.gallery.ui.components.CustomRenameDialog
@@ -58,14 +63,13 @@ fun ImageFolderScreen(
     onSearch: (String) -> Unit = {},
     viewModel: GalleryFolderViewModel = viewModel()
 ) {
-    val images by viewModel.images.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
+    val pagedImages: LazyPagingItems<GalleryImage> = viewModel.pagedImages.collectAsLazyPagingItems()
     val savedGridCellsIndex by viewModel.gridCellsIndex.collectAsState()
     val layoutMode by viewModel.layoutMode.collectAsState()
     val viewSettings by viewModel.viewSettings.collectAsState()
     val sortOption by viewModel.sortOption.collectAsState()
 
-    val searchViewModel: SearchViewModel = viewModel()
+    val searchViewModel: SearchViewModel = viewModel(key = "search_folder")
     val searchQuery by searchViewModel.searchQuery.collectAsState()
     val suggestions by searchViewModel.suggestions.collectAsState()
 
@@ -76,7 +80,7 @@ fun ImageFolderScreen(
     var showStorageExplorer by remember { mutableStateOf(false) }
     var explorerOperationType by remember { mutableStateOf("") }
 
-    val fileOpsViewModel: FileOperationsViewModel = viewModel()
+    val fileOpsViewModel: FileOperationsViewModel = viewModel(key = "fileops_folder")
     val context = LocalContext.current
     val pendingIntentSender by fileOpsViewModel.pendingIntentSender.collectAsState()
 
@@ -113,11 +117,21 @@ fun ImageFolderScreen(
         viewModel.loadImages(bucketId)
     }
 
-    val selectedImages = remember(selectedImageIds, images) {
-        images.filter { it.id in selectedImageIds }
+    // Collect current page items into a stable snapshot for selection helpers.
+    val snapshotImages: List<GalleryImage> = remember(pagedImages.itemCount) {
+        (0 until pagedImages.itemCount).mapNotNull { pagedImages.peek(it) }
+    }
+
+    val selectedImages = remember(selectedImageIds, snapshotImages) {
+        snapshotImages.filter { it.id in selectedImageIds }
     }
 
     val folderName by viewModel.folderName.collectAsState()
+
+    // Determine loading / empty states from pager.
+    val isInitialLoad = pagedImages.loadState.refresh is LoadState.Loading
+    val isEmpty = pagedImages.loadState.refresh is LoadState.NotLoading &&
+            pagedImages.itemCount == 0
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -131,7 +145,7 @@ fun ImageFolderScreen(
                             }
                         },
                         actions = {
-                            IconButton(onClick = { viewModel.selectAll() }) {
+                            IconButton(onClick = { viewModel.selectAll(snapshotImages) }) {
                                 Icon(Icons.Default.SelectAll, contentDescription = "Select All")
                             }
                         },
@@ -165,134 +179,146 @@ fun ImageFolderScreen(
                     .fillMaxSize()
                     .padding(top = paddingValues.calculateTopPadding())
             ) {
-                if (isLoading) {
-                    val baseColumns = if (layoutMode == "list") 1 else (4 - savedGridCellsIndex.coerceIn(0, 2))
-                    SkeletonLoadingView(
-                        layoutMode = layoutMode,
-                        columns = baseColumns
-                    )
-                } else if (images.isEmpty()) {
-                    PixChiveEmptyState(
-                        icon = Icons.Default.PhotoLibrary,
-                        title = "Folder is Empty",
-                        message = "No images found in this folder."
-                    )
-                } else {
-                    if (layoutMode == "list") {
-                        LazyColumn(
-                            contentPadding = PaddingValues(
-                                top = 4.dp,
-                                bottom = 100.dp,
-                                start = 4.dp,
-                                end = 4.dp
-                            ),
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            listItemsIndexed(images, key = { _, img -> img.id }) { index, image ->
-                                val isSelected = image.id in selectedImageIds
-                                GalleryImageItem(
-                                    image = image,
-                                    isSelected = isSelected,
-                                    isSelectionModeActive = selectedImageIds.isNotEmpty(),
-                                    isListMode = true,
-                                    columnCount = 1,
-                                    viewSettings = viewSettings,
-                                    onThumbnailClick = { viewModel.toggleSelection(image.id) },
-                                    onClick = {
-                                        if (selectedImageIds.isNotEmpty()) {
-                                            viewModel.toggleSelection(image.id)
-                                        } else {
-                                            onImageClick(index)
-                                        }
-                                    },
-                                    onLongClick = { viewModel.toggleSelection(image.id) },
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
-                        }
-                    } else {
-                        var currentColumns by remember(savedGridCellsIndex) {
-                            mutableIntStateOf(4 - savedGridCellsIndex.coerceIn(0, 2))
-                        }
-                        var accumulatedZoom by remember { mutableFloatStateOf(1f) }
-
-                        val animatedColumns by animateIntAsState(
-                            targetValue = currentColumns,
-                            animationSpec = tween(300),
-                            label = "columns_anim"
+                when {
+                    isInitialLoad -> {
+                        val baseColumns = if (layoutMode == "list") 1 else (4 - savedGridCellsIndex.coerceIn(0, 2))
+                        SkeletonLoadingView(
+                            layoutMode = layoutMode,
+                            columns = baseColumns
                         )
-
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(animatedColumns.coerceIn(2, 4)),
-                            state = gridState,
-                            contentPadding = PaddingValues(
-                                top = 4.dp,
-                                bottom = 100.dp,
-                                start = 4.dp,
-                                end = 4.dp
-                            ),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .pointerInput(Unit) {
-                                    awaitEachGesture {
-                                        awaitFirstDown(requireUnconsumed = false)
-                                        var hasChangedInThisGesture = false
-                                        do {
-                                            val event = awaitPointerEvent()
-                                            if (event.changes.size >= 2) {
-                                                val zoom = event.calculateZoom()
-                                                accumulatedZoom *= zoom
-                                                if (!hasChangedInThisGesture) {
-                                                    if (accumulatedZoom > 1.25f) {
-                                                        val newCols = (currentColumns - 1).coerceIn(2, 4)
-                                                        if (newCols != currentColumns) {
-                                                            currentColumns = newCols
-                                                            viewModel.setGridCellsIndex(4 - newCols)
-                                                        }
-                                                        hasChangedInThisGesture = true
-                                                    } else if (accumulatedZoom < 0.75f) {
-                                                        val newCols = (currentColumns + 1).coerceIn(2, 4)
-                                                        if (newCols != currentColumns) {
-                                                            currentColumns = newCols
-                                                            viewModel.setGridCellsIndex(4 - newCols)
-                                                        }
-                                                        hasChangedInThisGesture = true
-                                                    }
-                                                }
-                                                event.changes.forEach { if (it.pressed) it.consume() }
+                    }
+                    isEmpty -> {
+                        PixChiveEmptyState(
+                            icon = Icons.Default.PhotoLibrary,
+                            title = "Folder is Empty",
+                            message = "No images found in this folder."
+                        )
+                    }
+                    else -> {
+                        if (layoutMode == "list") {
+                            LazyColumn(
+                                contentPadding = PaddingValues(
+                                    top = 4.dp,
+                                    bottom = 100.dp,
+                                    start = 4.dp,
+                                    end = 4.dp
+                                ),
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                items(
+                                    count = pagedImages.itemCount,
+                                    key = pagedImages.itemKey { it.id }
+                                ) { index ->
+                                    val image = pagedImages[index] ?: return@items
+                                    val isSelected = image.id in selectedImageIds
+                                    GalleryImageItem(
+                                        image = image,
+                                        isSelected = isSelected,
+                                        isSelectionModeActive = selectedImageIds.isNotEmpty(),
+                                        isListMode = true,
+                                        columnCount = 1,
+                                        viewSettings = viewSettings,
+                                        onThumbnailClick = { viewModel.toggleSelection(image.id) },
+                                        onClick = {
+                                            if (selectedImageIds.isNotEmpty()) {
+                                                viewModel.toggleSelection(image.id)
                                             } else {
-                                                accumulatedZoom = 1f
-                                                hasChangedInThisGesture = false
+                                                onImageClick(index)
                                             }
-                                        } while (event.changes.any { it.pressed })
-                                    }
+                                        },
+                                        onLongClick = { viewModel.toggleSelection(image.id) },
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
                                 }
-                        ) {
-                            gridItemsIndexed(images, key = { _, img -> img.id }) { index, image ->
-                                val isSelected = image.id in selectedImageIds
-                                GalleryImageItem(
-                                    image = image,
-                                    isSelected = isSelected,
-                                    isSelectionModeActive = selectedImageIds.isNotEmpty(),
-                                    isListMode = false,
-                                    columnCount = animatedColumns.coerceIn(2, 4),
-                                    viewSettings = viewSettings,
-                                    modifier = Modifier
-                                        .animateItem()
-                                        .fillMaxWidth()
-                                        .aspectRatio(1f),
-                                    onThumbnailClick = { viewModel.toggleSelection(image.id) },
-                                    onClick = {
-                                        if (selectedImageIds.isNotEmpty()) {
-                                            viewModel.toggleSelection(image.id)
-                                        } else {
-                                            onImageClick(index)
+                            }
+                        } else {
+                            var currentColumns by remember(savedGridCellsIndex) {
+                                mutableIntStateOf(4 - savedGridCellsIndex.coerceIn(0, 2))
+                            }
+                            var accumulatedZoom by remember { mutableFloatStateOf(1f) }
+
+                            val animatedColumns by animateIntAsState(
+                                targetValue = currentColumns,
+                                animationSpec = tween(300),
+                                label = "columns_anim"
+                            )
+
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(animatedColumns.coerceIn(2, 4)),
+                                state = gridState,
+                                contentPadding = PaddingValues(
+                                    top = 4.dp,
+                                    bottom = 100.dp,
+                                    start = 4.dp,
+                                    end = 4.dp
+                                ),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .pointerInput(Unit) {
+                                        awaitEachGesture {
+                                            awaitFirstDown(requireUnconsumed = false)
+                                            var hasChangedInThisGesture = false
+                                            do {
+                                                val event = awaitPointerEvent()
+                                                if (event.changes.size >= 2) {
+                                                    val zoom = event.calculateZoom()
+                                                    accumulatedZoom *= zoom
+                                                    if (!hasChangedInThisGesture) {
+                                                        if (accumulatedZoom > 1.25f) {
+                                                            val newCols = (currentColumns - 1).coerceIn(2, 4)
+                                                            if (newCols != currentColumns) {
+                                                                currentColumns = newCols
+                                                                viewModel.setGridCellsIndex(4 - newCols)
+                                                            }
+                                                            hasChangedInThisGesture = true
+                                                        } else if (accumulatedZoom < 0.75f) {
+                                                            val newCols = (currentColumns + 1).coerceIn(2, 4)
+                                                            if (newCols != currentColumns) {
+                                                                currentColumns = newCols
+                                                                viewModel.setGridCellsIndex(4 - newCols)
+                                                            }
+                                                            hasChangedInThisGesture = true
+                                                        }
+                                                    }
+                                                    event.changes.forEach { if (it.pressed) it.consume() }
+                                                } else {
+                                                    accumulatedZoom = 1f
+                                                    hasChangedInThisGesture = false
+                                                }
+                                            } while (event.changes.any { it.pressed })
                                         }
-                                    },
-                                    onLongClick = { viewModel.toggleSelection(image.id) }
-                                )
+                                    }
+                            ) {
+                                items(
+                                    count = pagedImages.itemCount,
+                                    key = pagedImages.itemKey { it.id }
+                                ) { index ->
+                                    val image = pagedImages[index] ?: return@items
+                                    val isSelected = image.id in selectedImageIds
+                                    GalleryImageItem(
+                                        image = image,
+                                        isSelected = isSelected,
+                                        isSelectionModeActive = selectedImageIds.isNotEmpty(),
+                                        isListMode = false,
+                                        columnCount = animatedColumns.coerceIn(2, 4),
+                                        viewSettings = viewSettings,
+                                        modifier = Modifier
+                                            .animateItem()
+                                            .fillMaxWidth()
+                                            .aspectRatio(1f),
+                                        onThumbnailClick = { viewModel.toggleSelection(image.id) },
+                                        onClick = {
+                                            if (selectedImageIds.isNotEmpty()) {
+                                                viewModel.toggleSelection(image.id)
+                                            } else {
+                                                onImageClick(index)
+                                            }
+                                        },
+                                        onLongClick = { viewModel.toggleSelection(image.id) }
+                                    )
+                                }
                             }
                         }
                     }
@@ -358,7 +384,7 @@ fun ImageFolderScreen(
                 CustomRenameDialog(
                     initialName = it.realPath.substringAfterLast('/'),
                     onConfirm = { newName ->
-                        viewModel.renameSelectedImage(newName)
+                        viewModel.renameSelectedImage(newName, snapshotImages)
                         showRenameDialog = false
                     },
                     onDismiss = { showRenameDialog = false }

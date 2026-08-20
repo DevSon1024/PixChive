@@ -36,7 +36,7 @@ import kotlinx.coroutines.launch
 fun GalleryMainScreen(
     onNavigateBack: () -> Unit,
     onSettingsClick: () -> Unit,
-    onRecycleBinClick: () -> Unit,
+    onRecycleBinClick: () -> Unit = {},
     onFolderClick: (String) -> Unit,
     onImageClick: (String, Int) -> Unit,
     onSearch: (String) -> Unit,
@@ -130,9 +130,6 @@ fun GalleryMainScreen(
                     onSearch = onSearch,
                     onBackClick = onNavigateBack,
                     actions = {
-                        IconButton(onClick = onRecycleBinClick) {
-                            Icon(Icons.Filled.RestoreFromTrash, contentDescription = "Recycle Bin")
-                        }
                         IconButton(onClick = {
                             if (pagerState.currentPage == 0) {
                                 showAlbumsSettingsSheet = true
@@ -273,6 +270,7 @@ fun GalleryMainScreen(
 
     if (showPhotosSettingsSheet) {
         val viewSettings by allImagesViewModel.viewSettings.collectAsState()
+        val sortOption by allImagesViewModel.sortOption.collectAsState()
         val layoutMode by allImagesViewModel.layoutMode.collectAsState()
         val gridCellsIndex by allImagesViewModel.gridCellsIndex.collectAsState()
 
@@ -283,8 +281,8 @@ fun GalleryMainScreen(
             onGridCellsIndexChange = { allImagesViewModel.setGridCellsIndex(it) },
             viewSettings = viewSettings,
             onViewSettingsChange = { allImagesViewModel.updateViewSettings(it) },
-            sortOption = "DATE_DESC",
-            onSortOptionChange = {},
+            sortOption = sortOption,
+            onSortOptionChange = { allImagesViewModel.setSortOption(it) },
             showFolderThumbnail = false,
             onShowFolderThumbnailChange = {},
             galleryViewMode = "photos",

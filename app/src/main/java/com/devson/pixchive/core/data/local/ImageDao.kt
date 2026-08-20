@@ -8,6 +8,7 @@ import androidx.room.Query
 import androidx.room.RawQuery
 import androidx.room.Transaction
 import androidx.sqlite.db.SupportSQLiteQuery
+import com.devson.pixchive.core.data.FolderCover
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -23,6 +24,18 @@ interface ImageDao {
 
     @Query("SELECT * FROM images WHERE folderId = :folderId ORDER BY dateModified DESC LIMIT 1")
     fun getLatestImageFlow(folderId: String): Flow<ImageEntity?>
+
+    @Query("""
+        SELECT i.folderId, i.uri AS coverUri
+        FROM images i
+        INNER JOIN (
+            SELECT folderId, MAX(dateModified) AS maxDate
+            FROM images
+            GROUP BY folderId
+        ) latest ON i.folderId = latest.folderId AND i.dateModified = latest.maxDate
+        GROUP BY i.folderId
+    """)
+    fun getAllFolderCoversFlow(): Flow<List<FolderCover>>
 
     // Chunked non-Paging fetch to avoid loading the entire table in one allocation.
     // Use limit/offset loops on the call site to stream results incrementally.

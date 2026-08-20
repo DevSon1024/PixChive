@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.devson.pixchive.PixChiveApplication
 import com.devson.pixchive.core.data.Chapter
 import com.devson.pixchive.core.data.ComicFolder
+import com.devson.pixchive.core.data.FolderWithCover
 import com.devson.pixchive.core.data.PreferencesManager
 import com.devson.pixchive.core.utils.FolderScanner
 import kotlinx.coroutines.Dispatchers
@@ -41,6 +42,32 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _sortOption = MutableStateFlow("name_asc")
     val sortOption: StateFlow<String> = _sortOption.asStateFlow()
+
+    val foldersWithCovers: StateFlow<List<FolderWithCover>> = combine(
+        preferencesManager.foldersFlow,
+        imageDao.getAllFolderCoversFlow(),
+        _sortOption
+    ) { folderList, covers, sortOption ->
+        val coverMap = covers.associate { it.folderId to it.coverUri }
+        val withCovers = folderList.map { folder ->
+            FolderWithCover(
+                folder = folder,
+                coverUri = coverMap[folder.id]
+            )
+        }
+        sortFoldersWithCovers(withCovers, sortOption)
+    }.flowOn(Dispatchers.Default)
+     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private fun sortFoldersWithCovers(folders: List<FolderWithCover>, option: String): List<FolderWithCover> {
+        return when (option) {
+            "name_asc" -> folders.sortedBy { it.displayName.lowercase() }
+            "name_desc" -> folders.sortedByDescending { it.displayName.lowercase() }
+            "date_newest" -> folders.sortedByDescending { it.folder.dateAdded }
+            "date_oldest" -> folders.sortedBy { it.folder.dateAdded }
+            else -> folders.sortedByDescending { it.folder.dateAdded }
+        }
+    }
 
     private val _favoritesSortOption = MutableStateFlow("date_newest")
     val favoritesSortOption: StateFlow<String> = _favoritesSortOption.asStateFlow()

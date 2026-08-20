@@ -16,6 +16,21 @@ data class ComicFolder(
         get() = PathUtils.extractFolderName(name)
 }
 
+data class FolderWithCover(
+    val folder: ComicFolder,
+    val coverUri: String? = null
+) {
+    val id: String get() = folder.id
+    val displayName: String get() = folder.displayName
+    val chapterCount: Int get() = folder.chapterCount
+    val imageCount: Int get() = folder.imageCount
+}
+
+data class FolderCover(
+    val folderId: String,
+    val coverUri: String
+)
+
 data class Chapter(
     val name: String,
     val path: String,

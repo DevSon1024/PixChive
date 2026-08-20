@@ -1,5 +1,6 @@
 package com.devson.pixchive.feature.reader.ui.components
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -27,23 +28,34 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.devson.pixchive.core.data.ComicFolder
-import com.devson.pixchive.core.data.local.ImageEntity
+import com.devson.pixchive.core.data.FolderWithCover
 import com.devson.pixchive.core.designsystem.component.OptionItem
 import com.devson.pixchive.core.designsystem.component.OptionsBottomSheet
-import kotlinx.coroutines.flow.Flow
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun FolderCard(
+    folderWithCover: FolderWithCover,
+    onDelete: () -> Unit,
+    onClick: () -> Unit
+) = FolderCard(
+    folder = folderWithCover.folder,
+    coverUri = folderWithCover.coverUri,
+    onDelete = onDelete,
+    onClick = onClick
+)
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FolderCard(
     folder: ComicFolder,
-    latestImageFlow: Flow<ImageEntity?>,
+    coverUri: String? = null,
     onDelete: () -> Unit,
     onClick: () -> Unit
 ) {
-    val latestImage by latestImageFlow.collectAsState(initial = null)
-
     ElevatedCard(
         modifier = Modifier
             .fillMaxWidth()
@@ -68,13 +80,21 @@ fun FolderCard(
                     .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
                 contentAlignment = Alignment.Center
             ) {
-                if (latestImage != null) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(latestImage!!.uri)
+                if (!coverUri.isNullOrEmpty()) {
+                    val context = LocalContext.current
+                    val imageRequest = remember(coverUri) {
+                        ImageRequest.Builder(context)
+                            .data(coverUri)
                             .size(256)
-                            .crossfade(true)
-                            .build(),
+                            .crossfade(false)
+                            .bitmapConfig(Bitmap.Config.RGB_565)
+                            .allowHardware(true)
+                            .memoryCachePolicy(CachePolicy.ENABLED)
+                            .diskCachePolicy(CachePolicy.ENABLED)
+                            .build()
+                    }
+                    AsyncImage(
+                        model = imageRequest,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
@@ -149,14 +169,26 @@ fun FolderCard(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FolderGridItem(
+    folderWithCover: FolderWithCover,
+    onDelete: () -> Unit,
+    onClick: () -> Unit
+) = FolderGridItem(
+    folder = folderWithCover.folder,
+    coverUri = folderWithCover.coverUri,
+    onDelete = onDelete,
+    onClick = onClick
+)
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun FolderGridItem(
     folder: ComicFolder,
-    latestImageFlow: Flow<ImageEntity?>,
+    coverUri: String? = null,
     onDelete: () -> Unit,
     onClick: () -> Unit
 ) {
     val haptics = LocalHapticFeedback.current
     var showMenu by remember { mutableStateOf(false) }
-    val latestImage by latestImageFlow.collectAsState(initial = null)
 
     Box {
         OutlinedCard(
@@ -173,13 +205,22 @@ fun FolderGridItem(
             )
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
-                if (latestImage != null) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(latestImage!!.uri)
+                val hasCover = !coverUri.isNullOrEmpty()
+                if (hasCover) {
+                    val context = LocalContext.current
+                    val imageRequest = remember(coverUri) {
+                        ImageRequest.Builder(context)
+                            .data(coverUri)
                             .size(256)
-                            .crossfade(true)
-                            .build(),
+                            .crossfade(false)
+                            .bitmapConfig(Bitmap.Config.RGB_565)
+                            .allowHardware(true)
+                            .memoryCachePolicy(CachePolicy.ENABLED)
+                            .diskCachePolicy(CachePolicy.ENABLED)
+                            .build()
+                    }
+                    AsyncImage(
+                        model = imageRequest,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
@@ -210,7 +251,7 @@ fun FolderGridItem(
                             .size(52.dp)
                             .clip(RoundedCornerShape(14.dp))
                             .background(
-                                if (latestImage != null) {
+                                if (hasCover) {
                                     MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f)
                                 } else {
                                     MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
@@ -222,14 +263,14 @@ fun FolderGridItem(
                             imageVector = Icons.Default.Folder,
                             contentDescription = null,
                             modifier = Modifier.size(28.dp),
-                            tint = if (latestImage != null) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary
+                            tint = if (hasCover) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary
                         )
                     }
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
                         text = folder.displayName,
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = if (latestImage != null) Color.White else MaterialTheme.colorScheme.onSurface,
+                        color = if (hasCover) Color.White else MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         textAlign = TextAlign.Center
@@ -238,7 +279,7 @@ fun FolderGridItem(
                     Text(
                         text = "${folder.imageCount} items",
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (latestImage != null) Color.White.copy(alpha = 0.75f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (hasCover) Color.White.copy(alpha = 0.75f) else MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
                 }

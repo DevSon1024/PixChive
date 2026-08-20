@@ -12,6 +12,7 @@ import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.devson.pixchive.PixChiveApplication
 import com.devson.pixchive.core.data.ComicFolder
+import com.devson.pixchive.core.data.FolderWithCover
 import com.devson.pixchive.core.data.PreferencesManager
 import com.devson.pixchive.core.data.local.HistoryEntity
 import com.devson.pixchive.core.data.local.ImageEntity
@@ -51,11 +52,19 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _sortOption = MutableStateFlow("date_newest")
     val sortOption: StateFlow<String> = _sortOption.asStateFlow()
 
-    val folders: StateFlow<List<ComicFolder>> = combine(
+    val folders: StateFlow<List<FolderWithCover>> = combine(
         preferencesManager.foldersFlow,
+        imageDao.getAllFolderCoversFlow(),
         _sortOption
-    ) { folderList, sortOption ->
-        sortFolders(folderList, sortOption)
+    ) { folderList, covers, sortOption ->
+        val coverMap = covers.associate { it.folderId to it.coverUri }
+        val withCovers = folderList.map { folder ->
+            FolderWithCover(
+                folder = folder,
+                coverUri = coverMap[folder.id]
+            )
+        }
+        sortFolders(withCovers, sortOption)
     }.flowOn(Dispatchers.Default)
      .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -94,13 +103,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun sortFolders(folders: List<ComicFolder>, option: String): List<ComicFolder> {
+    private fun sortFolders(folders: List<FolderWithCover>, option: String): List<FolderWithCover> {
         return when (option) {
             "name_asc" -> folders.sortedBy { it.displayName.lowercase() }
             "name_desc" -> folders.sortedByDescending { it.displayName.lowercase() }
-            "date_newest" -> folders.sortedByDescending { it.dateAdded }
-            "date_oldest" -> folders.sortedBy { it.dateAdded }
-            else -> folders.sortedByDescending { it.dateAdded }
+            "date_newest" -> folders.sortedByDescending { it.folder.dateAdded }
+            "date_oldest" -> folders.sortedBy { it.folder.dateAdded }
+            else -> folders.sortedByDescending { it.folder.dateAdded }
         }
     }
 

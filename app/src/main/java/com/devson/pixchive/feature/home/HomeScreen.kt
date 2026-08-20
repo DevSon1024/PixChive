@@ -330,12 +330,11 @@ fun HomeScreen(
                                     }
                                 }
 
-                                items(folders.take(4), key = { it.id }) { folder ->
+                                items(folders.take(4), key = { it.id }) { folderItem ->
                                     FolderCard(
-                                        folder = folder,
-                                        latestImageFlow = remember(folder.id) { viewModel.getLatestImageFlow(folder.id) },
-                                        onDelete = { viewModel.removeFolder(folder.id) },
-                                        onClick = { onFolderClick(folder.id) }
+                                        folderWithCover = folderItem,
+                                        onDelete = { viewModel.removeFolder(folderItem.id) },
+                                        onClick = { onFolderClick(folderItem.id) }
                                     )
                                 }
                             }

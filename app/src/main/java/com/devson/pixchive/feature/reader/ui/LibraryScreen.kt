@@ -344,12 +344,11 @@ fun LibraryScreen(
                                     .fillMaxSize()
                                     .then(zoomModifier)
                             ) {
-                                items(folders, key = { it.id }, contentType = { "folder_grid" }) { folder ->
+                                items(folders, key = { it.id }, contentType = { "folder_grid" }) { folderItem ->
                                     FolderGridItem(
-                                        folder = folder,
-                                        latestImageFlow = remember(folder.id) { viewModel.getLatestImageFlow(folder.id) },
-                                        onDelete = { viewModel.removeFolder(folder.id) },
-                                        onClick = { onFolderClick(folder.id) }
+                                        folderWithCover = folderItem,
+                                        onDelete = { viewModel.removeFolder(folderItem.id) },
+                                        onClick = { onFolderClick(folderItem.id) }
                                     )
                                 }
                             }
@@ -364,12 +363,11 @@ fun LibraryScreen(
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.fillMaxSize()
                             ) {
-                                items(folders, key = { it.id }, contentType = { "folder_list" }) { folder ->
+                                items(folders, key = { it.id }, contentType = { "folder_list" }) { folderItem ->
                                     FolderCard(
-                                        folder = folder,
-                                        latestImageFlow = remember(folder.id) { viewModel.getLatestImageFlow(folder.id) },
-                                        onDelete = { viewModel.removeFolder(folder.id) },
-                                        onClick = { onFolderClick(folder.id) }
+                                        folderWithCover = folderItem,
+                                        onDelete = { viewModel.removeFolder(folderItem.id) },
+                                        onClick = { onFolderClick(folderItem.id) }
                                     )
                                 }
                             }

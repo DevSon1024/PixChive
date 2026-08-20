@@ -29,6 +29,7 @@ import android.widget.Toast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import com.devson.pixchive.core.data.PreferencesManager
+import com.devson.pixchive.core.designsystem.component.AnimatedPixchiveLogo
 import com.devson.pixchive.core.utils.BackupRestoreManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -300,21 +301,12 @@ private fun AppIdentityCard(versionName: String, onVersionTap: () -> Unit = {}) 
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // App logo circle (mirrors AboutScreen's AppHeroSection icon style)
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.PhotoLibrary,
-                    contentDescription = null,
-                    modifier = Modifier.size(36.dp),
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
-            }
+            // App logo animation
+            AnimatedPixchiveLogo(
+                modifier = Modifier.size(56.dp),
+                color = MaterialTheme.colorScheme.primary,
+                maskColor = MaterialTheme.colorScheme.surfaceContainerHigh
+            )
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(

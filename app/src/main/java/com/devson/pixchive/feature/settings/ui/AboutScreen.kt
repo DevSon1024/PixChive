@@ -42,6 +42,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.ui.platform.LocalContext
+import com.devson.pixchive.core.designsystem.component.AnimatedPixchiveLogo
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -407,34 +408,12 @@ private fun AppHeroCard(
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Glowing App Icon
-            Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .shadow(12.dp, CircleShape, spotColor = MaterialTheme.colorScheme.primary)
-                    .clip(CircleShape)
-                    .background(
-                        Brush.linearGradient(
-                            listOf(
-                                MaterialTheme.colorScheme.primary,
-                                MaterialTheme.colorScheme.primaryContainer
-                            )
-                        )
-                    )
-                    .border(
-                        2.dp,
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
-                        CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.PhotoLibrary,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(40.dp)
-                )
-            }
+            // Animated PixChive Logo
+            AnimatedPixchiveLogo(
+                modifier = Modifier.size(104.dp),
+                color = MaterialTheme.colorScheme.primary,
+                maskColor = MaterialTheme.colorScheme.surfaceContainerHigh
+            )
 
             Spacer(Modifier.height(16.dp))
 

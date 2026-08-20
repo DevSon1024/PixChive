@@ -7,8 +7,13 @@ import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -54,6 +59,10 @@ import com.devson.pixchive.core.utils.PermissionState
 import com.devson.pixchive.feature.home.HomeViewModel
 import com.devson.pixchive.feature.reader.ui.components.FolderCard
 import com.devson.pixchive.feature.reader.ui.components.FolderGridItem
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 /**
  * Dedicated Comic and Manga Library Screen displaying all imported root folders.
@@ -70,6 +79,7 @@ fun LibraryScreen(
     val context = LocalContext.current
     val activity = context as? Activity
     val lifecycleOwner = LocalLifecycleOwner.current
+    val coroutineScope = rememberCoroutineScope()
 
     val folders by viewModel.folders.collectAsState()
     val recentHistory by viewModel.recentHistory.collectAsState()
@@ -94,6 +104,21 @@ fun LibraryScreen(
     var showRationaleDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
     var showDisplayOptions by remember { mutableStateOf(false) }
+
+    // Transient Grid Size notification pill
+    var showGridPill by remember { mutableStateOf(false) }
+    var currentGridPillText by remember { mutableStateOf("") }
+    var pillDismissJob by remember { mutableStateOf<Job?>(null) }
+
+    val triggerGridPill: (Int) -> Unit = { newCols ->
+        currentGridPillText = "Grid Size: $newCols"
+        showGridPill = true
+        pillDismissJob?.cancel()
+        pillDismissJob = coroutineScope.launch {
+            delay(1400)
+            showGridPill = false
+        }
+    }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -300,37 +325,48 @@ fun LibraryScreen(
 
                     val gridCols = if (layoutMode == "grid") animatedColumns.coerceIn(1, 4) else 1
 
+                    // Refined pinch-to-zoom gesture with higher threshold and zero scroll blocking
                     val zoomModifier = if (layoutMode == "grid") {
                         Modifier.pointerInput(Unit) {
                             awaitEachGesture {
                                 awaitFirstDown(requireUnconsumed = false)
                                 var hasChangedInThisGesture = false
+                                var zoomFactor = 1f
                                 do {
                                     val event = awaitPointerEvent()
                                     if (event.changes.size >= 2) {
                                         val zoom = event.calculateZoom()
-                                        accumulatedZoom *= zoom
+                                        zoomFactor *= zoom
 
                                         if (!hasChangedInThisGesture) {
-                                            if (accumulatedZoom > 1.25f) {
+                                            // Pinch Out (zoom in) -> decrease columns (larger items)
+                                            if (zoomFactor > 1.35f) {
                                                 val newCols = (localColumns - 1).coerceIn(1, 4)
                                                 if (newCols != localColumns) {
                                                     localColumns = newCols
                                                     viewModel.setGridColumns(newCols)
+                                                    triggerGridPill(newCols)
                                                 }
                                                 hasChangedInThisGesture = true
-                                            } else if (accumulatedZoom < 0.75f) {
+                                            }
+                                            // Pinch In (zoom out) -> increase columns (smaller items)
+                                            else if (zoomFactor < 0.68f) {
                                                 val newCols = (localColumns + 1).coerceIn(1, 4)
                                                 if (newCols != localColumns) {
                                                     localColumns = newCols
                                                     viewModel.setGridColumns(newCols)
+                                                    triggerGridPill(newCols)
                                                 }
                                                 hasChangedInThisGesture = true
                                             }
                                         }
-                                        event.changes.forEach { if (it.pressed) it.consume() }
+
+                                        // Only consume touch event if a multi-touch zoom action is actively engaged
+                                        if (hasChangedInThisGesture || abs(zoomFactor - 1f) > 0.15f) {
+                                            event.changes.forEach { if (it.pressed) it.consume() }
+                                        }
                                     } else {
-                                        accumulatedZoom = 1f
+                                        zoomFactor = 1f
                                         hasChangedInThisGesture = false
                                     }
                                 } while (event.changes.any { it.pressed })
@@ -408,6 +444,45 @@ fun LibraryScreen(
                                 }
                             }
                         }
+                    }
+                }
+            }
+
+            // Transient Floating Grid Size Feedback Pill
+            AnimatedVisibility(
+                visible = showGridPill,
+                enter = fadeIn(tween(150)) + scaleIn(tween(150), initialScale = 0.85f),
+                exit = fadeOut(tween(200)) + scaleOut(tween(200), targetScale = 0.85f),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 16.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.92f),
+                    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                    shadowElevation = 6.dp,
+                    border = BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.GridView,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.inverseOnSurface
+                        )
+                        Text(
+                            text = currentGridPillText,
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.inverseOnSurface
+                        )
                     }
                 }
             }

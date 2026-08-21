@@ -15,8 +15,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.BlurredEdgeTreatment
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -29,13 +27,15 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import com.devson.pixchive.core.data.FolderMetadata
 import com.devson.pixchive.core.designsystem.component.bouncyClickable
 import java.io.File
 
 /**
  * Premium Material 3 Hero Header for Standard Gallery Image Albums.
- * Features a blurred latest photo background with a smooth vertical gradient scrim,
- * prominent typography hierarchy, and glassmorphic top navigation buttons coordinated with selection mode.
+ * Follows the high-end artwork presentation of FolderHeroHeader with a crisp edge-to-edge
+ * cover photo, multi-stop vertical gradient scrim for seamless background blending, prominent
+ * typography hierarchy, and glassmorphic top navigation buttons coordinated with selection mode.
  */
 @Composable
 fun StandardAlbumHeroHeader(
@@ -53,7 +53,7 @@ fun StandardAlbumHeroHeader(
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val headerHeight = remember(configuration.screenHeightDp) {
-        (configuration.screenHeightDp * 0.36f).coerceIn(250f, 340f).dp
+        (configuration.screenHeightDp * 0.40f).coerceIn(280f, 380f).dp
     }
 
     val backgroundColor = MaterialTheme.colorScheme.background
@@ -97,7 +97,7 @@ fun StandardAlbumHeroHeader(
             .height(headerHeight)
             .background(backgroundColor)
     ) {
-        // 1. Blurred Background Image
+        // 1. Edge-to-Edge Crisp Cover Photo
         if (imageRequest != null) {
             AsyncImage(
                 model = imageRequest,
@@ -105,7 +105,6 @@ fun StandardAlbumHeroHeader(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
-                    .blur(radius = 16.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
                     .align(Alignment.TopCenter)
             )
         } else {
@@ -116,7 +115,7 @@ fun StandardAlbumHeroHeader(
                     .background(
                         Brush.linearGradient(
                             colors = listOf(
-                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
                                 MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
                             )
                         )
@@ -124,7 +123,7 @@ fun StandardAlbumHeroHeader(
             )
         }
 
-        // 2. Top Scrim for Status Bar & Navigation Buttons
+        // 2. Top Scrim for Status Bar & Navigation Buttons (ensures high contrast)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -133,7 +132,7 @@ fun StandardAlbumHeroHeader(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color.Black.copy(alpha = 0.45f),
+                            Color.Black.copy(alpha = 0.40f),
                             Color.Black.copy(alpha = 0.15f),
                             Color.Transparent
                         )
@@ -141,17 +140,16 @@ fun StandardAlbumHeroHeader(
                 )
         )
 
-        // 3. Smooth Multi-Stop Bottom Gradient Scrim (Melts seamlessly into screen background)
+        // 3. Smooth Multi-Stop Bottom Gradient Scrim (Melt seamlessly into screen background)
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
                         0.0f to Color.Transparent,
-                        0.25f to Color.Transparent,
-                        0.50f to backgroundColor.copy(alpha = 0.35f),
-                        0.70f to backgroundColor.copy(alpha = 0.75f),
-                        0.88f to backgroundColor.copy(alpha = 0.96f),
+                        0.35f to Color.Transparent,
+                        0.60f to backgroundColor.copy(alpha = 0.45f),
+                        0.82f to backgroundColor.copy(alpha = 0.88f),
                         1.0f to backgroundColor
                     )
                 )
@@ -216,7 +214,7 @@ fun StandardAlbumHeroHeader(
             }
         }
 
-        // 5. Foreground Content: Metadata (Bottom-Start)
+        // 5. Foreground Content: Left-Aligned Metadata (Bottom-Start)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -236,7 +234,7 @@ fun StandardAlbumHeroHeader(
                 overflow = TextOverflow.Ellipsis
             )
 
-            // Prominent Album Name
+            // Large Bold Album Name
             Text(
                 text = albumName.ifEmpty { "Photo Album" },
                 style = MaterialTheme.typography.headlineLarge.copy(
@@ -250,7 +248,7 @@ fun StandardAlbumHeroHeader(
 
             Spacer(modifier = Modifier.height(2.dp))
 
-            // Subtitle Row: Total Photos • Total Size
+            // Subtitle Row: Images Count • Size
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -277,4 +275,29 @@ fun StandardAlbumHeroHeader(
             }
         }
     }
+}
+
+/**
+ * Convenient overload accepting [FolderMetadata] directly.
+ */
+@Composable
+fun StandardAlbumHeroHeader(
+    metadata: FolderMetadata,
+    onNavigateBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    isSelectionModeActive: Boolean = false,
+    overlineText: String = "PHOTO ALBUM",
+    onOptionsClick: (() -> Unit)? = null
+) {
+    StandardAlbumHeroHeader(
+        albumName = metadata.folderName,
+        coverImageUri = metadata.coverImageUri,
+        totalImages = metadata.totalImages,
+        albumSizeFormatted = metadata.folderSizeFormatted,
+        onNavigateBack = onNavigateBack,
+        modifier = modifier,
+        isSelectionModeActive = isSelectionModeActive,
+        overlineText = overlineText,
+        onOptionsClick = onOptionsClick
+    )
 }

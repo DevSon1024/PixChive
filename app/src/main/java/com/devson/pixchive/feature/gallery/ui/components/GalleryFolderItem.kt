@@ -149,6 +149,163 @@ private fun FolderMetaRow(
     }
 }
 
+/**
+ * Modern Material 3 List Item for Gallery Folders / Albums.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun GalleryFolderListItem(
+    folder: GalleryFolder,
+    isSelected: Boolean,
+    isSelectionModeActive: Boolean = false,
+    viewSettings: GalleryViewSettings = GalleryViewSettings(),
+    showThumbnail: Boolean = viewSettings.showThumbnail,
+    onClick: () -> Unit,
+    onThumbnailClick: (() -> Unit)? = null,
+    onLongPress: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val haptics = LocalHapticFeedback.current
+
+    val bgColor by animateColorAsState(
+        targetValue = if (isSelected)
+            MaterialTheme.colorScheme.primaryContainer
+        else
+            MaterialTheme.colorScheme.surfaceContainer,
+        animationSpec = tween(180),
+        label = "folderBg"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (isSelected)
+            MaterialTheme.colorScheme.primary
+        else
+            Color.Transparent,
+        animationSpec = tween(180),
+        label = "folderBorder"
+    )
+
+    val handleToggle = {
+        onThumbnailClick?.invoke() ?: onLongPress()
+    }
+
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = bgColor,
+        tonalElevation = 1.dp,
+        border = BorderStroke(if (isSelected) 1.5.dp else 0.dp, borderColor),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .combinedClickable(
+                onClick = {
+                    if (isSelectionModeActive) {
+                        handleToggle()
+                    } else {
+                        onClick()
+                    }
+                },
+                onLongClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onLongPress()
+                }
+            )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Thumbnail
+            Box(
+                modifier = Modifier
+                    .size(width = 56.dp, height = 56.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .combinedClickable(
+                        onClick = { handleToggle() },
+                        onLongClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onLongPress()
+                        }
+                    )
+            ) {
+                FolderThumbnail(
+                    folder = folder,
+                    showThumbnail = showThumbnail,
+                    modifier = Modifier.fillMaxSize()
+                )
+                SelectionCheckmarkOverlay(visible = isSelected, isDense = true)
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            // Metadata Column
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = folder.folderName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = if (isSelected)
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    else
+                        MaterialTheme.colorScheme.onSurface
+                )
+                if (viewSettings.showPath) {
+                    Text(
+                        text = folder.folderPath,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${folder.imageCount} items",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    if (viewSettings.showSize) {
+                        Text(
+                            text = "•",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                        Text(
+                            text = formatSize(folder.size),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (viewSettings.showDate) {
+                        Text(
+                            text = "•",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                        Text(
+                            text = formatDate(folder.dateModified),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Grid Item for Gallery Folders / Albums supporting customizable aspect ratios and ContentScale.Crop.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GalleryFolderItem(
@@ -162,8 +319,24 @@ fun GalleryFolderItem(
     onClick: () -> Unit,
     onThumbnailClick: (() -> Unit)? = null,
     onLongPress: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    aspectRatio: Float = 1.0f
 ) {
+    if (isListMode) {
+        GalleryFolderListItem(
+            folder = folder,
+            isSelected = isSelected,
+            isSelectionModeActive = isSelectionModeActive,
+            viewSettings = viewSettings,
+            showThumbnail = showThumbnail,
+            onClick = onClick,
+            onThumbnailClick = onThumbnailClick,
+            onLongPress = onLongPress,
+            modifier = modifier
+        )
+        return
+    }
+
     val haptics = LocalHapticFeedback.current
 
     val bgColor by animateColorAsState(
@@ -196,75 +369,6 @@ fun GalleryFolderItem(
         isSelectionModeActive = isSelectionModeActive,
         onToggleSelection = handleToggle
     )
-
-    if (isListMode) {
-        Row(
-            modifier = modifier
-                .fillMaxWidth()
-                .combinedClickable(
-                    onClick = {
-                        if (isSelectionModeActive) {
-                            handleToggle()
-                        } else {
-                            onClick()
-                        }
-                    },
-                    onLongClick = {
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onLongPress()
-                    }
-                )
-                .background(bgColor)
-                .padding(horizontal = 8.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(width = 72.dp, height = 56.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .combinedClickable(
-                        onClick = { handleToggle() },
-                        onLongClick = {
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onLongPress()
-                        }
-                    )
-            ) {
-                FolderThumbnail(
-                    folder = folder,
-                    showThumbnail = showThumbnail,
-                    modifier = Modifier.fillMaxSize()
-                )
-                SelectionCheckmarkOverlay(visible = isSelected, isDense = true)
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = folder.folderName,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = if (isSelected)
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    else
-                        MaterialTheme.colorScheme.onSurface
-                )
-                if (viewSettings.showPath) {
-                    Text(
-                        text = folder.folderPath,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                FolderMetaRow(folder = folder, viewSettings = viewSettings)
-            }
-        }
-        return
-    }
 
     // Grid layouts
     when {
@@ -328,7 +432,7 @@ fun GalleryFolderItem(
             Card(
                 modifier = modifier
                     .fillMaxWidth()
-                    .aspectRatio(0.88f),
+                    .aspectRatio(aspectRatio.coerceAtLeast(0.7f)),
                 shape = card2Shape,
                 colors = CardDefaults.cardColors(containerColor = bgColor),
                 elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),
@@ -388,7 +492,7 @@ fun GalleryFolderItem(
             Card(
                 modifier = modifier
                     .fillMaxWidth()
-                    .aspectRatio(1f),
+                    .aspectRatio(aspectRatio),
                 shape = card3Shape,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),

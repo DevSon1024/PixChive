@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items as listItems
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FolderOpen
@@ -49,6 +50,7 @@ import com.devson.pixchive.core.utils.PermissionHelper
 import com.devson.pixchive.feature.gallery.ui.components.CustomRenameDialog
 import com.devson.pixchive.feature.gallery.ui.components.DetailsDialog
 import com.devson.pixchive.feature.gallery.ui.components.GalleryFolderItem
+import com.devson.pixchive.feature.gallery.ui.components.GalleryFolderListItem
 import com.devson.pixchive.feature.gallery.ui.components.GallerySelectionBottomBar
 import com.devson.pixchive.feature.gallery.ui.components.GalleryViewSettingsBottomSheet
 import com.devson.pixchive.feature.gallery.ui.components.GlobalSearchAppBar
@@ -77,6 +79,8 @@ fun AlbumsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val savedGridCellsIndex by viewModel.gridCellsIndex.collectAsState()
     val layoutMode by viewModel.layoutMode.collectAsState()
+    val isGalleryListMode by viewModel.isGalleryListMode.collectAsState()
+    val galleryCoverAspectRatio by viewModel.galleryCoverAspectRatio.collectAsState()
     val viewSettings by viewModel.viewSettings.collectAsState()
     val sortOption by viewModel.sortOption.collectAsState()
     val showFolderThumbnail by viewModel.showFolderThumbnail.collectAsState()
@@ -90,6 +94,9 @@ fun AlbumsScreen(
     var showRenameDialog by remember { mutableStateOf(false) }
 
     val gridState = rememberLazyGridState()
+    val listState = rememberLazyListState()
+
+    val isListMode = isGalleryListMode || layoutMode == "list"
 
     BackHandler(enabled = selectedFolderIds.isNotEmpty()) {
         viewModel.clearSelection()
@@ -227,9 +234,9 @@ fun AlbumsScreen(
             } else {
                 when (val state = uiState) {
                     is GalleryState.Loading -> {
-                        val baseColumns = if (layoutMode == "list") 1 else (4 - savedGridCellsIndex.coerceIn(0, 2))
+                        val baseColumns = if (isListMode) 1 else (4 - savedGridCellsIndex.coerceIn(0, 2))
                         SkeletonLoadingView(
-                            layoutMode = layoutMode,
+                            layoutMode = if (isListMode) "list" else "grid",
                             columns = baseColumns
                         )
                     }
@@ -251,24 +258,22 @@ fun AlbumsScreen(
                                 message = "Image albums stored on your device will appear here."
                             )
                         } else {
-                            if (layoutMode == "list") {
+                            if (isListMode) {
                                 LazyColumn(
+                                    state = listState,
                                     contentPadding = PaddingValues(
                                         top = 4.dp,
-                                        bottom = 100.dp,
-                                        start = 12.dp,
-                                        end = 12.dp
+                                        bottom = 100.dp
                                     ),
-                                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
                                     modifier = Modifier.fillMaxSize()
                                 ) {
                                     listItems(state.folders, key = { it.bucketId }) { folder ->
                                         val isSelected = folder.bucketId in selectedFolderIds
-                                        GalleryFolderItem(
+                                        GalleryFolderListItem(
                                             folder = folder,
                                             isSelected = isSelected,
                                             isSelectionModeActive = selectedFolderIds.isNotEmpty(),
-                                            isListMode = true,
                                             viewSettings = viewSettings,
                                             showThumbnail = showFolderThumbnail,
                                             modifier = Modifier.fillMaxWidth(),
@@ -353,6 +358,7 @@ fun AlbumsScreen(
                                             isListMode = false,
                                             viewSettings = viewSettings,
                                             showThumbnail = showFolderThumbnail,
+                                            aspectRatio = galleryCoverAspectRatio,
                                             modifier = Modifier.fillMaxWidth(),
                                             onClick = {
                                                 if (selectedFolderIds.isNotEmpty()) {
@@ -375,8 +381,11 @@ fun AlbumsScreen(
 
         if (showSettingsSheet) {
             GalleryViewSettingsBottomSheet(
-                layoutMode = layoutMode,
-                onLayoutModeChange = { viewModel.setLayoutMode(it) },
+                layoutMode = if (isListMode) "list" else "grid",
+                onLayoutModeChange = {
+                    viewModel.setLayoutMode(it)
+                    viewModel.setGalleryListMode(it == "list")
+                },
                 gridCellsIndex = savedGridCellsIndex,
                 onGridCellsIndexChange = { viewModel.setGridCellsIndex(it) },
                 viewSettings = viewSettings,

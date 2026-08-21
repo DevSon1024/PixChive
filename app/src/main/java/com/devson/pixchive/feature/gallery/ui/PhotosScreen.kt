@@ -15,10 +15,12 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PhotoLibrary
@@ -46,6 +48,7 @@ import com.devson.pixchive.core.designsystem.component.SkeletonLoadingView
 import com.devson.pixchive.feature.gallery.ui.components.CustomRenameDialog
 import com.devson.pixchive.feature.gallery.ui.components.DetailsDialog
 import com.devson.pixchive.feature.gallery.ui.components.GalleryImageItem
+import com.devson.pixchive.feature.gallery.ui.components.GalleryImageListItem
 import com.devson.pixchive.feature.gallery.ui.components.GallerySelectionBottomBar
 import com.devson.pixchive.feature.gallery.ui.components.GalleryViewSettingsBottomSheet
 import com.devson.pixchive.feature.gallery.ui.components.GlobalSearchAppBar
@@ -69,6 +72,7 @@ fun PhotosScreen(
     val selectedIds by viewModel.selectedIds.collectAsState()
     val selectedImages by viewModel.selectedImages.collectAsState()
     val layoutMode by viewModel.layoutMode.collectAsState()
+    val isGalleryListMode by viewModel.isGalleryListMode.collectAsState()
     val gridCellsIndex by viewModel.gridCellsIndex.collectAsState()
     val viewSettings by viewModel.viewSettings.collectAsState()
     val galleryCoverAspectRatio by viewModel.galleryCoverAspectRatio.collectAsState()
@@ -106,13 +110,14 @@ fun PhotosScreen(
         }
     }
 
-    val gridState = rememberLazyGridState(
-        initialFirstVisibleItemIndex = 0
-    )
+    val gridState = rememberLazyGridState()
+    val listState = rememberLazyListState()
 
     BackHandler(enabled = selectedIds.isNotEmpty()) {
         viewModel.clearSelection()
     }
+
+    val isListMode = isGalleryListMode || layoutMode == "list"
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -170,12 +175,11 @@ fun PhotosScreen(
                     .padding(if (showTopBar) paddingValues else PaddingValues(0.dp))
             ) {
                 val loadState = pagedGridItems.loadState
-                val isListMode = layoutMode == "list"
                 val baseColumns = if (isListMode) 1 else (4 - gridCellsIndex.coerceIn(0, 2))
 
                 if (loadState.refresh is LoadState.Loading && pagedGridItems.itemCount == 0) {
                     SkeletonLoadingView(
-                        layoutMode = layoutMode,
+                        layoutMode = if (isListMode) "list" else "grid",
                         columns = baseColumns
                     )
                 } else if (loadState.refresh is LoadState.Error) {
@@ -195,15 +199,13 @@ fun PhotosScreen(
                     )
                 } else {
                     if (isListMode) {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(1),
-                            state = gridState,
+                        LazyColumn(
+                            state = listState,
                             contentPadding = PaddingValues(
                                 top = 4.dp,
                                 bottom = 100.dp
                             ),
-                            horizontalArrangement = Arrangement.Start,
-                            verticalArrangement = Arrangement.Top,
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
                             modifier = Modifier.fillMaxSize()
                         ) {
                             items(
@@ -214,10 +216,6 @@ fun PhotosScreen(
                                         is GalleryItem.MediaItem -> item.image.id
                                         else -> index
                                     }
-                                },
-                                span = { index ->
-                                    val item = pagedGridItems[index]
-                                    if (item is GalleryItem.DateHeaderItem) GridItemSpan(maxLineSpan) else GridItemSpan(1)
                                 },
                                 contentType = { index ->
                                     when (pagedGridItems[index]) {
@@ -234,12 +232,10 @@ fun PhotosScreen(
                                     is GalleryItem.MediaItem -> {
                                         val image = item.image
                                         val isSelected = image.id in selectedIds
-                                        GalleryImageItem(
+                                        GalleryImageListItem(
                                             image = image,
                                             isSelected = isSelected,
                                             isSelectionModeActive = selectedIds.isNotEmpty(),
-                                            isListMode = true,
-                                            columnCount = 1,
                                             viewSettings = viewSettings,
                                             onThumbnailClick = {
                                                 viewModel.toggleSelection(image)
@@ -355,6 +351,7 @@ fun PhotosScreen(
                                             isListMode = false,
                                             columnCount = animatedColumns.coerceIn(2, 4),
                                             viewSettings = viewSettings,
+                                            aspectRatio = galleryCoverAspectRatio,
                                             onClick = {
                                                 if (selectedIds.isNotEmpty()) {
                                                     viewModel.toggleSelection(image)
@@ -369,7 +366,6 @@ fun PhotosScreen(
                                             modifier = Modifier
                                                 .animateItem()
                                                 .fillMaxWidth()
-                                                .aspectRatio(galleryCoverAspectRatio)
                                         )
                                     }
                                     null -> Unit
@@ -382,13 +378,15 @@ fun PhotosScreen(
         }
 
         val galleryViewMode by viewModel.galleryViewMode.collectAsState()
-
         val sortOption by viewModel.sortOption.collectAsState()
 
         if (showSettingsSheet) {
             GalleryViewSettingsBottomSheet(
-                layoutMode = layoutMode,
-                onLayoutModeChange = { viewModel.setLayoutMode(it) },
+                layoutMode = if (isListMode) "list" else "grid",
+                onLayoutModeChange = {
+                    viewModel.setLayoutMode(it)
+                    viewModel.setGalleryListMode(it == "list")
+                },
                 gridCellsIndex = gridCellsIndex,
                 onGridCellsIndexChange = { viewModel.setGridCellsIndex(it) },
                 viewSettings = viewSettings,

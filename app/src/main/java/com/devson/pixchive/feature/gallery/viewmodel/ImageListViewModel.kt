@@ -50,6 +50,15 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
     val showFolderThumbnail: StateFlow<Boolean> = preferencesManager.galleryShowFolderThumbnail
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
+    val galleryCoverAspectRatio: StateFlow<Float> = preferencesManager.galleryCoverAspectRatioFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1.0f)
+
+    val galleryGridColumns: StateFlow<Int> = preferencesManager.galleryGridColumnsFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 3)
+
+    val isGalleryListMode: StateFlow<Boolean> = preferencesManager.isGalleryListModeFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     val uiState: StateFlow<GalleryState> = combine(_uiState, sortOption, _folders) { state, sort, folders ->
         if (state is GalleryState.Success) {
             GalleryState.Success(sortFolders(folders, sort))
@@ -81,6 +90,22 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
             showDate = settingsArray[5]
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), GalleryViewSettings())
+
+    fun setGalleryCoverAspectRatio(ratio: Float) {
+        viewModelScope.launch { preferencesManager.setGalleryCoverAspectRatio(ratio) }
+    }
+
+    fun setGalleryGridColumns(columns: Int) {
+        viewModelScope.launch { preferencesManager.setGalleryGridColumns(columns) }
+    }
+
+    fun setGalleryListMode(isList: Boolean) {
+        viewModelScope.launch { preferencesManager.setGalleryListMode(isList) }
+    }
+
+    fun toggleGalleryListMode() {
+        viewModelScope.launch { preferencesManager.setGalleryListMode(!isGalleryListMode.value) }
+    }
 
     fun setLayoutMode(mode: String) {
         viewModelScope.launch { preferencesManager.setGalleryLayoutMode(mode) }

@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -35,7 +36,6 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
-import androidx.compose.ui.platform.LocalContext
 import com.devson.pixchive.core.data.models.GalleryImage
 import com.devson.pixchive.core.data.models.GalleryViewSettings
 import java.text.SimpleDateFormat
@@ -140,6 +140,185 @@ fun SelectionCheckmarkOverlay(visible: Boolean, isDense: Boolean = false) {
     }
 }
 
+/**
+ * Modern Material 3 List Item for Gallery Images.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun GalleryImageListItem(
+    image: GalleryImage,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    isSelectionModeActive: Boolean = false,
+    onThumbnailClick: (() -> Unit)? = null,
+    viewSettings: GalleryViewSettings = GalleryViewSettings()
+) {
+    val haptics = LocalHapticFeedback.current
+    val context = LocalContext.current
+
+    val imageRequest = remember(image.id) {
+        ImageRequest.Builder(context)
+            .data(image.uri)
+            .size(240)
+            .crossfade(true)
+            .bitmapConfig(android.graphics.Bitmap.Config.RGB_565)
+            .allowHardware(true)
+            .memoryCachePolicy(CachePolicy.ENABLED)
+            .diskCachePolicy(CachePolicy.ENABLED)
+            .build()
+    }
+
+    val fileName = image.realPath.substringAfterLast('/')
+    val baseName = fileName.substringBeforeLast('.', fileName)
+    val extension = fileName.substringAfterLast('.', "").uppercase()
+
+    val bgColor by animateColorAsState(
+        targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+        animationSpec = tween(180),
+        label = "itemBg"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+        animationSpec = tween(180),
+        label = "itemBorder"
+    )
+
+    val handleToggle = {
+        onThumbnailClick?.invoke() ?: onLongClick()
+    }
+
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = bgColor,
+        tonalElevation = 1.dp,
+        border = BorderStroke(if (isSelected) 1.5.dp else 0.dp, borderColor),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .combinedClickable(
+                onClick = {
+                    if (isSelectionModeActive) {
+                        handleToggle()
+                    } else {
+                        onClick()
+                    }
+                },
+                onLongClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onLongClick()
+                }
+            )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Thumbnail container
+            Box(
+                modifier = Modifier
+                    .size(width = 54.dp, height = 54.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                    .combinedClickable(
+                        onClick = { handleToggle() },
+                        onLongClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onLongClick()
+                        }
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (viewSettings.showThumbnail) {
+                    AsyncImage(
+                        model = imageRequest,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    ThumbnailPlaceholder()
+                }
+                SelectionCheckmarkOverlay(visible = isSelected, isDense = true)
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            // Metadata Column
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = baseName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                )
+
+                if (viewSettings.showPath) {
+                    Text(
+                        text = image.realPath,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (viewSettings.showSize) {
+                        Text(
+                            text = formatSize(image.size),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (viewSettings.showSize && viewSettings.showDate) {
+                        Text(
+                            text = "•",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                    }
+                    if (viewSettings.showDate) {
+                        Text(
+                            text = formatDate(image.dateModified),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (viewSettings.showFileExt && extension.isNotEmpty()) {
+                        InfoChip(
+                            text = extension,
+                            bgColor = MaterialTheme.colorScheme.secondaryContainer,
+                            textColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                    if (viewSettings.showResolution && image.width > 0) {
+                        InfoChip(
+                            text = "${image.width}x${image.height}",
+                            bgColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            textColor = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Grid Item for Gallery Images supporting customizable aspect ratios and ContentScale.Crop.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GalleryImageItem(
@@ -152,14 +331,28 @@ fun GalleryImageItem(
     isListMode: Boolean = false,
     onThumbnailClick: (() -> Unit)? = null,
     columnCount: Int = 2,
-    viewSettings: GalleryViewSettings = GalleryViewSettings()
+    viewSettings: GalleryViewSettings = GalleryViewSettings(),
+    aspectRatio: Float = 1.0f
 ) {
+    if (isListMode) {
+        GalleryImageListItem(
+            image = image,
+            isSelected = isSelected,
+            onClick = onClick,
+            onLongClick = onLongClick,
+            modifier = modifier,
+            isSelectionModeActive = isSelectionModeActive,
+            onThumbnailClick = onThumbnailClick,
+            viewSettings = viewSettings
+        )
+        return
+    }
+
     val haptics = LocalHapticFeedback.current
     val context = LocalContext.current
     val isDense = columnCount >= 3
 
     val fetchSize = when {
-        isListMode -> 160
         columnCount <= 2 -> 400
         columnCount <= 4 -> 256
         else -> 160
@@ -196,182 +389,87 @@ fun GalleryImageItem(
         onThumbnailClick?.invoke() ?: onLongClick()
     }
 
-    if (isListMode) {
-        val rowShape = RoundedCornerShape(12.dp)
-        Row(
-            modifier = modifier
-                .fillMaxWidth()
-                .combinedClickable(
-                    onClick = {
-                        if (isSelectionModeActive) {
-                            handleToggle()
-                        } else {
-                            onClick()
-                        }
-                    },
-                    onLongClick = {
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onLongClick()
-                    }
-                )
-                .background(bgColor)
-                .padding(horizontal = 8.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(width = 80.dp, height = 60.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .combinedClickable(
-                        onClick = { handleToggle() },
-                        onLongClick = {
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onLongClick()
-                        }
-                    )
-            ) {
-                if (viewSettings.showThumbnail) {
-                    AsyncImage(
-                        model = imageRequest,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    ThumbnailPlaceholder()
-                }
-                SelectionCheckmarkOverlay(visible = isSelected, isDense = true)
-            }
+    val gridShape = RoundedCornerShape(if (isDense) 10.dp else 16.dp)
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .aspectRatio(aspectRatio)
+            .clip(gridShape)
+            .galleryItemClick(
+                onClick = onClick,
+                onLongClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onLongClick()
+                },
+                isSelectionModeActive = isSelectionModeActive,
+                onToggleSelection = handleToggle
+            )
+            .background(bgColor)
+            .border(
+                width = if (isSelected) 2.dp else 0.dp,
+                color = borderColor,
+                shape = gridShape
+            )
+    ) {
+        if (viewSettings.showThumbnail) {
+            AsyncImage(
+                model = imageRequest,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            ThumbnailPlaceholder()
+        }
 
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
+        // Metadata Overlays (Grid Mode)
+        if (columnCount <= 2) {
+            if (viewSettings.showPath) {
+                InfoChip(
                     text = baseName,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(8.dp)
+                        .fillMaxWidth(0.85f)
                 )
+            }
 
-                if (viewSettings.showPath) {
-                    Text(
-                        text = image.realPath,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(8.dp)
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (viewSettings.showFileExt && extension.isNotEmpty()) {
+                    InfoChip(text = extension, fontWeight = FontWeight.Bold)
+                }
+                if (viewSettings.showResolution && image.width > 0) {
+                    InfoChip(text = "${image.width}x${image.height}")
+                }
+                if (viewSettings.showSize) {
+                    InfoChip(text = formatSize(image.size))
+                }
+                if (viewSettings.showDate) {
+                    InfoChip(
+                        text = formatDate(image.dateModified),
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                 }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (viewSettings.showFileExt && extension.isNotEmpty()) {
-                        InfoChip(text = extension, bgColor = MaterialTheme.colorScheme.secondaryContainer, textColor = MaterialTheme.colorScheme.onSecondaryContainer)
-                    }
-                    if (viewSettings.showResolution && image.width > 0) {
-                        InfoChip(text = "${image.width}x${image.height}", bgColor = MaterialTheme.colorScheme.tertiaryContainer, textColor = MaterialTheme.colorScheme.onTertiaryContainer)
-                    }
-                    if (viewSettings.showSize) {
-                        InfoChip(text = formatSize(image.size), bgColor = MaterialTheme.colorScheme.surfaceVariant, textColor = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    if (viewSettings.showDate) {
-                        InfoChip(text = formatDate(image.dateModified), bgColor = MaterialTheme.colorScheme.surfaceVariant, textColor = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
+            }
+        } else {
+            if (viewSettings.showFileExt && extension.isNotEmpty()) {
+                InfoChip(
+                    text = extension,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(6.dp)
+                )
             }
         }
-    } else {
-        val gridShape = RoundedCornerShape(if (isDense) 10.dp else 16.dp)
-        Box(
-            modifier = modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
-                .clip(gridShape)
-                .galleryItemClick(
-                    onClick = onClick,
-                    onLongClick = {
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onLongClick()
-                    },
-                    isSelectionModeActive = isSelectionModeActive,
-                    onToggleSelection = handleToggle
-                )
-                .background(bgColor)
-                .border(
-                    width = if (isSelected) 2.dp else 0.dp,
-                    color = borderColor,
-                    shape = gridShape
-                )
-        ) {
-            if (viewSettings.showThumbnail) {
-                AsyncImage(
-                    model = imageRequest,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                ThumbnailPlaceholder()
-            }
 
-                // Metadata Overlays (Grid Mode)
-                if (columnCount <= 2) {
-                    // Top Overlay: Filename
-                    if (viewSettings.showPath) {
-                        InfoChip(
-                            text = baseName,
-                            modifier = Modifier
-                                .align(Alignment.TopStart)
-                                .padding(8.dp)
-                                .fillMaxWidth(0.85f)
-                        )
-                    }
-
-                    // Bottom Overlay: Metadata Row
-                    Row(
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(8.dp)
-                            .fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (viewSettings.showFileExt && extension.isNotEmpty()) {
-                            InfoChip(text = extension, fontWeight = FontWeight.Bold)
-                        }
-                        if (viewSettings.showResolution && image.width > 0) {
-                            InfoChip(text = "${image.width}x${image.height}")
-                        }
-                        if (viewSettings.showSize) {
-                            InfoChip(text = formatSize(image.size))
-                        }
-                        if (viewSettings.showDate) {
-                            InfoChip(
-                                text = formatDate(image.dateModified),
-                                modifier = Modifier.weight(1f, fill = false)
-                            )
-                        }
-                    }
-                } else {
-                    // Column count 3 or 4: Only show extension chip
-                    if (viewSettings.showFileExt && extension.isNotEmpty()) {
-                        InfoChip(
-                            text = extension,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(6.dp)
-                        )
-                    }
-                }
-
-                SelectionCheckmarkOverlay(visible = isSelected, isDense = isDense)
-        }
+        SelectionCheckmarkOverlay(visible = isSelected, isDense = isDense)
     }
 }

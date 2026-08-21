@@ -36,12 +36,16 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Represents item elements displayed within the Paging 3 Gallery Grid or List.
+ * Sealed class representing UI items in the gallery list or grid:
+ * either a sticky date header separator or a media photo item.
  */
-sealed class GalleryItem {
-    data class DateHeaderItem(val label: String) : GalleryItem()
-    data class MediaItem(val image: GalleryImage) : GalleryItem()
+sealed class GalleryUiModel {
+    data class DateHeaderItem(val label: String) : GalleryUiModel()
+    data class MediaItem(val image: GalleryImage) : GalleryUiModel()
 }
+
+// Backward compatibility alias for any existing references
+typealias GalleryItem = GalleryUiModel
 
 sealed class AllImagesState {
     object Loading : AllImagesState()
@@ -115,8 +119,8 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
 
     private var pagingSource: MediaStorePagingSource? = null
 
-    // --- Paging 3 Flow with Date Separators ---
-    val pagedGridItems: Flow<PagingData<GalleryItem>> = sortOption
+    // --- Paging 3 Flow with Date Separators mapping to GalleryUiModel ---
+    val pagedGridItems: Flow<PagingData<GalleryUiModel>> = sortOption
         .flatMapLatest { sort ->
             val msOrder = when (sort) {
                 "name_asc" -> "${MediaStore.Images.Media.DISPLAY_NAME} ASC"
@@ -139,21 +143,21 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
                 }
             ).flow
                 .map { pagingData: PagingData<GalleryImage> ->
-                    val mediaItemData: PagingData<GalleryItem> = pagingData.map { GalleryItem.MediaItem(it) }
+                    val mediaItemData: PagingData<GalleryUiModel> = pagingData.map { GalleryUiModel.MediaItem(it) }
                     if (isDateSort) {
-                        mediaItemData.insertSeparators { before: GalleryItem?, after: GalleryItem? ->
-                            val beforeImg = (before as? GalleryItem.MediaItem)?.image
-                            val afterImg = (after as? GalleryItem.MediaItem)?.image
+                        mediaItemData.insertSeparators { before: GalleryUiModel?, after: GalleryUiModel? ->
+                            val beforeImg = (before as? GalleryUiModel.MediaItem)?.image
+                            val afterImg = (after as? GalleryUiModel.MediaItem)?.image
 
                             if (afterImg == null) {
                                 null
                             } else if (beforeImg == null) {
-                                GalleryItem.DateHeaderItem(getDateLabel(afterImg))
+                                GalleryUiModel.DateHeaderItem(getDateLabel(afterImg))
                             } else {
                                 val labelBefore = getDateLabel(beforeImg)
                                 val labelAfter = getDateLabel(afterImg)
                                 if (labelBefore != labelAfter) {
-                                    GalleryItem.DateHeaderItem(labelAfter)
+                                    GalleryUiModel.DateHeaderItem(labelAfter)
                                 } else {
                                     null
                                 }
@@ -266,20 +270,22 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
 
     private fun getDateLabel(image: GalleryImage): String {
         val ts = if (image.dateAdded > 0L) image.dateAdded * 1000L else image.dateModified * 1000L
-        val imageDate = calendarMidnight(Calendar.getInstance().apply { timeInMillis = ts })
+        if (ts <= 0L) return "Undated"
+        val imageCal = Calendar.getInstance().apply { timeInMillis = ts }
+        val imageDate = calendarMidnight(imageCal)
         val now = Calendar.getInstance()
         val today = calendarMidnight(now)
         val yesterday = calendarMidnight(now).apply { add(Calendar.DAY_OF_YEAR, -1) }
-        val sevenDaysAgo = calendarMidnight(now).apply { add(Calendar.DAY_OF_YEAR, -7) }
-
-        val dayOfWeekFmt = SimpleDateFormat("EEEE", Locale.getDefault())
-        val olderFmt = SimpleDateFormat("dd-MMM-yyyy", Locale.getDefault())
 
         return when {
             !imageDate.before(today) -> "Today"
             !imageDate.before(yesterday) -> "Yesterday"
-            !imageDate.before(sevenDaysAgo) -> dayOfWeekFmt.format(Date(ts))
-            else -> olderFmt.format(Date(ts))
+            now.get(Calendar.YEAR) == imageCal.get(Calendar.YEAR) -> {
+                SimpleDateFormat("MMMM d", Locale.getDefault()).format(Date(ts))
+            }
+            else -> {
+                SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(Date(ts))
+            }
         }
     }
 

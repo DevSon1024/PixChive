@@ -56,7 +56,7 @@ import com.devson.pixchive.feature.gallery.ui.components.GallerySelectionBottomB
 import com.devson.pixchive.feature.gallery.ui.components.GalleryViewSettingsBottomSheet
 import com.devson.pixchive.feature.gallery.ui.components.GlobalSearchAppBar
 import com.devson.pixchive.feature.gallery.viewmodel.AllImagesViewModel
-import com.devson.pixchive.feature.gallery.viewmodel.GalleryItem
+import com.devson.pixchive.feature.gallery.viewmodel.GalleryUiModel
 import com.devson.pixchive.feature.gallery.viewmodel.SearchViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -235,24 +235,24 @@ fun PhotosScreen(
                                 count = pagedGridItems.itemCount,
                                 key = { index ->
                                     when (val item = pagedGridItems[index]) {
-                                        is GalleryItem.DateHeaderItem -> "header_${item.label}"
-                                        is GalleryItem.MediaItem -> item.image.id
+                                        is GalleryUiModel.DateHeaderItem -> "header_${item.label}"
+                                        is GalleryUiModel.MediaItem -> item.image.id
                                         else -> index
                                     }
                                 },
                                 contentType = { index ->
                                     when (pagedGridItems[index]) {
-                                        is GalleryItem.DateHeaderItem -> "header"
-                                        is GalleryItem.MediaItem -> "gallery_image"
+                                        is GalleryUiModel.DateHeaderItem -> "header"
+                                        is GalleryUiModel.MediaItem -> "gallery_image"
                                         else -> null
                                     }
                                 }
                             ) { index ->
                                 when (val item = pagedGridItems[index]) {
-                                    is GalleryItem.DateHeaderItem -> {
-                                        DateGroupHeader(label = item.label)
+                                    is GalleryUiModel.DateHeaderItem -> {
+                                        DateHeader(label = item.label)
                                     }
-                                    is GalleryItem.MediaItem -> {
+                                    is GalleryUiModel.MediaItem -> {
                                         val image = item.image
                                         val isSelected = image.id in selectedIds
                                         GalleryImageListItem(
@@ -267,7 +267,7 @@ fun PhotosScreen(
                                                 if (selectedIds.isNotEmpty()) {
                                                     viewModel.toggleSelection(image)
                                                 } else {
-                                                    val imageIndex = pagedGridItems.itemSnapshotList.take(index).count { it is GalleryItem.MediaItem }
+                                                    val imageIndex = pagedGridItems.itemSnapshotList.take(index).count { it is GalleryUiModel.MediaItem }
                                                     onImageClick(imageIndex)
                                                 }
                                             },
@@ -347,28 +347,28 @@ fun PhotosScreen(
                                 count = pagedGridItems.itemCount,
                                 key = { index ->
                                     when (val item = pagedGridItems[index]) {
-                                        is GalleryItem.DateHeaderItem -> "header_${item.label}"
-                                        is GalleryItem.MediaItem -> item.image.id
+                                        is GalleryUiModel.DateHeaderItem -> "header_${item.label}"
+                                        is GalleryUiModel.MediaItem -> item.image.id
                                         else -> index
                                     }
                                 },
                                 span = { index ->
                                     val item = pagedGridItems[index]
-                                    if (item is GalleryItem.DateHeaderItem) GridItemSpan(maxLineSpan) else GridItemSpan(1)
+                                    if (item is GalleryUiModel.DateHeaderItem) GridItemSpan(maxLineSpan) else GridItemSpan(1)
                                 },
                                 contentType = { index ->
                                     when (pagedGridItems[index]) {
-                                        is GalleryItem.DateHeaderItem -> "header"
-                                        is GalleryItem.MediaItem -> "gallery_image"
+                                        is GalleryUiModel.DateHeaderItem -> "header"
+                                        is GalleryUiModel.MediaItem -> "gallery_image"
                                         else -> null
                                     }
                                 }
                             ) { index ->
                                 when (val item = pagedGridItems[index]) {
-                                    is GalleryItem.DateHeaderItem -> {
-                                        DateGroupHeader(label = item.label)
+                                    is GalleryUiModel.DateHeaderItem -> {
+                                        DateHeader(label = item.label)
                                     }
-                                    is GalleryItem.MediaItem -> {
+                                    is GalleryUiModel.MediaItem -> {
                                         val image = item.image
                                         val isSelected = image.id in selectedIds
                                         GalleryImageItem(
@@ -383,7 +383,7 @@ fun PhotosScreen(
                                                 if (selectedIds.isNotEmpty()) {
                                                     viewModel.toggleSelection(image)
                                                 } else {
-                                                    val imageIndex = pagedGridItems.itemSnapshotList.take(index).count { it is GalleryItem.MediaItem }
+                                                    val imageIndex = pagedGridItems.itemSnapshotList.take(index).count { it is GalleryUiModel.MediaItem }
                                                     onImageClick(imageIndex)
                                                 }
                                             },
@@ -516,19 +516,26 @@ fun PhotosScreen(
     }
 }
 
+/**
+ * Sticky/Inline Date Header for Gallery Grid & List Views.
+ */
 @Composable
-private fun DateGroupHeader(label: String, modifier: Modifier = Modifier) {
-    Box(
+fun DateHeader(
+    label: String,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.background,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(horizontal = 8.dp, vertical = 6.dp)
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
-            fontSize = 13.sp
+            fontSize = 15.sp
         )
     }
 }

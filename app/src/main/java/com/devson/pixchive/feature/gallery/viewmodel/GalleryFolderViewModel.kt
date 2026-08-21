@@ -140,6 +140,9 @@ val folderName: StateFlow<String> = _folderName.asStateFlow()
     val layoutMode: StateFlow<String> = preferencesManager.galleryLayoutModeFlow
         .stateIn(viewModelScope, SharingStarted.Lazily, "grid")
 
+    val galleryCoverAspectRatio: StateFlow<Float> = preferencesManager.galleryCoverAspectRatioFlow
+        .stateIn(viewModelScope, SharingStarted.Lazily, 1.0f)
+
     val isBackgroundBlurEnabled: StateFlow<Boolean> = preferencesManager.isBackgroundBlurEnabledFlow
         .stateIn(viewModelScope, SharingStarted.Lazily, true)
 
@@ -216,6 +219,10 @@ val folderName: StateFlow<String> = _folderName.asStateFlow()
 
     fun setLayoutMode(mode: String) = viewModelScope.launch {
         preferencesManager.setGalleryLayoutMode(mode)
+    }
+
+    fun setGalleryCoverAspectRatio(ratio: Float) = viewModelScope.launch {
+        preferencesManager.setGalleryCoverAspectRatio(ratio)
     }
 
     fun setGridCellsIndex(index: Int) = viewModelScope.launch {

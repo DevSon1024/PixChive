@@ -290,7 +290,7 @@ fun GalleryImageListItem(
             // Metadata Column
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = baseName,
+                    text = if (viewSettings.showFileExt) fileName else baseName,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
@@ -472,7 +472,7 @@ fun GalleryImageItem(
         if (columnCount <= 2) {
             if (viewSettings.showPath) {
                 InfoChip(
-                    text = baseName,
+                    text = if (viewSettings.showFileExt) fileName else baseName,
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(8.dp)

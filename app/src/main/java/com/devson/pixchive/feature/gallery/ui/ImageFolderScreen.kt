@@ -72,6 +72,7 @@ fun ImageFolderScreen(
     val sortOption by viewModel.sortOption.collectAsState()
     val folderName by viewModel.folderName.collectAsState()
     val albumMetadata by viewModel.albumMetadata.collectAsState()
+    val galleryCoverAspectRatio by viewModel.galleryCoverAspectRatio.collectAsState()
 
     val selectedImageIds by viewModel.selectedIds.collectAsState()
     var showSettingsSheet by remember { mutableStateOf(false) }
@@ -355,10 +356,10 @@ fun ImageFolderScreen(
                                         isListMode = false,
                                         columnCount = animatedColumns.coerceIn(2, 4),
                                         viewSettings = viewSettings,
+                                        aspectRatio = galleryCoverAspectRatio,
                                         modifier = Modifier
                                             .animateItem()
-                                            .fillMaxWidth()
-                                            .aspectRatio(1f),
+                                            .fillMaxWidth(),
                                         onThumbnailClick = { viewModel.toggleSelection(image.id) },
                                         onClick = {
                                             if (selectedImageIds.isNotEmpty()) {
@@ -482,6 +483,8 @@ fun ImageFolderScreen(
                 onViewSettingsChange = { viewModel.updateViewSettings(it) },
                 sortOption = sortOption,
                 onSortOptionChange = { viewModel.setSortOption(it) },
+                aspectRatio = galleryCoverAspectRatio,
+                onAspectRatioChange = { viewModel.setGalleryCoverAspectRatio(it) },
                 onDismiss = { showSettingsSheet = false }
             )
         }

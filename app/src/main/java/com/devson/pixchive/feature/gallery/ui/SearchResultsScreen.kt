@@ -38,6 +38,7 @@ fun SearchResultsScreen(
     val isSearching by searchViewModel.isSearching.collectAsState()
     val gridCellsIndex by allImagesViewModel.gridCellsIndex.collectAsState()
     val viewSettings by allImagesViewModel.viewSettings.collectAsState()
+    val galleryCoverAspectRatio by allImagesViewModel.galleryCoverAspectRatio.collectAsState()
 
     LaunchedEffect(query) {
         searchViewModel.performSearch(query)
@@ -124,6 +125,7 @@ fun SearchResultsScreen(
                             isListMode = false,
                             columnCount = animatedColumns.coerceIn(2, 4),
                             viewSettings = viewSettings,
+                            aspectRatio = galleryCoverAspectRatio,
                             onClick = {
                                 val idx = results.indexOf(image)
                                 onImageClick(idx, results)
@@ -131,7 +133,7 @@ fun SearchResultsScreen(
                             onLongClick = {},
                             modifier = Modifier
                                 .animateItem()
-                                .aspectRatio(1f)
+                                .fillMaxWidth()
                         )
                     }
                 }

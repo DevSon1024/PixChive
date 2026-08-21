@@ -254,6 +254,7 @@ fun GalleryMainScreen(
         val showFolderThumbnail by imageListViewModel.showFolderThumbnail.collectAsState()
         val layoutMode by imageListViewModel.layoutMode.collectAsState()
         val gridCellsIndex by imageListViewModel.gridCellsIndex.collectAsState()
+        val galleryAlbumAspectRatio by imageListViewModel.galleryAlbumAspectRatio.collectAsState()
 
         GalleryViewSettingsBottomSheet(
             layoutMode = layoutMode,
@@ -273,6 +274,8 @@ fun GalleryMainScreen(
                     if (mode == "photos") pagerState.animateScrollToPage(1)
                 }
             },
+            aspectRatio = galleryAlbumAspectRatio,
+            onAspectRatioChange = { imageListViewModel.setGalleryAlbumAspectRatio(it) },
             onDismiss = { showAlbumsSettingsSheet = false }
         )
     }
@@ -281,6 +284,7 @@ fun GalleryMainScreen(
         val viewSettings by allImagesViewModel.viewSettings.collectAsState()
         val layoutMode by allImagesViewModel.layoutMode.collectAsState()
         val gridCellsIndex by allImagesViewModel.gridCellsIndex.collectAsState()
+        val galleryCoverAspectRatio by allImagesViewModel.galleryCoverAspectRatio.collectAsState()
 
         GalleryViewSettingsBottomSheet(
             layoutMode = layoutMode,
@@ -298,6 +302,8 @@ fun GalleryMainScreen(
                     if (mode == "albums") pagerState.animateScrollToPage(0)
                 }
             },
+            aspectRatio = galleryCoverAspectRatio,
+            onAspectRatioChange = { allImagesViewModel.setGalleryCoverAspectRatio(it) },
             onDismiss = { showPhotosSettingsSheet = false }
         )
     }

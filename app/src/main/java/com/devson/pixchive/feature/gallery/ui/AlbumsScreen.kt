@@ -383,6 +383,7 @@ fun AlbumsScreen(
                                             isSelected = isSelected,
                                             isSelectionModeActive = selectedFolderIds.isNotEmpty(),
                                             isListMode = false,
+                                            gridColumns = animatedColumns.coerceIn(2, 4),
                                             viewSettings = viewSettings,
                                             showThumbnail = showFolderThumbnail,
                                             aspectRatio = galleryAlbumAspectRatio,

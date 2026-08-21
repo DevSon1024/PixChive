@@ -426,9 +426,7 @@ fun GalleryFolderItem(
                         FolderThumbnail(
                             folder = folder,
                             showThumbnail = showThumbnail,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(aspectRatio)
+                            modifier = Modifier.fillMaxSize()
                         )
                         SelectionCheckmarkOverlay(visible = isSelected)
                     }
@@ -484,9 +482,7 @@ fun GalleryFolderItem(
                     FolderThumbnail(
                         folder = folder,
                         showThumbnail = showThumbnail,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(aspectRatio)
+                        modifier = Modifier.fillMaxSize()
                     )
 
                     // Gradient scrim for label readability

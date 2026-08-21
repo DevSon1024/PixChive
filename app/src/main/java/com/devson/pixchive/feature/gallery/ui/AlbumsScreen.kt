@@ -403,43 +403,43 @@ fun AlbumsScreen(
                         }
                     }
                 }
-            }
 
-            // Transient Floating Grid Size Feedback Pill
-            AnimatedVisibility(
-                visible = showGridPill,
-                enter = fadeIn(tween(150)) + scaleIn(tween(150), initialScale = 0.85f),
-                exit = fadeOut(tween(200)) + scaleOut(tween(200), targetScale = 0.85f),
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 16.dp)
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.92f),
-                    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
-                    shadowElevation = 6.dp,
-                    border = BorderStroke(
-                        1.dp,
-                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-                    )
+                // Transient Floating Grid Size Feedback Pill
+                AnimatedVisibility(
+                    visible = showGridPill,
+                    enter = fadeIn(tween(150)) + scaleIn(tween(150), initialScale = 0.85f),
+                    exit = fadeOut(tween(200)) + scaleOut(tween(200), targetScale = 0.85f),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 16.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Surface(
+                        shape = RoundedCornerShape(24.dp),
+                        color = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.92f),
+                        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                        shadowElevation = 6.dp,
+                        border = BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                        )
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.GridView,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.inverseOnSurface
-                        )
-                        Text(
-                            text = currentGridPillText,
-                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.inverseOnSurface
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.GridView,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.inverseOnSurface
+                            )
+                            Text(
+                                text = currentGridPillText,
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.inverseOnSurface
+                            )
+                        }
                     }
                 }
             }

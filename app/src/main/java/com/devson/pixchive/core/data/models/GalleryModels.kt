@@ -20,7 +20,8 @@ data class GalleryImage(
     val dateAdded: Long = 0L,
     val size: Long = 0L,
     val width: Int = 0,
-    val height: Int = 0
+    val height: Int = 0,
+    val mimeType: String = ""
 )
 
 data class GalleryViewSettings(

@@ -82,6 +82,40 @@ private fun InfoChip(
     }
 }
 
+/**
+ * Material 3 pill badge overlay for identifying animated GIFs.
+ */
+@Composable
+fun MediaBadge(
+    image: GalleryImage,
+    modifier: Modifier = Modifier
+) {
+    val isGif = remember(image.mimeType, image.realPath) {
+        image.mimeType.contains("gif", ignoreCase = true) ||
+                image.realPath.endsWith(".gif", ignoreCase = true)
+    }
+
+    if (!isGif) return
+
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = Color.Black.copy(alpha = 0.60f),
+        contentColor = Color.White,
+        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.30f)),
+        modifier = modifier
+    ) {
+        Text(
+            text = "GIF",
+            color = Color.White,
+            style = MaterialTheme.typography.labelSmall,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = 0.5.sp,
+            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+        )
+    }
+}
+
 @Composable
 private fun ThumbnailPlaceholder() {
     Box(
@@ -141,7 +175,7 @@ fun SelectionCheckmarkOverlay(visible: Boolean, isDense: Boolean = false) {
 }
 
 /**
- * Modern Material 3 List Item for Gallery Images.
+ * Modern Material 3 List Item for Gallery Images with GIF Media Badges.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -163,7 +197,6 @@ fun GalleryImageListItem(
             .data(image.uri)
             .size(240)
             .crossfade(true)
-            .bitmapConfig(android.graphics.Bitmap.Config.RGB_565)
             .allowHardware(true)
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
@@ -218,7 +251,7 @@ fun GalleryImageListItem(
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Thumbnail container
+            // Thumbnail container with GIF badge
             Box(
                 modifier = Modifier
                     .size(width = 54.dp, height = 54.dp)
@@ -243,6 +276,12 @@ fun GalleryImageListItem(
                 } else {
                     ThumbnailPlaceholder()
                 }
+                MediaBadge(
+                    image = image,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(3.dp)
+                )
                 SelectionCheckmarkOverlay(visible = isSelected, isDense = true)
             }
 
@@ -317,7 +356,7 @@ fun GalleryImageListItem(
 }
 
 /**
- * Grid Item for Gallery Images supporting customizable aspect ratios and ContentScale.Crop.
+ * Grid Item for Gallery Images supporting customizable aspect ratios, ContentScale.Crop, and GIF Media Badges.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -363,7 +402,6 @@ fun GalleryImageItem(
             .data(image.uri)
             .size(fetchSize)
             .crossfade(false)
-            .bitmapConfig(android.graphics.Bitmap.Config.RGB_565)
             .allowHardware(true)
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
@@ -422,6 +460,14 @@ fun GalleryImageItem(
             ThumbnailPlaceholder()
         }
 
+        // GIF Media Badge
+        MediaBadge(
+            image = image,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(if (isDense) 5.dp else 7.dp)
+        )
+
         // Metadata Overlays (Grid Mode)
         if (columnCount <= 2) {
             if (viewSettings.showPath) {
@@ -430,7 +476,7 @@ fun GalleryImageItem(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(8.dp)
-                        .fillMaxWidth(0.85f)
+                        .fillMaxWidth(0.72f)
                 )
             }
 

@@ -79,14 +79,20 @@ class MediaStoreImageThumbnailFetcher(
     class Factory : Fetcher.Factory<Uri> {
 
         override fun create(data: Uri, options: Options, imageLoader: ImageLoader): Fetcher? {
-            if (!isApplicable(data)) return null
+            if (!isApplicable(data, options)) return null
             return MediaStoreImageThumbnailFetcher(data, options)
         }
 
-        private fun isApplicable(data: Uri): Boolean {
-            return data.scheme == SCHEME_CONTENT &&
-                data.authority == MediaStore.AUTHORITY &&
-                data.pathSegments.any { it == "images" }
+        private fun isApplicable(data: Uri, options: Options): Boolean {
+            if (data.scheme != SCHEME_CONTENT || data.authority != MediaStore.AUTHORITY || !data.pathSegments.any { it == "images" }) {
+                return false
+            }
+            // Skip GIF files so Coil's GifDecoder/ImageDecoderDecoder decodes and animates them properly
+            val type = try { options.context.contentResolver.getType(data) } catch (_: Exception) { null }
+            if (type.equals("image/gif", ignoreCase = true) || data.path?.endsWith(".gif", ignoreCase = true) == true) {
+                return false
+            }
+            return true
         }
     }
 }

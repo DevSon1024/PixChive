@@ -40,7 +40,7 @@ import java.util.Locale
  * either a sticky date header separator or a media photo item.
  */
 sealed class GalleryUiModel {
-    data class DateHeaderItem(val label: String) : GalleryUiModel()
+    data class DateHeaderItem(val label: String, val id: String) : GalleryUiModel()
     data class MediaItem(val image: GalleryImage) : GalleryUiModel()
 }
 
@@ -123,12 +123,12 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
     val pagedGridItems: Flow<PagingData<GalleryUiModel>> = sortOption
         .flatMapLatest { sort ->
             val msOrder = when (sort) {
-                "name_asc" -> "${MediaStore.Images.Media.DISPLAY_NAME} ASC"
-                "name_desc" -> "${MediaStore.Images.Media.DISPLAY_NAME} DESC"
-                "date_oldest" -> "${MediaStore.Images.Media.DATE_MODIFIED} ASC"
-                "size_asc" -> "${MediaStore.Images.Media.SIZE} ASC"
-                "size_desc" -> "${MediaStore.Images.Media.SIZE} DESC"
-                else -> "${MediaStore.Images.Media.DATE_MODIFIED} DESC"
+                "name_asc" -> "${MediaStore.Images.Media.DISPLAY_NAME} ASC, ${MediaStore.Images.Media._ID} ASC"
+                "name_desc" -> "${MediaStore.Images.Media.DISPLAY_NAME} DESC, ${MediaStore.Images.Media._ID} DESC"
+                "date_oldest" -> "${MediaStore.Images.Media.DATE_MODIFIED} ASC, ${MediaStore.Images.Media._ID} ASC"
+                "size_asc" -> "${MediaStore.Images.Media.SIZE} ASC, ${MediaStore.Images.Media._ID} ASC"
+                "size_desc" -> "${MediaStore.Images.Media.SIZE} DESC, ${MediaStore.Images.Media._ID} DESC"
+                else -> "${MediaStore.Images.Media.DATE_MODIFIED} DESC, ${MediaStore.Images.Media._ID} DESC"
             }
             val isDateSort = sort == "date_newest" || sort == "date_oldest"
             Pager(
@@ -152,12 +152,13 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
                             if (afterImg == null) {
                                 null
                             } else if (beforeImg == null) {
-                                GalleryUiModel.DateHeaderItem(getDateLabel(afterImg))
+                                val label = getDateLabel(afterImg)
+                                GalleryUiModel.DateHeaderItem(label = label, id = "header_${label}_${afterImg.id}")
                             } else {
                                 val labelBefore = getDateLabel(beforeImg)
                                 val labelAfter = getDateLabel(afterImg)
                                 if (labelBefore != labelAfter) {
-                                    GalleryUiModel.DateHeaderItem(labelAfter)
+                                    GalleryUiModel.DateHeaderItem(label = labelAfter, id = "header_${labelAfter}_${afterImg.id}")
                                 } else {
                                     null
                                 }

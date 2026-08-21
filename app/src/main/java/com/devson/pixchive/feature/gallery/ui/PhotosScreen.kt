@@ -24,6 +24,8 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.PhotoLibrary
@@ -176,6 +178,13 @@ fun PhotosScreen(
                             onSearch = onSearch,
                             onBackClick = onNavigateBack,
                             actions = {
+                                val isAscending by viewModel.sortOrderAscending.collectAsState()
+                                IconButton(onClick = { viewModel.toggleSortOrder() }) {
+                                    Icon(
+                                        imageVector = if (isAscending) Icons.Filled.ArrowUpward else Icons.Filled.ArrowDownward,
+                                        contentDescription = if (isAscending) "Oldest first (tap to switch to newest)" else "Newest first (tap to switch to oldest)"
+                                    )
+                                }
                                 IconButton(onClick = onRecycleBinClick) {
                                     Icon(Icons.Filled.RestoreFromTrash, contentDescription = "Recycle Bin")
                                 }
@@ -444,7 +453,6 @@ fun PhotosScreen(
         }
 
         val galleryViewMode by viewModel.galleryViewMode.collectAsState()
-        val sortOption by viewModel.sortOption.collectAsState()
 
         if (showSettingsSheet) {
             GalleryViewSettingsBottomSheet(
@@ -460,8 +468,6 @@ fun PhotosScreen(
                 },
                 viewSettings = viewSettings,
                 onViewSettingsChange = { viewModel.updateViewSettings(it) },
-                sortOption = sortOption,
-                onSortOptionChange = { viewModel.setSortOption(it) },
                 isRootFolderView = false,
                 showFolderThumbnail = false,
                 onShowFolderThumbnailChange = {},

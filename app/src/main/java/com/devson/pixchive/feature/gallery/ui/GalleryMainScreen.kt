@@ -130,6 +130,15 @@ fun GalleryMainScreen(
                     onSearch = onSearch,
                     onBackClick = onNavigateBack,
                     actions = {
+                        if (pagerState.currentPage == 1) {
+                            val isAscending by allImagesViewModel.sortOrderAscending.collectAsState()
+                            IconButton(onClick = { allImagesViewModel.toggleSortOrder() }) {
+                                Icon(
+                                    imageVector = if (isAscending) Icons.Filled.ArrowUpward else Icons.Filled.ArrowDownward,
+                                    contentDescription = if (isAscending) "Oldest first (tap to switch to newest)" else "Newest first (tap to switch to oldest)"
+                                )
+                            }
+                        }
                         IconButton(onClick = {
                             if (pagerState.currentPage == 0) {
                                 showAlbumsSettingsSheet = true
@@ -270,7 +279,6 @@ fun GalleryMainScreen(
 
     if (showPhotosSettingsSheet) {
         val viewSettings by allImagesViewModel.viewSettings.collectAsState()
-        val sortOption by allImagesViewModel.sortOption.collectAsState()
         val layoutMode by allImagesViewModel.layoutMode.collectAsState()
         val gridCellsIndex by allImagesViewModel.gridCellsIndex.collectAsState()
 
@@ -281,8 +289,6 @@ fun GalleryMainScreen(
             onGridCellsIndexChange = { allImagesViewModel.setGridCellsIndex(it) },
             viewSettings = viewSettings,
             onViewSettingsChange = { allImagesViewModel.updateViewSettings(it) },
-            sortOption = sortOption,
-            onSortOptionChange = { allImagesViewModel.setSortOption(it) },
             showFolderThumbnail = false,
             onShowFolderThumbnailChange = {},
             galleryViewMode = "photos",

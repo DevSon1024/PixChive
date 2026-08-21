@@ -114,6 +114,10 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
     val sortOption: StateFlow<String> = preferencesManager.gallerySortOptionFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "date_newest")
 
+    val sortOrderAscending: StateFlow<Boolean> = sortOption
+        .map { it == "date_oldest" || it == "date_asc" }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     val galleryViewMode: StateFlow<String> = preferencesManager.galleryViewModeFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "all_images")
 
@@ -122,15 +126,12 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
     // --- Paging 3 Flow with Date Separators mapping to GalleryUiModel ---
     val pagedGridItems: Flow<PagingData<GalleryUiModel>> = sortOption
         .flatMapLatest { sort ->
-            val msOrder = when (sort) {
-                "name_asc" -> "${MediaStore.Images.Media.DISPLAY_NAME} ASC, ${MediaStore.Images.Media._ID} ASC"
-                "name_desc" -> "${MediaStore.Images.Media.DISPLAY_NAME} DESC, ${MediaStore.Images.Media._ID} DESC"
-                "date_oldest" -> "${MediaStore.Images.Media.DATE_MODIFIED} ASC, ${MediaStore.Images.Media._ID} ASC"
-                "size_asc" -> "${MediaStore.Images.Media.SIZE} ASC, ${MediaStore.Images.Media._ID} ASC"
-                "size_desc" -> "${MediaStore.Images.Media.SIZE} DESC, ${MediaStore.Images.Media._ID} DESC"
-                else -> "${MediaStore.Images.Media.DATE_MODIFIED} DESC, ${MediaStore.Images.Media._ID} DESC"
+            val isAsc = (sort == "date_oldest" || sort == "date_asc")
+            val msOrder = if (isAsc) {
+                "${MediaStore.Images.Media.DATE_ADDED} ASC, ${MediaStore.Images.Media._ID} ASC"
+            } else {
+                "${MediaStore.Images.Media.DATE_ADDED} DESC, ${MediaStore.Images.Media._ID} DESC"
             }
-            val isDateSort = sort == "date_newest" || sort == "date_oldest"
             Pager(
                 config = PagingConfig(
                     pageSize = 90,
@@ -144,28 +145,24 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
             ).flow
                 .map { pagingData: PagingData<GalleryImage> ->
                     val mediaItemData: PagingData<GalleryUiModel> = pagingData.map { GalleryUiModel.MediaItem(it) }
-                    if (isDateSort) {
-                        mediaItemData.insertSeparators { before: GalleryUiModel?, after: GalleryUiModel? ->
-                            val beforeImg = (before as? GalleryUiModel.MediaItem)?.image
-                            val afterImg = (after as? GalleryUiModel.MediaItem)?.image
+                    mediaItemData.insertSeparators { before: GalleryUiModel?, after: GalleryUiModel? ->
+                        val beforeImg = (before as? GalleryUiModel.MediaItem)?.image
+                        val afterImg = (after as? GalleryUiModel.MediaItem)?.image
 
-                            if (afterImg == null) {
-                                null
-                            } else if (beforeImg == null) {
-                                val label = getDateLabel(afterImg)
-                                GalleryUiModel.DateHeaderItem(label = label, id = "header_${label}_${afterImg.id}")
+                        if (afterImg == null) {
+                            null
+                        } else if (beforeImg == null) {
+                            val label = getDateLabel(afterImg)
+                            GalleryUiModel.DateHeaderItem(label = label, id = "header_${label}_${afterImg.id}")
+                        } else {
+                            val labelBefore = getDateLabel(beforeImg)
+                            val labelAfter = getDateLabel(afterImg)
+                            if (labelBefore != labelAfter) {
+                                GalleryUiModel.DateHeaderItem(label = labelAfter, id = "header_${labelAfter}_${afterImg.id}")
                             } else {
-                                val labelBefore = getDateLabel(beforeImg)
-                                val labelAfter = getDateLabel(afterImg)
-                                if (labelBefore != labelAfter) {
-                                    GalleryUiModel.DateHeaderItem(label = labelAfter, id = "header_${labelAfter}_${afterImg.id}")
-                                } else {
-                                    null
-                                }
+                                null
                             }
                         }
-                    } else {
-                        mediaItemData
                     }
                 }
         }
@@ -238,6 +235,19 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun setSortOption(option: String) = viewModelScope.launch {
         preferencesManager.setGallerySortOption(option)
+    }
+
+    fun toggleSortOrder() = viewModelScope.launch {
+        val currentIsAsc = sortOption.value == "date_oldest" || sortOption.value == "date_asc"
+        val newOption = if (currentIsAsc) "date_newest" else "date_oldest"
+        preferencesManager.setGallerySortOption(newOption)
+        refresh()
+    }
+
+    fun setSortOrderAscending(ascending: Boolean) = viewModelScope.launch {
+        val newOption = if (ascending) "date_oldest" else "date_newest"
+        preferencesManager.setGallerySortOption(newOption)
+        refresh()
     }
 
     fun updateViewSettings(settings: GalleryViewSettings) = viewModelScope.launch {

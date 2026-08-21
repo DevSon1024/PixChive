@@ -152,6 +152,7 @@ class PreferencesManager(private val context: Context) {
     // --- Gallery Field Settings ---
     val galleryShowThumbnail: Flow<Boolean> = context.dataStore.data.map { it[GALLERY_SHOW_THUMBNAIL_KEY] ?: true }
     val galleryShowFileExt: Flow<Boolean> = context.dataStore.data.map { it[GALLERY_SHOW_FILE_EXT_KEY] ?: true }
+    val showFileExtension: Flow<Boolean> = galleryShowFileExt
     val galleryShowResolution: Flow<Boolean> = context.dataStore.data.map { it[GALLERY_SHOW_RESOLUTION_KEY] ?: true }
     val galleryShowPath: Flow<Boolean> = context.dataStore.data.map { it[GALLERY_SHOW_PATH_KEY] ?: false }
     val galleryShowSize: Flow<Boolean> = context.dataStore.data.map { it[GALLERY_SHOW_SIZE_KEY] ?: true }
@@ -159,6 +160,7 @@ class PreferencesManager(private val context: Context) {
 
     suspend fun setGalleryShowThumbnail(show: Boolean) = context.dataStore.edit { it[GALLERY_SHOW_THUMBNAIL_KEY] = show }
     suspend fun setGalleryShowFileExt(show: Boolean) = context.dataStore.edit { it[GALLERY_SHOW_FILE_EXT_KEY] = show }
+    suspend fun setShowFileExtension(show: Boolean) = setGalleryShowFileExt(show)
     suspend fun setGalleryShowResolution(show: Boolean) = context.dataStore.edit { it[GALLERY_SHOW_RESOLUTION_KEY] = show }
     suspend fun setGalleryShowPath(show: Boolean) = context.dataStore.edit { it[GALLERY_SHOW_PATH_KEY] = show }
     suspend fun setGalleryShowSize(show: Boolean) = context.dataStore.edit { it[GALLERY_SHOW_SIZE_KEY] = show }

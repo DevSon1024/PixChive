@@ -49,3 +49,14 @@ data class ImageFile(
     val size: Long = 0,
     val dateModified: Long = 0
 )
+
+data class FolderMetadata(
+    val folderName: String = "",
+    val coverImageUri: String = "",
+    val totalImages: Int = 0,
+    val totalSize: Long = 0L,
+    val folderSizeFormatted: String = "0 B",
+    val lastReadProgress: Float = 0f,
+    val lastReadPage: Int = 0,
+    val lastReadChapterPath: String? = null
+)

@@ -7,9 +7,12 @@ import androidx.lifecycle.viewModelScope
 import com.devson.pixchive.PixChiveApplication
 import com.devson.pixchive.core.data.Chapter
 import com.devson.pixchive.core.data.ComicFolder
+import com.devson.pixchive.core.data.FolderMetadata
 import com.devson.pixchive.core.data.FolderWithCover
 import com.devson.pixchive.core.data.PreferencesManager
 import com.devson.pixchive.core.utils.FolderScanner
+import com.devson.pixchive.core.utils.FormatUtils
+import com.devson.pixchive.feature.reader.utils.urisMatch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
@@ -40,8 +43,84 @@ class FolderViewModel(application: Application) : AndroidViewModel(application) 
     private val _currentFolder = MutableStateFlow<ComicFolder?>(null)
     val currentFolder: StateFlow<ComicFolder?> = _currentFolder.asStateFlow()
 
+    val folderMetadata: StateFlow<FolderMetadata> = _currentFolder
+        .flatMapLatest { folder ->
+            if (folder == null) {
+                flowOf(FolderMetadata())
+            } else {
+                combine(
+                    imageDao.getImagesFlow(folder.id),
+                    historyDao.getRecentHistory()
+                ) { images, historyList ->
+                    val totalImages = images.size
+                    val totalBytes = images.sumOf { it.size }
+                    val formattedSize = FormatUtils.formatFileSize(totalBytes)
+
+                    val folderHistory = historyList.firstOrNull { it.folderId == folder.id }
+                    val lastReadPage = folderHistory?.currentPage ?: 0
+                    val totalPages = folderHistory?.totalPages ?: totalImages
+                    val progress = if (totalPages > 0 && folderHistory != null) {
+                        ((folderHistory.currentPage + 1f) / totalPages.toFloat()).coerceIn(0f, 1f)
+                    } else {
+                        0f
+                    }
+
+                    val coverUri = folderHistory?.coverImageUri?.takeIf { it.isNotBlank() }
+                        ?: images.maxByOrNull { it.dateModified }?.uri
+                        ?: images.firstOrNull()?.uri
+                        ?: ""
+
+                    FolderMetadata(
+                        folderName = folder.displayName,
+                        coverImageUri = coverUri,
+                        totalImages = totalImages,
+                        totalSize = totalBytes,
+                        folderSizeFormatted = formattedSize,
+                        lastReadProgress = progress,
+                        lastReadPage = lastReadPage,
+                        lastReadChapterPath = folderHistory?.chapterPath
+                    )
+                }
+            }
+        }
+        .flowOn(Dispatchers.IO)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), FolderMetadata())
+
+    fun getChapterMetadataFlow(chapterPath: String): Flow<FolderMetadata> = combine(
+        chapters,
+        readProgressMap
+    ) { chapterList, progressMap ->
+        val chapter = chapterList.firstOrNull { urisMatch(it.path, chapterPath) }
+        if (chapter == null) {
+            FolderMetadata()
+        } else {
+            val totalImages = chapter.images.size
+            val totalBytes = chapter.images.sumOf { it.size }
+            val formattedSize = FormatUtils.formatFileSize(totalBytes)
+            val lastPage = progressMap[chapter.path] ?: 0
+            val progress = if (totalImages > 0) {
+                ((lastPage + 1f) / totalImages.toFloat()).coerceIn(0f, 1f)
+            } else {
+                0f
+            }
+            val coverUri = chapter.images.firstOrNull()?.uri ?: ""
+
+            FolderMetadata(
+                folderName = chapter.displayName,
+                coverImageUri = coverUri,
+                totalImages = totalImages,
+                totalSize = totalBytes,
+                folderSizeFormatted = formattedSize,
+                lastReadProgress = progress,
+                lastReadPage = lastPage,
+                lastReadChapterPath = chapter.path
+            )
+        }
+    }.flowOn(Dispatchers.IO)
+
     private val _sortOption = MutableStateFlow("name_asc")
     val sortOption: StateFlow<String> = _sortOption.asStateFlow()
+
 
     val coverAspectRatio: StateFlow<Float> = preferencesManager.coverAspectRatioFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.7f)

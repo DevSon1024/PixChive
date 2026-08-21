@@ -61,6 +61,11 @@ class PreferencesManager(private val context: Context) {
         private val GALLERY_LAYOUT_MODE_KEY = stringPreferencesKey("gallery_layout_mode")
         private val GALLERY_SORT_OPTION_KEY = stringPreferencesKey("gallery_sort_option")
 
+        // Gallery Dynamic Customization Preferences
+        private val GALLERY_COVER_ASPECT_RATIO_KEY = floatPreferencesKey("gallery_cover_aspect_ratio")
+        private val GALLERY_GRID_COLUMNS_KEY = intPreferencesKey("gallery_grid_columns")
+        private val IS_GALLERY_LIST_MODE_KEY = booleanPreferencesKey("is_gallery_list_mode")
+
         // Gallery Fields
         private val GALLERY_SHOW_THUMBNAIL_KEY = booleanPreferencesKey("gallery_show_thumbnail")
         private val GALLERY_SHOW_FILE_EXT_KEY = booleanPreferencesKey("gallery_show_file_ext")
@@ -77,6 +82,42 @@ class PreferencesManager(private val context: Context) {
         private val COVER_ASPECT_RATIO_KEY = floatPreferencesKey("cover_aspect_ratio")
         private val SHOW_UNREAD_BADGES_KEY = booleanPreferencesKey("show_unread_badges")
         private val SHOW_PROGRESS_BARS_KEY = booleanPreferencesKey("show_progress_bars")
+    }
+
+    // --- Gallery Customization Prefs (Aspect Ratio, Grid Columns, List Mode) ---
+    val galleryCoverAspectRatioFlow: Flow<Float> = context.dataStore.data
+        .map { preferences ->
+            preferences[GALLERY_COVER_ASPECT_RATIO_KEY] ?: 1.0f
+        }.distinctUntilChanged()
+
+    suspend fun setGalleryCoverAspectRatio(ratio: Float) {
+        context.dataStore.edit { preferences ->
+            preferences[GALLERY_COVER_ASPECT_RATIO_KEY] = ratio
+        }
+    }
+
+    val galleryGridColumnsFlow: Flow<Int> = context.dataStore.data
+        .map { preferences ->
+            preferences[GALLERY_GRID_COLUMNS_KEY] ?: 3
+        }.distinctUntilChanged()
+
+    suspend fun setGalleryGridColumns(columns: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[GALLERY_GRID_COLUMNS_KEY] = columns
+        }
+    }
+
+    val isGalleryListModeFlow: Flow<Boolean> = context.dataStore.data
+        .map { preferences ->
+            preferences[IS_GALLERY_LIST_MODE_KEY] ?: false
+        }.distinctUntilChanged()
+
+    suspend fun setGalleryListMode(isList: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[IS_GALLERY_LIST_MODE_KEY] = isList
+            // Synchronize with galleryLayoutMode for backwards compatibility
+            preferences[GALLERY_LAYOUT_MODE_KEY] = if (isList) "list" else "grid"
+        }
     }
 
     // Default to index 2 (which represents 4 columns in our list if index 0 is 2 columns)
@@ -99,6 +140,7 @@ class PreferencesManager(private val context: Context) {
     suspend fun setGalleryLayoutMode(mode: String) {
         context.dataStore.edit { preferences ->
             preferences[GALLERY_LAYOUT_MODE_KEY] = mode
+            preferences[IS_GALLERY_LIST_MODE_KEY] = (mode == "list")
         }
     }
 

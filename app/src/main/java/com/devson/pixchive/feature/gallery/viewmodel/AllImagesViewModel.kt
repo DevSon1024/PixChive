@@ -2,6 +2,7 @@ package com.devson.pixchive.feature.gallery.viewmodel
 
 import android.app.Application
 import android.net.Uri
+import android.provider.MediaStore
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.Pager
@@ -10,12 +11,11 @@ import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import androidx.paging.insertSeparators
 import androidx.paging.map
-import com.devson.pixchive.core.data.PreferencesManager
 import com.devson.pixchive.core.data.MediaStorePagingSource
 import com.devson.pixchive.core.data.MediaStoreRepository
+import com.devson.pixchive.core.data.PreferencesManager
 import com.devson.pixchive.core.data.models.GalleryImage
 import com.devson.pixchive.core.data.models.GalleryViewSettings
-import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -34,6 +34,14 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+
+/**
+ * Represents item elements displayed within the Paging 3 Gallery Grid or List.
+ */
+sealed class GalleryItem {
+    data class DateHeaderItem(val label: String) : GalleryItem()
+    data class MediaItem(val image: GalleryImage) : GalleryItem()
+}
 
 sealed class AllImagesState {
     object Loading : AllImagesState()
@@ -54,6 +62,7 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
     private val _uiState = MutableStateFlow<AllImagesState>(AllImagesState.Loading)
     val uiState: StateFlow<AllImagesState> = _uiState.asStateFlow()
 
+    // --- Selection State ---
     private val _selectedImagesMap = MutableStateFlow<Map<Long, GalleryImage>>(emptyMap())
 
     val selectedIds: StateFlow<Set<Long>> = _selectedImagesMap
@@ -63,6 +72,16 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
     val selectedImages: StateFlow<List<GalleryImage>> = _selectedImagesMap
         .map { it.values.toList() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // --- Gallery Preferences StateFlows ---
+    val galleryCoverAspectRatio: StateFlow<Float> = preferencesManager.galleryCoverAspectRatioFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1.0f)
+
+    val galleryGridColumns: StateFlow<Int> = preferencesManager.galleryGridColumnsFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 3)
+
+    val isGalleryListMode: StateFlow<Boolean> = preferencesManager.isGalleryListModeFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     val layoutMode: StateFlow<String> = preferencesManager.galleryLayoutModeFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "grid")
@@ -91,9 +110,13 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
     val sortOption: StateFlow<String> = preferencesManager.gallerySortOptionFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "date_newest")
 
+    val galleryViewMode: StateFlow<String> = preferencesManager.galleryViewModeFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "all_images")
+
     private var pagingSource: MediaStorePagingSource? = null
 
-    val pagedGridItems: Flow<PagingData<Any>> = sortOption
+    // --- Paging 3 Flow with Date Separators ---
+    val pagedGridItems: Flow<PagingData<GalleryItem>> = sortOption
         .flatMapLatest { sort ->
             val msOrder = when (sort) {
                 "name_asc" -> "${MediaStore.Images.Media.DISPLAY_NAME} ASC"
@@ -116,20 +139,28 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
                 }
             ).flow
                 .map { pagingData: PagingData<GalleryImage> ->
+                    val mediaItemData: PagingData<GalleryItem> = pagingData.map { GalleryItem.MediaItem(it) }
                     if (isDateSort) {
-                        pagingData.insertSeparators { before: GalleryImage?, after: GalleryImage? ->
-                            if (after == null) {
+                        mediaItemData.insertSeparators { before: GalleryItem?, after: GalleryItem? ->
+                            val beforeImg = (before as? GalleryItem.MediaItem)?.image
+                            val afterImg = (after as? GalleryItem.MediaItem)?.image
+
+                            if (afterImg == null) {
                                 null
-                            } else if (before == null) {
-                                getDateLabel(after)
+                            } else if (beforeImg == null) {
+                                GalleryItem.DateHeaderItem(getDateLabel(afterImg))
                             } else {
-                                val labelBefore = getDateLabel(before)
-                                val labelAfter = getDateLabel(after)
-                                if (labelBefore != labelAfter) labelAfter else null
+                                val labelBefore = getDateLabel(beforeImg)
+                                val labelAfter = getDateLabel(afterImg)
+                                if (labelBefore != labelAfter) {
+                                    GalleryItem.DateHeaderItem(labelAfter)
+                                } else {
+                                    null
+                                }
                             }
                         }
                     } else {
-                        pagingData.map { it as Any }
+                        mediaItemData
                     }
                 }
         }
@@ -149,6 +180,7 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
         pagingSource?.invalidate()
     }
 
+    // --- Selection Operations ---
     fun toggleSelection(image: GalleryImage) {
         val current = _selectedImagesMap.value.toMutableMap()
         if (current.containsKey(image.id)) {
@@ -174,6 +206,23 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    // --- Preference Setters ---
+    fun setGalleryCoverAspectRatio(ratio: Float) = viewModelScope.launch {
+        preferencesManager.setGalleryCoverAspectRatio(ratio)
+    }
+
+    fun setGalleryGridColumns(columns: Int) = viewModelScope.launch {
+        preferencesManager.setGalleryGridColumns(columns)
+    }
+
+    fun setGalleryListMode(isList: Boolean) = viewModelScope.launch {
+        preferencesManager.setGalleryListMode(isList)
+    }
+
+    fun toggleGalleryListMode() = viewModelScope.launch {
+        preferencesManager.setGalleryListMode(!isGalleryListMode.value)
+    }
+
     fun setLayoutMode(mode: String) = viewModelScope.launch {
         preferencesManager.setGalleryLayoutMode(mode)
     }
@@ -194,9 +243,6 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
         preferencesManager.setGalleryShowSize(settings.showSize)
         preferencesManager.setGalleryShowDate(settings.showDate)
     }
-
-    val galleryViewMode: StateFlow<String> = preferencesManager.galleryViewModeFlow
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "all_images")
 
     fun setGalleryViewMode(mode: String) = viewModelScope.launch {
         preferencesManager.setGalleryViewMode(mode)

@@ -1,4 +1,4 @@
-package com.devson.pixchive.core.designsystem.component
+package com.devson.pixchive.feature.reader.ui.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
@@ -28,6 +28,12 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.devson.pixchive.core.designsystem.component.RotarySortWheelDialog
+import com.devson.pixchive.core.designsystem.component.SortDirection
+import com.devson.pixchive.core.designsystem.component.SortField
+import com.devson.pixchive.core.designsystem.component.formatSortField
+import com.devson.pixchive.core.designsystem.component.formatSortOption
+import com.devson.pixchive.core.designsystem.component.parseSortOption
 import com.devson.pixchive.core.designsystem.theme.PixchiveTheme
 
 @OptIn(ExperimentalMaterial3Api::class)

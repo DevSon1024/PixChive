@@ -29,8 +29,8 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.pixchive.core.designsystem.component.EmptyChaptersView
 import com.devson.pixchive.core.designsystem.component.SkeletonLoadingView
-import com.devson.pixchive.core.designsystem.component.ViewSettingsBottomSheet
 import com.devson.pixchive.feature.reader.ui.components.ChapterListItem
+import com.devson.pixchive.feature.reader.ui.components.ViewSettingsBottomSheet
 import com.devson.pixchive.feature.reader.viewmodel.FolderViewModel
 import kotlinx.coroutines.flow.filter
 

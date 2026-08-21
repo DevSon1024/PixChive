@@ -59,6 +59,7 @@ import com.devson.pixchive.core.utils.PermissionState
 import com.devson.pixchive.feature.home.HomeViewModel
 import com.devson.pixchive.feature.reader.ui.components.FolderCard
 import com.devson.pixchive.feature.reader.ui.components.FolderGridItem
+import com.devson.pixchive.feature.reader.ui.components.ViewSettingsBottomSheet
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

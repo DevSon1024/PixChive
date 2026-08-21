@@ -9,8 +9,9 @@ import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateZoom
@@ -89,10 +90,21 @@ fun PhotosScreen(
     var showStorageExplorer by remember { mutableStateOf(false) }
     var explorerOperationType by remember { mutableStateOf("") }
 
-    // Transient Zoom Pill feedback state
-    var showZoomPill by remember { mutableStateOf(false) }
-    var zoomPillJob by remember { mutableStateOf<Job?>(null) }
+    // Transient Grid Size notification pill
     val coroutineScope = rememberCoroutineScope()
+    var showGridPill by remember { mutableStateOf(false) }
+    var currentGridPillText by remember { mutableStateOf("") }
+    var pillDismissJob by remember { mutableStateOf<Job?>(null) }
+
+    val triggerGridPill: (Int) -> Unit = { newCols ->
+        currentGridPillText = "Grid Size: $newCols"
+        showGridPill = true
+        pillDismissJob?.cancel()
+        pillDismissJob = coroutineScope.launch {
+            delay(1400)
+            showGridPill = false
+        }
+    }
 
     val fileOpsViewModel: FileOperationsViewModel = viewModel()
     val context = LocalContext.current
@@ -308,14 +320,7 @@ fun PhotosScreen(
                                                             currentColumns = newCols
                                                             viewModel.setGridCellsIndex(4 - newCols)
                                                             viewModel.setGalleryGridColumns(newCols)
-
-                                                            // Show transient UI pill
-                                                            showZoomPill = true
-                                                            zoomPillJob?.cancel()
-                                                            zoomPillJob = coroutineScope.launch {
-                                                                delay(1500L)
-                                                                showZoomPill = false
-                                                            }
+                                                            triggerGridPill(newCols)
                                                         }
                                                         hasChangedInThisGesture = true
                                                     } else if (accumulatedZoom < 0.75f) {
@@ -324,14 +329,7 @@ fun PhotosScreen(
                                                             currentColumns = newCols
                                                             viewModel.setGridCellsIndex(4 - newCols)
                                                             viewModel.setGalleryGridColumns(newCols)
-
-                                                            // Show transient UI pill
-                                                            showZoomPill = true
-                                                            zoomPillJob?.cancel()
-                                                            zoomPillJob = coroutineScope.launch {
-                                                                delay(1500L)
-                                                                showZoomPill = false
-                                                            }
+                                                            triggerGridPill(newCols)
                                                         }
                                                         hasChangedInThisGesture = true
                                                     }
@@ -405,38 +403,40 @@ fun PhotosScreen(
                 }
             }
 
-            // Transient Floating UI Pill for Pinch-to-Zoom feedback
+            // Transient Floating Grid Size Feedback Pill
             AnimatedVisibility(
-                visible = showZoomPill,
-                enter = fadeIn(tween(180)) + slideInVertically(initialOffsetY = { -it }, animationSpec = tween(180)),
-                exit = fadeOut(tween(220)) + slideOutVertically(targetOffsetY = { -it }, animationSpec = tween(220)),
+                visible = showGridPill,
+                enter = fadeIn(tween(150)) + scaleIn(tween(150), initialScale = 0.85f),
+                exit = fadeOut(tween(200)) + scaleOut(tween(200), targetScale = 0.85f),
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .statusBarsPadding()
-                    .padding(top = if (showTopBar) 72.dp else 16.dp)
+                    .padding(top = 16.dp)
             ) {
                 Surface(
                     shape = RoundedCornerShape(24.dp),
                     color = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.92f),
                     contentColor = MaterialTheme.colorScheme.inverseOnSurface,
                     shadowElevation = 6.dp,
-                    tonalElevation = 6.dp
+                    border = BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                    )
                 ) {
                     Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.GridView,
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.primary
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.inverseOnSurface
                         )
                         Text(
-                            text = "Grid Size: $gridCellsIndex (${4 - gridCellsIndex.coerceIn(0, 2)} Columns)",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold
+                            text = currentGridPillText,
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.inverseOnSurface
                         )
                     }
                 }

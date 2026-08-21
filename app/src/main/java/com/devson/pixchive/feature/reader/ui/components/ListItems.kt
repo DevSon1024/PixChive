@@ -229,44 +229,41 @@ fun ChapterImageListItem(
     val currentOnDeleteClick by rememberUpdatedState(onDeleteClick)
     val currentOnInfoClick by rememberUpdatedState(onInfoClick)
 
-    OutlinedCard(
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.outlinedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-        ),
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        tonalElevation = 1.dp,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = { currentOnClick() })
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = { currentOnClick() })
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Thumbnail container
             Box(
                 modifier = Modifier
-                    .size(width = 44.dp, height = 56.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .size(width = 46.dp, height = 58.dp)
+                    .clip(RoundedCornerShape(10.dp))
                     .background(MaterialTheme.colorScheme.surfaceContainerHighest),
                 contentAlignment = Alignment.Center
             ) {
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(if (image.path.isNotEmpty()) File(image.path) else image.uri)
-                        .size(200)
+                        .size(240)
                         .bitmapConfig(Bitmap.Config.RGB_565)
                         .allowHardware(true)
                         .memoryCachePolicy(CachePolicy.ENABLED)
                         .diskCachePolicy(CachePolicy.ENABLED)
-                        .crossfade(false)
+                        .crossfade(true)
                         .build(),
-                    contentDescription = null,
+                    contentDescription = image.name,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
@@ -274,26 +271,52 @@ fun ChapterImageListItem(
 
             Spacer(modifier = Modifier.width(14.dp))
 
+            // Metadata Column
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = image.name,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "${formatSize(image.size)} | ${formatDateString(image.dateModified)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Spacer(modifier = Modifier.height(3.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    val sizeStr = com.devson.pixchive.core.utils.FormatUtils.formatFileSize(image.size)
+                    Text(
+                        text = sizeStr,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "•",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                    Text(
+                        text = formatDateString(image.dateModified),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
+            // Overflow Action Menu
             Box {
-                IconButton(onClick = { showMenu = true }) {
-                    Icon(Icons.Default.MoreVert, "Options", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                IconButton(
+                    onClick = { showMenu = true },
+                    modifier = Modifier.size(38.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "Options",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
                 if (showMenu) {
                     val options = mutableListOf<OptionItem>().apply {
@@ -324,7 +347,7 @@ fun ChapterImageListItem(
                     }
                     OptionsBottomSheet(
                         title = image.name,
-                        subtitle = "${formatSize(image.size)} | ${formatDateString(image.dateModified)}",
+                        subtitle = "${com.devson.pixchive.core.utils.FormatUtils.formatFileSize(image.size)} • ${formatDateString(image.dateModified)}",
                         options = options,
                         onDismiss = { showMenu = false }
                     )
@@ -335,11 +358,7 @@ fun ChapterImageListItem(
 }
 
 private fun formatSize(bytes: Long): String {
-    if (bytes <= 0) return "0 B"
-    val units = arrayOf("B", "KB", "MB", "GB", "TB")
-    val digitGroups = (Math.log10(bytes.toDouble()) / Math.log10(1024.0)).toInt()
-    val group = digitGroups.coerceIn(0, units.size - 1)
-    return String.format("%.1f %s", bytes / Math.pow(1024.0, group.toDouble()), units[group])
+    return com.devson.pixchive.core.utils.FormatUtils.formatFileSize(bytes)
 }
 
 private fun formatDateString(timestamp: Long): String {

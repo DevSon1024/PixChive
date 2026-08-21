@@ -1,5 +1,13 @@
 package com.devson.pixchive.feature.gallery.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -8,8 +16,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AspectRatio
+import androidx.compose.material.icons.filled.Collections
+import androidx.compose.material.icons.filled.CropLandscape
+import androidx.compose.material.icons.filled.CropPortrait
+import androidx.compose.material.icons.filled.CropSquare
+import androidx.compose.material.icons.filled.FolderCopy
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.ViewAgenda
+import androidx.compose.material.icons.outlined.Collections
+import androidx.compose.material.icons.outlined.FolderCopy
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.ViewAgenda
 import androidx.compose.material3.*
@@ -23,16 +39,9 @@ import androidx.compose.ui.unit.dp
 import com.devson.pixchive.core.data.models.GalleryViewSettings
 import com.devson.pixchive.core.designsystem.component.RotarySortWheelDialog
 import com.devson.pixchive.core.designsystem.component.SortDirection
-import com.devson.pixchive.core.designsystem.component.SortField
 import com.devson.pixchive.core.designsystem.component.formatSortField
 import com.devson.pixchive.core.designsystem.component.formatSortOption
 import com.devson.pixchive.core.designsystem.component.parseSortOption
-
-import androidx.compose.material.icons.filled.Collections
-import androidx.compose.material.icons.filled.FolderCopy
-import androidx.compose.material.icons.outlined.Collections
-import androidx.compose.material.icons.outlined.FolderCopy
-import androidx.compose.foundation.layout.Arrangement
 
 // gridCellsIndex is the PinchZoom index: 0=Fixed(4), 1=Fixed(3), 2=Fixed(2)
 // gridColumnCount is the actual visible column count: 4, 3, or 2
@@ -47,6 +56,12 @@ private fun columnsToIndex(columns: Int): Int = when (columns) {
     3 -> 1
     else -> 2
 }
+
+data class AspectRatioOption(
+    val label: String,
+    val ratio: Float,
+    val icon: ImageVector
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,125 +79,164 @@ fun GalleryViewSettingsBottomSheet(
     onShowFolderThumbnailChange: (Boolean) -> Unit = {},
     galleryViewMode: String = "albums",
     onGalleryViewModeChange: ((String) -> Unit)? = null,
+    aspectRatio: Float = 1.0f,
+    onAspectRatioChange: ((Float) -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showSortWheel by remember { mutableStateOf(false) }
 
     val (currentSortField, currentSortDirection) = remember(sortOption) {
         parseSortOption(sortOption)
     }
 
+    val aspectRatioOptions = remember {
+        listOf(
+            AspectRatioOption("Square", 1.0f, Icons.Default.CropSquare),
+            AspectRatioOption("Portrait", 0.7f, Icons.Default.CropPortrait),
+            AspectRatioOption("Landscape", 1.5f, Icons.Default.CropLandscape)
+        )
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 2.dp,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 20.dp)
                 .verticalScroll(rememberScrollState())
-                .padding(vertical = 16.dp)
+                .padding(bottom = 32.dp)
         ) {
             Text(
-                "View Settings",
-                style = MaterialTheme.typography.titleMedium,
+                text = "View & Layout Settings",
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 12.dp)
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(bottom = 16.dp)
             )
 
+            // --- View Mode Section ---
             if (onGalleryViewModeChange != null) {
-                GallerySettingsSectionLabel("View Mode")
+                GallerySettingsSectionLabel("Gallery Mode")
                 Spacer(modifier = Modifier.height(8.dp))
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    GalleryIconToggleButton(
-                        label = "Albums",
-                        selected = galleryViewMode == "albums",
-                        selectedIcon = Icons.Filled.FolderCopy,
-                        unselectedIcon = Icons.Outlined.FolderCopy,
-                        modifier = Modifier.weight(1f),
-                        onClick = { onGalleryViewModeChange("albums") }
-                    )
-                    GalleryIconToggleButton(
-                        label = "Photos",
-                        selected = galleryViewMode == "photos",
-                        selectedIcon = Icons.Filled.Collections,
-                        unselectedIcon = Icons.Outlined.Collections,
-                        modifier = Modifier.weight(1f),
-                        onClick = { onGalleryViewModeChange("photos") }
-                    )
-                }
-                HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Min),
-                verticalAlignment = Alignment.Top
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    GallerySettingsSectionLabel("Layout")
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        GalleryIconToggleButton(
-                            label = "List",
-                            selected = layoutMode == "list",
-                            selectedIcon = Icons.Filled.ViewAgenda,
-                            unselectedIcon = Icons.Outlined.ViewAgenda,
-                            modifier = Modifier.weight(1f),
-                            onClick = { onLayoutModeChange("list") }
-                        )
-                        GalleryIconToggleButton(
-                            label = "Grid",
-                            selected = layoutMode == "grid",
-                            selectedIcon = Icons.Filled.GridView,
-                            unselectedIcon = Icons.Outlined.GridView,
-                            modifier = Modifier.weight(1f),
-                            onClick = { onLayoutModeChange("grid") }
-                        )
-                    }
-                }
-            }
-
-            if (layoutMode == "grid") {
-                Spacer(modifier = Modifier.height(10.dp))
-                GallerySettingsSectionLabel("Grid Columns")
-                Spacer(modifier = Modifier.height(6.dp))
-                // Show actual column counts 2, 3, 4 mapped to pinch-zoom indices 2, 1, 0
-                val currentColumns = indexToColumns(gridCellsIndex)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SegmentedViewModeButton(
+                        label = "Albums",
+                        icon = if (galleryViewMode == "albums") Icons.Filled.FolderCopy else Icons.Outlined.FolderCopy,
+                        selected = galleryViewMode == "albums",
+                        onClick = { onGalleryViewModeChange("albums") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    SegmentedViewModeButton(
+                        label = "Photos",
+                        icon = if (galleryViewMode == "photos") Icons.Filled.Collections else Icons.Outlined.Collections,
+                        selected = galleryViewMode == "photos",
+                        onClick = { onGalleryViewModeChange("photos") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            }
+
+            // --- Layout Type Section (Grid vs List) ---
+            GallerySettingsSectionLabel("Display Layout")
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                SegmentedViewModeButton(
+                    label = "Grid View",
+                    icon = if (layoutMode == "grid") Icons.Filled.GridView else Icons.Outlined.GridView,
+                    selected = layoutMode == "grid",
+                    onClick = { onLayoutModeChange("grid") },
+                    modifier = Modifier.weight(1f)
+                )
+                SegmentedViewModeButton(
+                    label = "List View",
+                    icon = if (layoutMode == "list") Icons.Filled.ViewAgenda else Icons.Outlined.ViewAgenda,
+                    selected = layoutMode == "list",
+                    onClick = { onLayoutModeChange("list") },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            // --- Grid Specific Settings (Aspect Ratio & Column Count) ---
+            AnimatedVisibility(
+                visible = layoutMode == "grid",
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                    // Aspect Ratio Selector
+                    if (onAspectRatioChange != null) {
+                        GallerySettingsSectionLabel("Cover Aspect Ratio")
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            aspectRatioOptions.forEach { option ->
+                                val isSelected = kotlin.math.abs(aspectRatio - option.ratio) < 0.05f
+                                SegmentedViewModeButton(
+                                    label = option.label,
+                                    icon = option.icon,
+                                    selected = isSelected,
+                                    onClick = { onAspectRatioChange(option.ratio) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(14.dp))
+                    }
+
+                    // Grid Columns Selector
+                    GallerySettingsSectionLabel("Grid Columns")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    val currentColumns = indexToColumns(gridCellsIndex)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         listOf(2, 3, 4).forEach { columns ->
                             val isSelected = currentColumns == columns
+                            val bg by animateColorAsState(
+                                targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                label = "colBg"
+                            )
+                            val fg by animateColorAsState(
+                                targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                label = "colFg"
+                            )
                             Box(
                                 modifier = Modifier
-                                    .size(48.dp)
-                                    .background(
-                                        color = if (isSelected) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.surfaceVariant,
-                                        shape = RoundedCornerShape(10.dp)
-                                    )
+                                    .weight(1f)
+                                    .height(44.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(bg)
                                     .border(
-                                        width = 1.dp,
-                                        color = if (isSelected) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.outlineVariant,
-                                        shape = RoundedCornerShape(10.dp)
+                                        width = if (isSelected) 1.5.dp else 0.dp,
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                        shape = RoundedCornerShape(12.dp)
                                     )
-                                    .clip(RoundedCornerShape(10.dp))
                                     .clickable { onGridCellsIndexChange(columnsToIndex(columns)) },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = columns.toString(),
-                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary
-                                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                    text = "$columns Columns",
+                                    color = fg,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                 )
                             }
                         }
@@ -190,27 +244,30 @@ fun GalleryViewSettingsBottomSheet(
                 }
             }
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
+            HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
-            // Sort
-            GallerySettingsSectionLabel("Sort By")
+            // --- Sort Section ---
+            GallerySettingsSectionLabel("Sorting Order")
+            Spacer(modifier = Modifier.height(6.dp))
             OutlinedButton(
                 onClick = { showSortWheel = true },
-                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
             ) {
                 val dirText = if (currentSortDirection == SortDirection.ASCENDING) "↑ Ascending" else "↓ Descending"
                 Text(
-                    "${formatSortField(currentSortField)}  $dirText",
-                    style = MaterialTheme.typography.bodySmall
+                    text = "${formatSortField(currentSortField)}  •  $dirText",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
                 )
             }
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
+            HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
-            // Fields
-            GallerySettingsSectionLabel("Fields")
-            Spacer(modifier = Modifier.height(4.dp))
+            // --- Visible Information Fields ---
+            GallerySettingsSectionLabel("Visible Metadata Fields")
+            Spacer(modifier = Modifier.height(6.dp))
 
             val fieldItems: List<Triple<String, Boolean, (Boolean) -> Unit>> = buildList {
                 if (!isRootFolderView) {
@@ -227,18 +284,21 @@ fun GalleryViewSettingsBottomSheet(
                 add(Triple("Path", viewSettings.showPath) {
                     onViewSettingsChange(viewSettings.copy(showPath = it))
                 })
-                add(Triple("Size", viewSettings.showSize) {
+                add(Triple("File Size", viewSettings.showSize) {
                     onViewSettingsChange(viewSettings.copy(showSize = it))
                 })
-                add(Triple("Date", viewSettings.showDate) {
+                add(Triple("Date Modified", viewSettings.showDate) {
                     onViewSettingsChange(viewSettings.copy(showDate = it))
                 })
             }
 
-            val chunked = fieldItems.chunked(3)
+            val chunked = fieldItems.chunked(2)
             Column(modifier = Modifier.fillMaxWidth()) {
                 chunked.forEach { rowItems ->
-                    Row(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         rowItems.forEach { (label, checked, onChange) ->
                             Box(Modifier.weight(1f)) {
                                 GalleryCompactMetadataToggle(
@@ -248,43 +308,48 @@ fun GalleryViewSettingsBottomSheet(
                                 )
                             }
                         }
-                        repeat(3 - rowItems.size) { Box(Modifier.weight(1f)) }
+                        repeat(2 - rowItems.size) { Box(Modifier.weight(1f)) }
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
 
             if (isRootFolderView) {
-                HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
-                GallerySettingsSectionLabel("Advanced")
+                HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                GallerySettingsSectionLabel("Folder Display")
                 Spacer(modifier = Modifier.height(6.dp))
-                Row(
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
                         .clickable { onShowFolderThumbnailChange(!showFolderThumbnail) }
-                        .padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Show Folder Thumbnail",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            text = "Display a photo preview on folder icons",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Folder Preview Thumbnail",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Display photo artwork on folder covers",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = showFolderThumbnail,
+                            onCheckedChange = onShowFolderThumbnailChange
                         )
                     }
-                    Switch(
-                        checked = showFolderThumbnail,
-                        onCheckedChange = onShowFolderThumbnailChange
-                    )
                 }
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 
@@ -306,50 +371,64 @@ fun GalleryViewSettingsBottomSheet(
 @Composable
 private fun GallerySettingsSectionLabel(text: String) {
     Text(
-        text,
-        style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.SemiBold,
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.primary
     )
 }
 
 @Composable
-private fun GalleryIconToggleButton(
+private fun SegmentedViewModeButton(
     label: String,
+    icon: ImageVector,
     selected: Boolean,
-    selectedIcon: ImageVector,
-    unselectedIcon: ImageVector,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val color = if (selected) MaterialTheme.colorScheme.primary
-    else MaterialTheme.colorScheme.onSurfaceVariant
-    val icon = if (selected) selectedIcon else unselectedIcon
-    val fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+    val bg by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+        animationSpec = tween(180),
+        label = "btnBg"
+    )
+    val fg by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = tween(180),
+        label = "btnFg"
+    )
+    val border = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
 
-    Column(
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = bg,
+        border = BorderStroke(if (selected) 1.5.dp else 1.dp, border),
         modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
+            .height(52.dp)
+            .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
-            .padding(vertical = 8.dp, horizontal = 2.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
-            tint = color,
-            modifier = Modifier.size(28.dp)
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = fontWeight,
-            color = color,
-            maxLines = 1,
-            softWrap = false
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = fg,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                color = fg,
+                maxLines = 1
+            )
+        }
     }
 }
 
@@ -359,18 +438,33 @@ private fun GalleryCompactMetadataToggle(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    Row(
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = if (checked) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = Modifier
             .fillMaxWidth()
+            .padding(vertical = 3.dp)
+            .clip(RoundedCornerShape(10.dp))
             .clickable { onCheckedChange(!checked) }
-            .padding(vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically
     ) {
-        Checkbox(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            modifier = Modifier.size(32.dp)
-        )
-        Text(label, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                modifier = Modifier.size(28.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = if (checked) FontWeight.SemiBold else FontWeight.Normal,
+                maxLines = 1
+            )
+        }
     }
 }

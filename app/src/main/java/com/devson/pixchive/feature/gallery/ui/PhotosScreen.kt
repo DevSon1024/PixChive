@@ -21,8 +21,10 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.RestoreFromTrash
 import androidx.compose.material.icons.filled.SelectAll
@@ -55,6 +57,9 @@ import com.devson.pixchive.feature.gallery.ui.components.GlobalSearchAppBar
 import com.devson.pixchive.feature.gallery.viewmodel.AllImagesViewModel
 import com.devson.pixchive.feature.gallery.viewmodel.GalleryItem
 import com.devson.pixchive.feature.gallery.viewmodel.SearchViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,6 +79,7 @@ fun PhotosScreen(
     val layoutMode by viewModel.layoutMode.collectAsState()
     val isGalleryListMode by viewModel.isGalleryListMode.collectAsState()
     val gridCellsIndex by viewModel.gridCellsIndex.collectAsState()
+    val galleryGridColumns by viewModel.galleryGridColumns.collectAsState()
     val viewSettings by viewModel.viewSettings.collectAsState()
     val galleryCoverAspectRatio by viewModel.galleryCoverAspectRatio.collectAsState()
 
@@ -82,6 +88,11 @@ fun PhotosScreen(
     var showRenameDialog by remember { mutableStateOf(false) }
     var showStorageExplorer by remember { mutableStateOf(false) }
     var explorerOperationType by remember { mutableStateOf("") }
+
+    // Transient Zoom Pill feedback state
+    var showZoomPill by remember { mutableStateOf(false) }
+    var zoomPillJob by remember { mutableStateOf<Job?>(null) }
+    val coroutineScope = rememberCoroutineScope()
 
     val fileOpsViewModel: FileOperationsViewModel = viewModel()
     val context = LocalContext.current
@@ -296,6 +307,15 @@ fun PhotosScreen(
                                                         if (newCols != currentColumns) {
                                                             currentColumns = newCols
                                                             viewModel.setGridCellsIndex(4 - newCols)
+                                                            viewModel.setGalleryGridColumns(newCols)
+
+                                                            // Show transient UI pill
+                                                            showZoomPill = true
+                                                            zoomPillJob?.cancel()
+                                                            zoomPillJob = coroutineScope.launch {
+                                                                delay(1500L)
+                                                                showZoomPill = false
+                                                            }
                                                         }
                                                         hasChangedInThisGesture = true
                                                     } else if (accumulatedZoom < 0.75f) {
@@ -303,6 +323,15 @@ fun PhotosScreen(
                                                         if (newCols != currentColumns) {
                                                             currentColumns = newCols
                                                             viewModel.setGridCellsIndex(4 - newCols)
+                                                            viewModel.setGalleryGridColumns(newCols)
+
+                                                            // Show transient UI pill
+                                                            showZoomPill = true
+                                                            zoomPillJob?.cancel()
+                                                            zoomPillJob = coroutineScope.launch {
+                                                                delay(1500L)
+                                                                showZoomPill = false
+                                                            }
                                                         }
                                                         hasChangedInThisGesture = true
                                                     }
@@ -375,6 +404,43 @@ fun PhotosScreen(
                     }
                 }
             }
+
+            // Transient Floating UI Pill for Pinch-to-Zoom feedback
+            AnimatedVisibility(
+                visible = showZoomPill,
+                enter = fadeIn(tween(180)) + slideInVertically(initialOffsetY = { -it }, animationSpec = tween(180)),
+                exit = fadeOut(tween(220)) + slideOutVertically(targetOffsetY = { -it }, animationSpec = tween(220)),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(top = if (showTopBar) 72.dp else 16.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.92f),
+                    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                    shadowElevation = 6.dp,
+                    tonalElevation = 6.dp
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.GridView,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "Grid Size: $gridCellsIndex (${4 - gridCellsIndex.coerceIn(0, 2)} Columns)",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
         }
 
         val galleryViewMode by viewModel.galleryViewMode.collectAsState()
@@ -388,7 +454,10 @@ fun PhotosScreen(
                     viewModel.setGalleryListMode(it == "list")
                 },
                 gridCellsIndex = gridCellsIndex,
-                onGridCellsIndexChange = { viewModel.setGridCellsIndex(it) },
+                onGridCellsIndexChange = {
+                    viewModel.setGridCellsIndex(it)
+                    viewModel.setGalleryGridColumns(4 - it.coerceIn(0, 2))
+                },
                 viewSettings = viewSettings,
                 onViewSettingsChange = { viewModel.updateViewSettings(it) },
                 sortOption = sortOption,
@@ -404,6 +473,8 @@ fun PhotosScreen(
                         onSwitchToAlbums()
                     }
                 },
+                aspectRatio = galleryCoverAspectRatio,
+                onAspectRatioChange = { viewModel.setGalleryCoverAspectRatio(it) },
                 onDismiss = { showSettingsSheet = false }
             )
         }

@@ -56,9 +56,19 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
     val sortOption: StateFlow<String> = preferencesManager.gallerySortOptionFlow
         .stateIn(viewModelScope, SharingStarted.Lazily, "date_newest")
 
-    private val _currentBucketId = MutableStateFlow("")
-    private val _folderName = MutableStateFlow("Folder Images")
-    val folderName: StateFlow<String> = _folderName.asStateFlow()
+data class AlbumMetadata(
+    val folderName: String = "",
+    val coverImageUri: Uri? = null,
+    val totalImages: Int = 0,
+    val totalSizeFormatted: String = ""
+)
+
+private val _albumMetadata = MutableStateFlow(AlbumMetadata())
+val albumMetadata: StateFlow<AlbumMetadata> = _albumMetadata.asStateFlow()
+
+private val _currentBucketId = MutableStateFlow("")
+private val _folderName = MutableStateFlow("Folder Images")
+val folderName: StateFlow<String> = _folderName.asStateFlow()
 
     // --- Active paging source reference (for invalidation on media changes) ---
     private var activePagingSource: MediaStorePagingSource? = null
@@ -177,14 +187,28 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
     fun loadImages(bucketId: String, forceRefresh: Boolean = false) {
         if (_currentBucketId.value == bucketId && !forceRefresh) return
 
-        viewModelScope.launch {
-            // Resolve folder name in the background.
+        viewModelScope.launch(Dispatchers.IO) {
+            val folderDetails = repository.getFolderDetails(bucketId)
             val name = when {
                 bucketId == "all_images" -> "All Photos"
                 bucketId.startsWith("search:") -> "Search Results"
+                folderDetails != null -> folderDetails.folderName
                 else -> repository.getFolderName(bucketId) ?: "Folder Images"
             }
             _folderName.value = name
+
+            val totalImages = folderDetails?.imageCount ?: 0
+            val totalSize = if (folderDetails != null && folderDetails.size > 0L) {
+                com.devson.pixchive.core.utils.FormatUtils.formatFileSize(folderDetails.size)
+            } else ""
+            val coverUri = folderDetails?.thumbnailUri
+
+            _albumMetadata.value = AlbumMetadata(
+                folderName = name,
+                coverImageUri = coverUri,
+                totalImages = totalImages,
+                totalSizeFormatted = totalSize
+            )
         }
 
         _currentBucketId.value = bucketId

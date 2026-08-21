@@ -84,7 +84,6 @@ class PreferencesManager(private val context: Context) {
         private val SHOW_PROGRESS_BARS_KEY = booleanPreferencesKey("show_progress_bars")
     }
 
-    // --- Gallery Customization Prefs (Aspect Ratio, Grid Columns, List Mode) ---
     val galleryCoverAspectRatioFlow: Flow<Float> = context.dataStore.data
         .map { preferences ->
             preferences[GALLERY_COVER_ASPECT_RATIO_KEY] ?: 1.0f
@@ -94,6 +93,12 @@ class PreferencesManager(private val context: Context) {
         context.dataStore.edit { preferences ->
             preferences[GALLERY_COVER_ASPECT_RATIO_KEY] = ratio
         }
+    }
+
+    val galleryAlbumAspectRatioFlow: Flow<Float> = galleryCoverAspectRatioFlow
+
+    suspend fun setGalleryAlbumAspectRatio(ratio: Float) {
+        setGalleryCoverAspectRatio(ratio)
     }
 
     val galleryGridColumnsFlow: Flow<Int> = context.dataStore.data

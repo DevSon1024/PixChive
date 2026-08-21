@@ -53,6 +53,8 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
     val galleryCoverAspectRatio: StateFlow<Float> = preferencesManager.galleryCoverAspectRatioFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1.0f)
 
+    val galleryAlbumAspectRatio: StateFlow<Float> = galleryCoverAspectRatio
+
     val galleryGridColumns: StateFlow<Int> = preferencesManager.galleryGridColumnsFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 3)
 
@@ -93,6 +95,10 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun setGalleryCoverAspectRatio(ratio: Float) {
         viewModelScope.launch { preferencesManager.setGalleryCoverAspectRatio(ratio) }
+    }
+
+    fun setGalleryAlbumAspectRatio(ratio: Float) {
+        viewModelScope.launch { preferencesManager.setGalleryAlbumAspectRatio(ratio) }
     }
 
     fun setGalleryGridColumns(columns: Int) {

@@ -87,7 +87,7 @@ fun AlbumsScreen(
     val layoutMode by viewModel.layoutMode.collectAsState()
     val isGalleryListMode by viewModel.isGalleryListMode.collectAsState()
     val galleryGridColumns by viewModel.galleryGridColumns.collectAsState()
-    val galleryCoverAspectRatio by viewModel.galleryCoverAspectRatio.collectAsState()
+    val galleryAlbumAspectRatio by viewModel.galleryAlbumAspectRatio.collectAsState()
     val viewSettings by viewModel.viewSettings.collectAsState()
     val sortOption by viewModel.sortOption.collectAsState()
     val showFolderThumbnail by viewModel.showFolderThumbnail.collectAsState()
@@ -385,7 +385,7 @@ fun AlbumsScreen(
                                             isListMode = false,
                                             viewSettings = viewSettings,
                                             showThumbnail = showFolderThumbnail,
-                                            aspectRatio = galleryCoverAspectRatio,
+                                            aspectRatio = galleryAlbumAspectRatio,
                                             modifier = Modifier.fillMaxWidth(),
                                             onClick = {
                                                 if (selectedFolderIds.isNotEmpty()) {
@@ -472,8 +472,8 @@ fun AlbumsScreen(
                         onSwitchToPhotos()
                     }
                 },
-                aspectRatio = galleryCoverAspectRatio,
-                onAspectRatioChange = { viewModel.setGalleryCoverAspectRatio(it) },
+                aspectRatio = galleryAlbumAspectRatio,
+                onAspectRatioChange = { viewModel.setGalleryAlbumAspectRatio(it) },
                 onDismiss = { showSettingsSheet = false }
             )
         }

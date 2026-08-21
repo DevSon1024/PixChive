@@ -92,9 +92,9 @@ fun GalleryViewSettingsBottomSheet(
 
     val aspectRatioOptions = remember {
         listOf(
-            AspectRatioOption("Square", 1.0f, Icons.Default.CropSquare),
-            AspectRatioOption("Portrait", 0.7f, Icons.Default.CropPortrait),
-            AspectRatioOption("Landscape", 1.5f, Icons.Default.CropLandscape)
+            AspectRatioOption("Square (1:1)", 1.0f, Icons.Default.CropSquare),
+            AspectRatioOption("Portrait (3:4)", 0.75f, Icons.Default.CropPortrait),
+            AspectRatioOption("Landscape (16:9)", 16f / 9f, Icons.Default.CropLandscape)
         )
     }
 
@@ -187,7 +187,11 @@ fun GalleryViewSettingsBottomSheet(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             aspectRatioOptions.forEach { option ->
-                                val isSelected = kotlin.math.abs(aspectRatio - option.ratio) < 0.05f
+                                val isSelected = when (option.ratio) {
+                                    1.0f -> kotlin.math.abs(aspectRatio - 1.0f) < 0.1f
+                                    0.75f -> kotlin.math.abs(aspectRatio - 0.75f) < 0.1f || kotlin.math.abs(aspectRatio - 0.7f) < 0.1f
+                                    else -> kotlin.math.abs(aspectRatio - (16f / 9f)) < 0.2f || kotlin.math.abs(aspectRatio - 1.5f) < 0.2f
+                                }
                                 SegmentedViewModeButton(
                                     label = option.label,
                                     icon = option.icon,

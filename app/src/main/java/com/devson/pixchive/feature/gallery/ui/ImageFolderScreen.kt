@@ -17,15 +17,15 @@ import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.lazy.itemsIndexed as listItemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.SelectAll
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.paging.LoadState
@@ -44,14 +45,15 @@ import com.devson.pixchive.core.data.FileOperationsViewModel
 import com.devson.pixchive.core.data.models.GalleryImage
 import com.devson.pixchive.core.designsystem.component.PixChiveEmptyState
 import com.devson.pixchive.core.designsystem.component.SkeletonLoadingView
+import com.devson.pixchive.core.utils.FormatUtils
 import com.devson.pixchive.feature.gallery.ui.components.CustomRenameDialog
 import com.devson.pixchive.feature.gallery.ui.components.DetailsDialog
 import com.devson.pixchive.feature.gallery.ui.components.GalleryImageItem
+import com.devson.pixchive.feature.gallery.ui.components.GalleryImageListItem
 import com.devson.pixchive.feature.gallery.ui.components.GallerySelectionBottomBar
 import com.devson.pixchive.feature.gallery.ui.components.GalleryViewSettingsBottomSheet
-import com.devson.pixchive.feature.gallery.ui.components.GlobalSearchAppBar
+import com.devson.pixchive.feature.gallery.ui.components.StandardAlbumHeroHeader
 import com.devson.pixchive.feature.gallery.viewmodel.GalleryFolderViewModel
-import com.devson.pixchive.feature.gallery.viewmodel.SearchViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,10 +70,8 @@ fun ImageFolderScreen(
     val layoutMode by viewModel.layoutMode.collectAsState()
     val viewSettings by viewModel.viewSettings.collectAsState()
     val sortOption by viewModel.sortOption.collectAsState()
-
-    val searchViewModel: SearchViewModel = viewModel(key = "search_folder")
-    val searchQuery by searchViewModel.searchQuery.collectAsState()
-    val suggestions by searchViewModel.suggestions.collectAsState()
+    val folderName by viewModel.folderName.collectAsState()
+    val albumMetadata by viewModel.albumMetadata.collectAsState()
 
     val selectedImageIds by viewModel.selectedIds.collectAsState()
     var showSettingsSheet by remember { mutableStateOf(false) }
@@ -108,6 +108,17 @@ fun ImageFolderScreen(
     }
 
     val gridState = rememberLazyGridState()
+    val listState = rememberLazyListState()
+
+    val isScrolledPastHeader by remember(layoutMode) {
+        derivedStateOf {
+            if (layoutMode == "list") {
+                listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 240
+            } else {
+                gridState.firstVisibleItemIndex > 0 || gridState.firstVisibleItemScrollOffset > 240
+            }
+        }
+    }
 
     BackHandler(enabled = selectedImageIds.isNotEmpty()) {
         viewModel.clearSelection()
@@ -117,7 +128,7 @@ fun ImageFolderScreen(
         viewModel.loadImages(bucketId)
     }
 
-    // Collect current page items into a stable snapshot for selection helpers.
+    // Collect current page items into a stable snapshot for selection & metadata helpers.
     val snapshotImages: List<GalleryImage> = remember(pagedImages.itemCount) {
         (0 until pagedImages.itemCount).mapNotNull { pagedImages.peek(it) }
     }
@@ -126,7 +137,23 @@ fun ImageFolderScreen(
         snapshotImages.filter { it.id in selectedImageIds }
     }
 
-    val folderName by viewModel.folderName.collectAsState()
+    // Album Hero Header metadata values
+    val displayedAlbumName = remember(albumMetadata.folderName, folderName) {
+        albumMetadata.folderName.ifEmpty { folderName }
+    }
+    val displayedCoverUri = remember(albumMetadata.coverImageUri, snapshotImages) {
+        albumMetadata.coverImageUri ?: snapshotImages.firstOrNull()?.uri
+    }
+    val displayedTotalImages = remember(albumMetadata.totalImages, pagedImages.itemCount) {
+        if (albumMetadata.totalImages > 0) albumMetadata.totalImages else pagedImages.itemCount
+    }
+    val displayedTotalSize = remember(albumMetadata.totalSizeFormatted, snapshotImages) {
+        if (albumMetadata.totalSizeFormatted.isNotBlank()) {
+            albumMetadata.totalSizeFormatted
+        } else {
+            FormatUtils.formatFileSize(snapshotImages.sumOf { it.size })
+        }
+    }
 
     // Determine loading / empty states from pager.
     val isInitialLoad = pagedImages.loadState.refresh is LoadState.Loading
@@ -135,6 +162,7 @@ fun ImageFolderScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
                 if (selectedImageIds.isNotEmpty()) {
                     TopAppBar(
@@ -151,24 +179,8 @@ fun ImageFolderScreen(
                         },
                         colors = TopAppBarDefaults.topAppBarColors(
                             containerColor = MaterialTheme.colorScheme.background
-                        )
-                    )
-                } else {
-                    GlobalSearchAppBar(
-                        title = folderName,
-                        searchQuery = searchQuery,
-                        suggestions = suggestions,
-                        onQueryChange = { searchViewModel.updateSearchQuery(it) },
-                        onSearch = onSearch,
-                        onBackClick = onNavigateBack,
-                        actions = {
-                            IconButton(onClick = { showSettingsSheet = true }) {
-                                Icon(Icons.Default.Tune, contentDescription = "View Settings")
-                            }
-                            IconButton(onClick = onSettingsClick) {
-                                Icon(Icons.Default.Settings, contentDescription = "App Settings")
-                            }
-                        }
+                        ),
+                        modifier = Modifier.statusBarsPadding()
                     )
                 }
             },
@@ -180,11 +192,14 @@ fun ImageFolderScreen(
                     .padding(top = paddingValues.calculateTopPadding())
             ) {
                 when {
-                    isInitialLoad -> {
+                    isInitialLoad && pagedImages.itemCount == 0 -> {
                         val baseColumns = if (layoutMode == "list") 1 else (4 - savedGridCellsIndex.coerceIn(0, 2))
                         SkeletonLoadingView(
                             layoutMode = layoutMode,
-                            columns = baseColumns
+                            columns = baseColumns,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .statusBarsPadding()
                         )
                     }
                     isEmpty -> {
@@ -197,38 +212,59 @@ fun ImageFolderScreen(
                     else -> {
                         if (layoutMode == "list") {
                             LazyColumn(
-                                contentPadding = PaddingValues(
-                                    top = 4.dp,
-                                    bottom = 100.dp,
-                                    start = 4.dp,
-                                    end = 4.dp
-                                ),
+                                state = listState,
+                                contentPadding = PaddingValues(bottom = 100.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
                                 modifier = Modifier.fillMaxSize()
                             ) {
+                                // Full-width Hero Header as top item
+                                item(key = "hero_header") {
+                                    StandardAlbumHeroHeader(
+                                        albumName = displayedAlbumName,
+                                        coverImageUri = displayedCoverUri,
+                                        totalImages = displayedTotalImages,
+                                        albumSizeFormatted = displayedTotalSize,
+                                        onNavigateBack = onNavigateBack,
+                                        onActionClick = {
+                                            if (pagedImages.itemCount > 0) onImageClick(0)
+                                        },
+                                        onOptionsClick = { showSettingsSheet = true },
+                                        overlineText = "PHOTO ALBUM"
+                                    )
+                                }
+
+                                item(key = "list_top_spacer") {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                }
+
                                 items(
                                     count = pagedImages.itemCount,
                                     key = pagedImages.itemKey { it.id }
                                 ) { index ->
                                     val image = pagedImages[index] ?: return@items
                                     val isSelected = image.id in selectedImageIds
-                                    GalleryImageItem(
-                                        image = image,
-                                        isSelected = isSelected,
-                                        isSelectionModeActive = selectedImageIds.isNotEmpty(),
-                                        isListMode = true,
-                                        columnCount = 1,
-                                        viewSettings = viewSettings,
-                                        onThumbnailClick = { viewModel.toggleSelection(image.id) },
-                                        onClick = {
-                                            if (selectedImageIds.isNotEmpty()) {
-                                                viewModel.toggleSelection(image.id)
-                                            } else {
-                                                onImageClick(index)
-                                            }
-                                        },
-                                        onLongClick = { viewModel.toggleSelection(image.id) },
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
+                                    Box(modifier = Modifier.padding(horizontal = 8.dp)) {
+                                        GalleryImageListItem(
+                                            image = image,
+                                            isSelected = isSelected,
+                                            isSelectionModeActive = selectedImageIds.isNotEmpty(),
+                                            viewSettings = viewSettings,
+                                            onThumbnailClick = { viewModel.toggleSelection(image.id) },
+                                            onClick = {
+                                                if (selectedImageIds.isNotEmpty()) {
+                                                    viewModel.toggleSelection(image.id)
+                                                } else {
+                                                    onImageClick(index)
+                                                }
+                                            },
+                                            onLongClick = { viewModel.toggleSelection(image.id) },
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    }
+                                }
+
+                                item(key = "list_bottom_spacer") {
+                                    Spacer(modifier = Modifier.navigationBarsPadding().height(24.dp))
                                 }
                             }
                         } else {
@@ -246,12 +282,7 @@ fun ImageFolderScreen(
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(animatedColumns.coerceIn(2, 4)),
                                 state = gridState,
-                                contentPadding = PaddingValues(
-                                    top = 4.dp,
-                                    bottom = 100.dp,
-                                    start = 4.dp,
-                                    end = 4.dp
-                                ),
+                                contentPadding = PaddingValues(bottom = 100.dp),
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                                 verticalArrangement = Arrangement.spacedBy(4.dp),
                                 modifier = Modifier
@@ -291,6 +322,26 @@ fun ImageFolderScreen(
                                         }
                                     }
                             ) {
+                                // Full-width Hero Header spanning all columns
+                                item(key = "hero_header", span = { GridItemSpan(maxLineSpan) }) {
+                                    StandardAlbumHeroHeader(
+                                        albumName = displayedAlbumName,
+                                        coverImageUri = displayedCoverUri,
+                                        totalImages = displayedTotalImages,
+                                        albumSizeFormatted = displayedTotalSize,
+                                        onNavigateBack = onNavigateBack,
+                                        onActionClick = {
+                                            if (pagedImages.itemCount > 0) onImageClick(0)
+                                        },
+                                        onOptionsClick = { showSettingsSheet = true },
+                                        overlineText = "PHOTO ALBUM"
+                                    )
+                                }
+
+                                item(key = "grid_top_spacer", span = { GridItemSpan(maxLineSpan) }) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                }
+
                                 items(
                                     count = pagedImages.itemCount,
                                     key = pagedImages.itemKey { it.id }
@@ -319,7 +370,73 @@ fun ImageFolderScreen(
                                         onLongClick = { viewModel.toggleSelection(image.id) }
                                     )
                                 }
+
+                                item(key = "grid_bottom_spacer", span = { GridItemSpan(maxLineSpan) }) {
+                                    Spacer(modifier = Modifier.navigationBarsPadding().height(24.dp))
+                                }
                             }
+                        }
+                    }
+                }
+
+                // Smooth Glassmorphic Sticky Top Bar shown when user scrolls past the hero header
+                AnimatedVisibility(
+                    visible = isScrolledPastHeader && selectedImageIds.isEmpty(),
+                    enter = fadeIn(tween(220)) + slideInVertically(
+                        initialOffsetY = { -it },
+                        animationSpec = tween(220)
+                    ),
+                    exit = fadeOut(tween(180)) + slideOutVertically(
+                        targetOffsetY = { -it },
+                        animationSpec = tween(180)
+                    ),
+                    modifier = Modifier.align(Alignment.TopCenter)
+                ) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                        tonalElevation = 3.dp,
+                        shadowElevation = 4.dp,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .statusBarsPadding()
+                                    .height(56.dp)
+                                    .padding(horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(onClick = onNavigateBack) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "Back",
+                                        tint = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = displayedAlbumName,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                IconButton(onClick = { showSettingsSheet = true }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Tune,
+                                        contentDescription = "View Settings",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            HorizontalDivider(
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                                thickness = 0.8.dp
+                            )
                         }
                     }
                 }

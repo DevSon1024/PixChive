@@ -53,12 +53,11 @@ private fun FolderThumbnail(
     folder: GalleryFolder,
     showThumbnail: Boolean,
     modifier: Modifier = Modifier,
-    thumbnailSizePx: Int = 256
+    thumbnailSizePx: Int = 384
 ) {
     val context = LocalContext.current
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
             .background(MaterialTheme.colorScheme.secondaryContainer),
         contentAlignment = Alignment.Center
     ) {
@@ -67,7 +66,7 @@ private fun FolderThumbnail(
                 ImageRequest.Builder(context)
                     .data(folder.thumbnailUri)
                     .size(thumbnailSizePx)
-                    .crossfade(false)
+                    .crossfade(true)
                     .bitmapConfig(android.graphics.Bitmap.Config.RGB_565)
                     .allowHardware(true)
                     .memoryCachePolicy(CachePolicy.ENABLED)
@@ -76,7 +75,7 @@ private fun FolderThumbnail(
             }
             AsyncImage(
                 model = request,
-                contentDescription = null,
+                contentDescription = folder.folderName,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
@@ -85,8 +84,8 @@ private fun FolderThumbnail(
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
-                            0.55f to Color.Transparent,
-                            1.0f to Color.Black.copy(alpha = 0.28f)
+                            0.60f to Color.Transparent,
+                            1.0f to Color.Black.copy(alpha = 0.25f)
                         )
                     )
             )
@@ -95,7 +94,7 @@ private fun FolderThumbnail(
                 imageVector = Icons.Filled.FolderOpen,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f),
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.size(32.dp)
             )
         }
     }
@@ -104,26 +103,27 @@ private fun FolderThumbnail(
 @Composable
 private fun MetaChip(text: String, isPrimary: Boolean) {
     val bg = if (isPrimary)
-        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.85f)
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f)
     else
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f)
+        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.90f)
     val fg = if (isPrimary)
-        MaterialTheme.colorScheme.onSecondaryContainer
+        MaterialTheme.colorScheme.onPrimaryContainer
     else
         MaterialTheme.colorScheme.onSurfaceVariant
 
-    Box(
-        modifier = Modifier
-            .background(bg, RoundedCornerShape(5.dp))
-            .padding(horizontal = 6.dp, vertical = 2.dp)
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = bg,
+        contentColor = fg
     ) {
         Text(
             text = text,
             style = MaterialTheme.typography.labelSmall,
-            fontSize = 10.5.sp,
-            fontWeight = if (isPrimary) FontWeight.SemiBold else FontWeight.Normal,
+            fontSize = 11.sp,
+            fontWeight = if (isPrimary) FontWeight.SemiBold else FontWeight.Medium,
             color = fg,
-            maxLines = 1
+            maxLines = 1,
+            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp)
         )
     }
 }
@@ -133,17 +133,19 @@ private fun MetaChip(text: String, isPrimary: Boolean) {
 private fun FolderMetaRow(
     folder: GalleryFolder,
     viewSettings: GalleryViewSettings,
-    compact: Boolean = false
+    modifier: Modifier = Modifier
 ) {
     FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = modifier
     ) {
-        MetaChip("${folder.imageCount} images", isPrimary = true)
-        if (viewSettings.showSize) {
+        val countText = if (folder.imageCount == 1) "1 item" else "${folder.imageCount} items"
+        MetaChip(countText, isPrimary = true)
+        if (viewSettings.showSize && folder.size > 0L) {
             MetaChip(formatSize(folder.size), isPrimary = false)
         }
-        if (viewSettings.showDate) {
+        if (viewSettings.showDate && folder.dateModified > 0L) {
             MetaChip(formatDate(folder.dateModified), isPrimary = false)
         }
     }
@@ -214,13 +216,13 @@ fun GalleryFolderListItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .padding(horizontal = 12.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Thumbnail
             Box(
                 modifier = Modifier
-                    .size(width = 56.dp, height = 56.dp)
+                    .size(58.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .combinedClickable(
                         onClick = { handleToggle() },
@@ -241,7 +243,10 @@ fun GalleryFolderListItem(
             Spacer(modifier = Modifier.width(14.dp))
 
             // Metadata Column
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
                 Text(
                     text = folder.folderName,
                     style = MaterialTheme.typography.titleMedium,
@@ -262,42 +267,7 @@ fun GalleryFolderListItem(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "${folder.imageCount} items",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    if (viewSettings.showSize) {
-                        Text(
-                            text = "•",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                        )
-                        Text(
-                            text = formatSize(folder.size),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    if (viewSettings.showDate) {
-                        Text(
-                            text = "•",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                        )
-                        Text(
-                            text = formatDate(folder.dateModified),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+                FolderMetaRow(folder = folder, viewSettings = viewSettings)
             }
         }
     }
@@ -343,7 +313,7 @@ fun GalleryFolderItem(
         targetValue = if (isSelected)
             MaterialTheme.colorScheme.primaryContainer
         else
-            MaterialTheme.colorScheme.surface,
+            MaterialTheme.colorScheme.surfaceContainerLow,
         animationSpec = tween(180),
         label = "folderBg"
     )
@@ -351,7 +321,7 @@ fun GalleryFolderItem(
         targetValue = if (isSelected)
             MaterialTheme.colorScheme.primary
         else
-            Color.Transparent,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
         animationSpec = tween(180),
         label = "folderBorder"
     )
@@ -370,10 +340,9 @@ fun GalleryFolderItem(
         onToggleSelection = handleToggle
     )
 
-    // Grid layouts
     when {
         gridColumns <= 1 -> {
-            // 1-col: wide landscape card (thumbnail left, info right)
+            // 1-col: wide landscape card
             Card(
                 modifier = modifier
                     .fillMaxWidth()
@@ -381,7 +350,7 @@ fun GalleryFolderItem(
                 shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.cardColors(containerColor = bgColor),
                 elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),
-                border = BorderStroke(if (isSelected) 1.5.dp else 0.dp, borderColor)
+                border = BorderStroke(if (isSelected) 1.5.dp else 1.dp, borderColor)
             ) {
                 Box(modifier = Modifier.fillMaxWidth()) {
                     Row(
@@ -390,18 +359,27 @@ fun GalleryFolderItem(
                             .padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        FolderThumbnail(
-                            folder = folder,
-                            showThumbnail = showThumbnail,
-                            modifier = Modifier.size(width = 124.dp, height = 82.dp)
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(width = 120.dp, height = 80.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                        ) {
+                            FolderThumbnail(
+                                folder = folder,
+                                showThumbnail = showThumbnail,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
                         Spacer(modifier = Modifier.width(16.dp))
-                        Column(modifier = Modifier.weight(1f)) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
                             Text(
                                 text = folder.folderName,
-                                style = MaterialTheme.typography.titleSmall,
+                                style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
-                                maxLines = 2,
+                                maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 color = if (isSelected)
                                     MaterialTheme.colorScheme.onPrimaryContainer
@@ -414,11 +392,9 @@ fun GalleryFolderItem(
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(top = 1.dp)
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
-                            Spacer(modifier = Modifier.height(6.dp))
                             FolderMetaRow(folder = folder, viewSettings = viewSettings)
                         }
                     }
@@ -428,126 +404,99 @@ fun GalleryFolderItem(
         }
 
         gridColumns == 2 -> {
-            val card2Shape = RoundedCornerShape(14.dp)
+            val card2Shape = RoundedCornerShape(16.dp)
             Card(
                 modifier = modifier
                     .fillMaxWidth()
-                    .aspectRatio(aspectRatio.coerceAtLeast(0.7f)),
+                    .clip(card2Shape)
+                    .then(clickMod),
                 shape = card2Shape,
                 colors = CardDefaults.cardColors(containerColor = bgColor),
                 elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),
-                border = BorderStroke(if (isSelected) 1.5.dp else 0.dp, borderColor)
+                border = BorderStroke(if (isSelected) 1.5.dp else 1.dp, borderColor)
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(card2Shape)
-                        .then(clickMod)
-                ) {
-                    Column(modifier = Modifier.fillMaxSize()) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    // Image with Target Aspect Ratio and ContentScale.Crop
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(aspectRatio)
+                            .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                    ) {
                         FolderThumbnail(
                             folder = folder,
                             showThumbnail = showThumbnail,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .weight(1f)
+                                .aspectRatio(aspectRatio)
                         )
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 10.dp, vertical = 8.dp)
-                        ) {
-                            Text(
-                                text = folder.folderName,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                color = if (isSelected)
-                                    MaterialTheme.colorScheme.onPrimaryContainer
-                                else
-                                    MaterialTheme.colorScheme.onSurface
-                            )
-                            if (viewSettings.showPath) {
-                                Text(
-                                    text = folder.folderPath,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(top = 1.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(3.dp))
-                            FolderMetaRow(folder = folder, viewSettings = viewSettings, compact = true)
-                        }
+                        SelectionCheckmarkOverlay(visible = isSelected)
                     }
-                    SelectionCheckmarkOverlay(visible = isSelected)
+
+                    // Text Area with Consistent 12.dp Padding
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = folder.folderName,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = if (isSelected)
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            else
+                                MaterialTheme.colorScheme.onSurface
+                        )
+                        if (viewSettings.showPath) {
+                            Text(
+                                text = folder.folderPath,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        FolderMetaRow(folder = folder, viewSettings = viewSettings)
+                    }
                 }
             }
         }
 
         else -> {
-            val card3Shape = RoundedCornerShape(10.dp)
+            // 3+ columns: Compact Card with Scrim
+            val card3Shape = RoundedCornerShape(12.dp)
             Card(
                 modifier = modifier
                     .fillMaxWidth()
-                    .aspectRatio(aspectRatio),
+                    .aspectRatio(aspectRatio)
+                    .clip(card3Shape)
+                    .then(clickMod),
                 shape = card3Shape,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),
                 border = BorderStroke(if (isSelected) 1.5.dp else 0.dp, borderColor)
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(card3Shape)
-                        .then(clickMod)
-                ) {
-                    // Thumbnail fills whole card
-                    if (showThumbnail) {
-                        val context = LocalContext.current
-                        val request = remember(folder.bucketId) {
-                            ImageRequest.Builder(context)
-                                .data(folder.thumbnailUri)
-                                .size(256)
-                                .crossfade(false)
-                                .bitmapConfig(android.graphics.Bitmap.Config.RGB_565)
-                                .allowHardware(true)
-                                .memoryCachePolicy(CachePolicy.ENABLED)
-                                .diskCachePolicy(CachePolicy.ENABLED)
-                                .build()
-                        }
-                        AsyncImage(
-                            model = request,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.secondaryContainer),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.FolderOpen,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f),
-                                modifier = Modifier.size(32.dp)
-                            )
-                        }
-                    }
+                Box(modifier = Modifier.fillMaxSize()) {
+                    FolderThumbnail(
+                        folder = folder,
+                        showThumbnail = showThumbnail,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(aspectRatio)
+                    )
 
-                    // Gradient scrim for label legibility
+                    // Gradient scrim for label readability
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(
                                 Brush.verticalGradient(
                                     0.40f to Color.Transparent,
-                                    1.0f to Color.Black.copy(alpha = 0.72f)
+                                    1.0f to Color.Black.copy(alpha = 0.76f)
                                 )
                             )
                     )
@@ -560,26 +509,27 @@ fun GalleryFolderItem(
                         )
                     }
 
-                    // Label at bottom
+                    // Metadata at bottom overlay
                     Column(
                         modifier = Modifier
                             .align(Alignment.BottomStart)
                             .fillMaxWidth()
-                            .padding(horizontal = 6.dp, vertical = 5.dp)
+                            .padding(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         Text(
                             text = folder.folderName,
                             color = Color.White,
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = "${folder.imageCount} images",
-                            color = Color.White.copy(alpha = 0.75f),
+                            text = "${folder.imageCount} items",
+                            color = Color.White.copy(alpha = 0.85f),
                             style = MaterialTheme.typography.labelSmall,
-                            fontSize = 9.5.sp
+                            fontSize = 10.sp
                         )
                     }
 

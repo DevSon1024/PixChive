@@ -198,6 +198,11 @@ class MediaStoreRepository(private val context: Context) {
         return@withContext null
     }
 
+    suspend fun getFolderDetails(bucketId: String): GalleryFolder? = withContext(Dispatchers.IO) {
+        if (bucketId.isBlank()) return@withContext null
+        return@withContext getFolders().find { it.bucketId == bucketId }
+    }
+
     suspend fun getImagesForFolder(bucketId: String): List<GalleryImage> = withContext(Dispatchers.IO) {
         val imageList = mutableListOf<GalleryImage>()
         val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI

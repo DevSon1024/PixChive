@@ -1,12 +1,15 @@
 package com.devson.pixchive.feature.gallery.ui.components
 
 import android.graphics.Bitmap
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -32,7 +35,7 @@ import java.io.File
 /**
  * Premium Material 3 Hero Header for Standard Gallery Image Albums.
  * Features a blurred latest photo background with a smooth vertical gradient scrim,
- * prominent typography hierarchy, glassmorphic top navigation buttons, and an action FAB.
+ * prominent typography hierarchy, and glassmorphic top navigation buttons coordinated with selection mode.
  */
 @Composable
 fun StandardAlbumHeroHeader(
@@ -41,15 +44,16 @@ fun StandardAlbumHeroHeader(
     totalImages: Int,
     albumSizeFormatted: String,
     onNavigateBack: () -> Unit,
-    onActionClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isSelectionModeActive: Boolean = false,
     overlineText: String = "PHOTO ALBUM",
-    onOptionsClick: (() -> Unit)? = null
+    onOptionsClick: (() -> Unit)? = null,
+    onActionClick: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val headerHeight = remember(configuration.screenHeightDp) {
-        (configuration.screenHeightDp * 0.38f).coerceIn(260f, 360f).dp
+        (configuration.screenHeightDp * 0.36f).coerceIn(250f, 340f).dp
     }
 
     val backgroundColor = MaterialTheme.colorScheme.background
@@ -137,52 +141,40 @@ fun StandardAlbumHeroHeader(
                 )
         )
 
-        // 3. Smooth Bottom Gradient Scrim (Melts into screen background)
+        // 3. Smooth Multi-Stop Bottom Gradient Scrim (Melts seamlessly into screen background)
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
                         0.0f to Color.Transparent,
-                        0.30f to Color.Transparent,
-                        0.60f to backgroundColor.copy(alpha = 0.55f),
-                        0.82f to backgroundColor.copy(alpha = 0.90f),
+                        0.25f to Color.Transparent,
+                        0.50f to backgroundColor.copy(alpha = 0.35f),
+                        0.70f to backgroundColor.copy(alpha = 0.75f),
+                        0.88f to backgroundColor.copy(alpha = 0.96f),
                         1.0f to backgroundColor
                     )
                 )
         )
 
-        // 4. Top Navigation Bar with Circular Glassmorphic Buttons (statusBarsPadding)
-        Row(
+        // 4. Top Navigation Bar with Circular Glassmorphic Buttons (Animated out during selection mode)
+        AnimatedVisibility(
+            visible = !isSelectionModeActive,
+            enter = fadeIn(tween(180)),
+            exit = fadeOut(tween(150)),
             modifier = Modifier
                 .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-                .align(Alignment.TopCenter),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .align(Alignment.TopCenter)
         ) {
-            // Circular Back Button
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                shadowElevation = 3.dp,
+            Row(
                 modifier = Modifier
-                    .size(44.dp)
-                    .bouncyClickable(onClick = onNavigateBack)
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-            }
-
-            // Options / Settings Button
-            if (onOptionsClick != null) {
+                // Circular Back Button
                 Surface(
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
@@ -190,103 +182,96 @@ fun StandardAlbumHeroHeader(
                     shadowElevation = 3.dp,
                     modifier = Modifier
                         .size(44.dp)
-                        .bouncyClickable(onClick = onOptionsClick)
+                        .bouncyClickable(onClick = onNavigateBack)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            imageVector = Icons.Default.Tune,
-                            contentDescription = "Options",
-                            modifier = Modifier.size(20.dp)
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            modifier = Modifier.size(22.dp)
                         )
+                    }
+                }
+
+                // Options / Settings Button
+                if (onOptionsClick != null) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                        shadowElevation = 3.dp,
+                        modifier = Modifier
+                            .size(44.dp)
+                            .bouncyClickable(onClick = onOptionsClick)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Tune,
+                                contentDescription = "Options",
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
             }
         }
 
-        // 5. Foreground Content: Metadata (Bottom-Start) & Action FAB (Bottom-End)
-        Row(
+        // 5. Foreground Content: Metadata (Bottom-Start)
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Bottom
+                .align(Alignment.BottomStart)
+                .padding(horizontal = 20.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            // Left Column: Overline, Album Name, Photo Count & Size
-            Column(
-                modifier = Modifier
-                    .weight(1f, fill = false)
-                    .padding(end = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+            // Overline Text
+            Text(
+                text = overlineText.uppercase(),
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 1.5.sp
+                ),
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            // Prominent Album Name
+            Text(
+                text = albumName.ifEmpty { "Photo Album" },
+                style = MaterialTheme.typography.headlineLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    lineHeight = 34.sp
+                ),
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            // Subtitle Row: Total Photos • Total Size
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                // Overline Text
+                val countText = if (totalImages == 1) "1 Photo" else "$totalImages Photos"
                 Text(
-                    text = overlineText.uppercase(),
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 1.5.sp
-                    ),
-                    color = MaterialTheme.colorScheme.primary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    text = countText,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                // Prominent Album Name
-                Text(
-                    text = albumName.ifEmpty { "Photo Album" },
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        lineHeight = 34.sp
-                    ),
-                    color = MaterialTheme.colorScheme.onBackground,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(modifier = Modifier.height(2.dp))
-
-                // Subtitle Row: Total Photos • Total Size
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    val countText = if (totalImages == 1) "1 Photo" else "$totalImages Photos"
+                if (albumSizeFormatted.isNotBlank() && albumSizeFormatted != "0 B") {
                     Text(
-                        text = countText,
+                        text = "•",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                    Text(
+                        text = albumSizeFormatted,
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    if (albumSizeFormatted.isNotBlank() && albumSizeFormatted != "0 B") {
-                        Text(
-                            text = "•",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                        )
-                        Text(
-                            text = albumSizeFormatted,
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-
-            // Right Action Button: Stylized Circular FAB
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                shadowElevation = 6.dp,
-                modifier = Modifier
-                    .size(58.dp)
-                    .bouncyClickable(onClick = onActionClick)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = "View Photos",
-                        modifier = Modifier.size(28.dp)
                     )
                 }
             }

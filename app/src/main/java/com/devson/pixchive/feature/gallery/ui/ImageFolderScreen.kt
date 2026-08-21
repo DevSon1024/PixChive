@@ -180,8 +180,7 @@ fun ImageFolderScreen(
                         },
                         colors = TopAppBarDefaults.topAppBarColors(
                             containerColor = MaterialTheme.colorScheme.background
-                        ),
-                        modifier = Modifier.statusBarsPadding()
+                        )
                     )
                 }
             },
@@ -226,9 +225,7 @@ fun ImageFolderScreen(
                                         totalImages = displayedTotalImages,
                                         albumSizeFormatted = displayedTotalSize,
                                         onNavigateBack = onNavigateBack,
-                                        onActionClick = {
-                                            if (pagedImages.itemCount > 0) onImageClick(0)
-                                        },
+                                        isSelectionModeActive = selectedImageIds.isNotEmpty(),
                                         onOptionsClick = { showSettingsSheet = true },
                                         overlineText = "PHOTO ALBUM"
                                     )
@@ -331,9 +328,7 @@ fun ImageFolderScreen(
                                         totalImages = displayedTotalImages,
                                         albumSizeFormatted = displayedTotalSize,
                                         onNavigateBack = onNavigateBack,
-                                        onActionClick = {
-                                            if (pagedImages.itemCount > 0) onImageClick(0)
-                                        },
+                                        isSelectionModeActive = selectedImageIds.isNotEmpty(),
                                         onOptionsClick = { showSettingsSheet = true },
                                         overlineText = "PHOTO ALBUM"
                                     )

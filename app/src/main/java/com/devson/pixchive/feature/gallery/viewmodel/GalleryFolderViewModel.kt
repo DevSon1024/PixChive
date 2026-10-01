@@ -3,6 +3,7 @@ package com.devson.pixchive.feature.gallery.viewmodel
 import android.app.Application
 import android.net.Uri
 import android.provider.MediaStore
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.Pager
@@ -56,6 +57,7 @@ class GalleryFolderViewModel(application: Application) : AndroidViewModel(applic
     val sortOption: StateFlow<String> = preferencesManager.gallerySortOptionFlow
         .stateIn(viewModelScope, SharingStarted.Lazily, "date_newest")
 
+@Immutable
 data class AlbumMetadata(
     val folderName: String = "",
     val coverImageUri: Uri? = null,

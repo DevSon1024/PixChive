@@ -1,7 +1,9 @@
 package com.devson.pixchive.core.data.models
 
 import android.net.Uri
+import androidx.compose.runtime.Immutable
 
+@Immutable
 data class GalleryFolder(
     val bucketId: String,
     val folderName: String,
@@ -12,6 +14,7 @@ data class GalleryFolder(
     val dateModified: Long = 0L
 )
 
+@Immutable
 data class GalleryImage(
     val id: Long,
     val uri: Uri,
@@ -24,6 +27,7 @@ data class GalleryImage(
     val mimeType: String = ""
 )
 
+@Immutable
 data class GalleryViewSettings(
     val showThumbnail: Boolean = true,
     val showFileExt: Boolean = true,

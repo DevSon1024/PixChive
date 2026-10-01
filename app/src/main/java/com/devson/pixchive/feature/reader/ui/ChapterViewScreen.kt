@@ -190,7 +190,7 @@ fun ChapterViewScreen(
                                 }
                         ) {
                             // Hero Header at the top spanning all columns
-                            item(key = "hero_header", span = { GridItemSpan(maxLineSpan) }) {
+                            item(key = "hero_header", span = { GridItemSpan(maxLineSpan) }, contentType = "hero_header") {
                                 FolderHeroHeader(
                                     folderName = chapterName.ifEmpty { folderMetadata.folderName },
                                     coverImageUri = coverUri,
@@ -208,11 +208,15 @@ fun ChapterViewScreen(
                                 )
                             }
 
-                            item(key = "grid_top_spacer", span = { GridItemSpan(maxLineSpan) }) {
+                            item(key = "grid_top_spacer", span = { GridItemSpan(maxLineSpan) }, contentType = "spacer") {
                                 Spacer(modifier = Modifier.height(4.dp))
                             }
 
-                            itemsIndexed(chapterImages, key = { _, img -> img.path.ifEmpty { img.uri } }) { index, image ->
+                            itemsIndexed(
+                                chapterImages,
+                                key = { _, img -> img.path.ifEmpty { img.uri } },
+                                contentType = { _, _ -> "chapter_image_grid" }
+                            ) { index, image ->
                                 Box(modifier = Modifier.padding(horizontal = 4.dp)) {
                                     ImageGridItem(
                                         image = image,
@@ -230,7 +234,7 @@ fun ChapterViewScreen(
                                 }
                             }
 
-                            item(key = "grid_bottom_spacer", span = { GridItemSpan(maxLineSpan) }) {
+                            item(key = "grid_bottom_spacer", span = { GridItemSpan(maxLineSpan) }, contentType = "spacer") {
                                 Spacer(modifier = Modifier.navigationBarsPadding().height(24.dp))
                             }
                         }
@@ -242,7 +246,7 @@ fun ChapterViewScreen(
                             modifier = Modifier.fillMaxSize()
                         ) {
                             // Hero Header as the first item so it scrolls up naturally
-                            item(key = "hero_header") {
+                            item(key = "hero_header", contentType = "hero_header") {
                                 FolderHeroHeader(
                                     folderName = chapterName.ifEmpty { folderMetadata.folderName },
                                     coverImageUri = coverUri,
@@ -260,11 +264,15 @@ fun ChapterViewScreen(
                                 )
                             }
 
-                            item(key = "list_top_spacer") {
+                            item(key = "list_top_spacer", contentType = "spacer") {
                                 Spacer(modifier = Modifier.height(6.dp))
                             }
 
-                            itemsIndexed(chapterImages, key = { _, img -> img.path.ifEmpty { img.uri } }) { index, image ->
+                            itemsIndexed(
+                                chapterImages,
+                                key = { _, img -> img.path.ifEmpty { img.uri } },
+                                contentType = { _, _ -> "chapter_image_list" }
+                            ) { index, image ->
                                 ChapterImageListItem(
                                     image = image,
                                     onClick = { onImageClick(index) },

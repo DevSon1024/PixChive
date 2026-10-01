@@ -28,11 +28,7 @@ import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.devson.pixchive.core.data.local.ImageEntity
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-
-private val listItemDateFormat = SimpleDateFormat("d MMM yyyy", Locale.getDefault())
+import com.devson.pixchive.core.utils.FormatUtils
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -159,5 +155,5 @@ fun ImageListItem(
 
 private fun formatDate(timestamp: Long): String {
     if (timestamp == 0L) return "Unknown"
-    return listItemDateFormat.format(Date(timestamp))
+    return FormatUtils.formatDate(timestamp)
 }

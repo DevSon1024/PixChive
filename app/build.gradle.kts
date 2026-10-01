@@ -109,9 +109,6 @@ android {
         viewBinding = true
         resValues = true
     }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.8"
-    }
 
     packaging {
         resources {

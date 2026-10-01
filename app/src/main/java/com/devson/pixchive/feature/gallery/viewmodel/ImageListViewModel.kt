@@ -16,14 +16,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.withContext
 import com.devson.pixchive.core.data.models.GalleryViewSettings
 
 @Stable
 sealed class GalleryState {
     @Immutable
-    object Loading : GalleryState()
+    data object Loading : GalleryState()
 
     @Immutable
     data class Success(val folders: List<GalleryFolder>) : GalleryState()
@@ -37,8 +38,7 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
 
     private val repository = MediaStoreRepository(application)
 
-    private val _uiState = MutableStateFlow<GalleryState>(GalleryState.Loading)
-    private val _folders = MutableStateFlow<List<GalleryFolder>>(emptyList())
+    private val _rawState = MutableStateFlow<GalleryState>(GalleryState.Loading)
     private val _selectedIds = MutableStateFlow<Set<String>>(emptySet())
     val selectedIds: StateFlow<Set<String>> = _selectedIds
 
@@ -61,9 +61,11 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
     val isGalleryListMode: StateFlow<Boolean> = preferencesManager.isGalleryListModeFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    val uiState: StateFlow<GalleryState> = combine(_uiState, sortOption, _folders) { state, sort, folders ->
+    val uiState: StateFlow<GalleryState> = combine(_rawState, sortOption) { state, sort ->
         if (state is GalleryState.Success) {
-            GalleryState.Success(sortFolders(folders, sort))
+            withContext(Dispatchers.Default) {
+                GalleryState.Success(sortFolders(state.folders, sort))
+            }
         } else {
             state
         }
@@ -162,13 +164,14 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun selectAll() {
-        val state = _uiState.value as? GalleryState.Success ?: return
+        val state = uiState.value as? GalleryState.Success ?: return
         _selectedIds.value = state.folders.map { it.bucketId }.toSet()
     }
 
     fun renameSelectedFolder(newName: String) {
         val selectedId = _selectedIds.value.firstOrNull() ?: return
-        val folder = _folders.value.find { it.bucketId == selectedId } ?: return
+        val currentFolders = (_rawState.value as? GalleryState.Success)?.folders ?: return
+        val folder = currentFolders.find { it.bucketId == selectedId } ?: return
 
         viewModelScope.launch {
             if (repository.renameFolder(folder.folderPath, newName)) {
@@ -189,13 +192,12 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun loadGalleryFolders() {
         viewModelScope.launch {
-            _uiState.value = GalleryState.Loading
+            _rawState.value = GalleryState.Loading
             try {
                 val folders = repository.getFolders()
-                _folders.value = folders
-                _uiState.value = GalleryState.Success(folders)
+                _rawState.value = GalleryState.Success(folders)
             } catch (e: Exception) {
-                _uiState.value = GalleryState.Error(e.message ?: "Failed to load device gallery")
+                _rawState.value = GalleryState.Error(e.message ?: "Failed to load device gallery")
             }
         }
     }
@@ -206,15 +208,15 @@ class ImageListViewModel(application: Application) : AndroidViewModel(applicatio
 
     private fun sortFolders(folders: List<GalleryFolder>, sort: String): List<GalleryFolder> {
         return when (sort) {
-            "name_asc" -> folders.sortedBy { it.folderName.lowercase() }
-            "name_desc" -> folders.sortedByDescending { it.folderName.lowercase() }
+            "name_asc" -> folders.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.folderName })
+            "name_desc" -> folders.sortedWith(compareByDescending(String.CASE_INSENSITIVE_ORDER) { it.folderName })
             "date_newest" -> folders.sortedByDescending { it.dateModified }
             "date_oldest" -> folders.sortedBy { it.dateModified }
             "size_desc" -> folders.sortedByDescending { it.size }
             "size_asc" -> folders.sortedBy { it.size }
-            "path_asc" -> folders.sortedBy { it.folderPath.lowercase() }
-            "path_desc" -> folders.sortedByDescending { it.folderPath.lowercase() }
-            else -> folders.sortedBy { it.folderName.lowercase() }
+            "path_asc" -> folders.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.folderPath })
+            "path_desc" -> folders.sortedWith(compareByDescending(String.CASE_INSENSITIVE_ORDER) { it.folderPath })
+            else -> folders.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.folderName })
         }
     }
 }

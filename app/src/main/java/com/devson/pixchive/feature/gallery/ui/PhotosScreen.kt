@@ -276,7 +276,12 @@ fun PhotosScreen(
                                                 if (selectedIds.isNotEmpty()) {
                                                     viewModel.toggleSelection(image)
                                                 } else {
-                                                    val imageIndex = pagedGridItems.itemSnapshotList.take(index).count { it is GalleryUiModel.MediaItem }
+                                                    val snapshot = pagedGridItems.itemSnapshotList
+                                                    var imageIndex = 0
+                                                    val limit = index.coerceAtMost(snapshot.size)
+                                                    for (i in 0 until limit) {
+                                                        if (snapshot[i] is GalleryUiModel.MediaItem) imageIndex++
+                                                    }
                                                     onImageClick(imageIndex)
                                                 }
                                             },
@@ -392,7 +397,12 @@ fun PhotosScreen(
                                                 if (selectedIds.isNotEmpty()) {
                                                     viewModel.toggleSelection(image)
                                                 } else {
-                                                    val imageIndex = pagedGridItems.itemSnapshotList.take(index).count { it is GalleryUiModel.MediaItem }
+                                                    val snapshot = pagedGridItems.itemSnapshotList
+                                                    var imageIndex = 0
+                                                    val limit = index.coerceAtMost(snapshot.size)
+                                                    for (i in 0 until limit) {
+                                                        if (snapshot[i] is GalleryUiModel.MediaItem) imageIndex++
+                                                    }
                                                     onImageClick(imageIndex)
                                                 }
                                             },

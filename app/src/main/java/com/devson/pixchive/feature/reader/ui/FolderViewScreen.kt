@@ -263,7 +263,11 @@ fun AllFoldersView(
                         }
                     }
             ) {
-                items(chapters, key = { it.path }) { chapter ->
+                items(
+                    chapters,
+                    key = { it.path },
+                    contentType = { "chapter_grid" }
+                ) { chapter ->
                     com.devson.pixchive.feature.reader.ui.components.ChapterGridItem(
                         chapter = chapter,
                         columns = animatedColumns.coerceIn(1, 4),
@@ -297,7 +301,11 @@ fun AllFoldersView(
                 ),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(chapters, key = { it.path }) { chapter ->
+                items(
+                    chapters,
+                    key = { it.path },
+                    contentType = { "chapter_list" }
+                ) { chapter ->
                     ChapterListItem(
                         chapter = chapter,
                         savedPage = readProgressMap[chapter.path] ?: 0,

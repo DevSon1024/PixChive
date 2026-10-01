@@ -218,7 +218,7 @@ fun ImageFolderScreen(
                                 modifier = Modifier.fillMaxSize()
                             ) {
                                 // Full-width Hero Header as top item
-                                item(key = "hero_header") {
+                                item(key = "hero_header", contentType = "hero_header") {
                                     StandardAlbumHeroHeader(
                                         albumName = displayedAlbumName,
                                         coverImageUri = displayedCoverUri,
@@ -231,13 +231,14 @@ fun ImageFolderScreen(
                                     )
                                 }
 
-                                item(key = "list_top_spacer") {
+                                item(key = "list_top_spacer", contentType = "spacer") {
                                     Spacer(modifier = Modifier.height(4.dp))
                                 }
 
                                 items(
                                     count = pagedImages.itemCount,
-                                    key = pagedImages.itemKey { it.id }
+                                    key = pagedImages.itemKey { it.id },
+                                    contentType = { "folder_image_list" }
                                 ) { index ->
                                     val image = pagedImages[index] ?: return@items
                                     val isSelected = image.id in selectedImageIds
@@ -321,7 +322,7 @@ fun ImageFolderScreen(
                                     }
                             ) {
                                 // Full-width Hero Header spanning all columns
-                                item(key = "hero_header", span = { GridItemSpan(maxLineSpan) }) {
+                                item(key = "hero_header", span = { GridItemSpan(maxLineSpan) }, contentType = "hero_header") {
                                     StandardAlbumHeroHeader(
                                         albumName = displayedAlbumName,
                                         coverImageUri = displayedCoverUri,
@@ -334,13 +335,14 @@ fun ImageFolderScreen(
                                     )
                                 }
 
-                                item(key = "grid_top_spacer", span = { GridItemSpan(maxLineSpan) }) {
+                                item(key = "grid_top_spacer", span = { GridItemSpan(maxLineSpan) }, contentType = "spacer") {
                                     Spacer(modifier = Modifier.height(4.dp))
                                 }
 
                                 items(
                                     count = pagedImages.itemCount,
-                                    key = pagedImages.itemKey { it.id }
+                                    key = pagedImages.itemKey { it.id },
+                                    contentType = { "folder_image_grid" }
                                 ) { index ->
                                     val image = pagedImages[index] ?: return@items
                                     val isSelected = image.id in selectedImageIds
@@ -367,7 +369,7 @@ fun ImageFolderScreen(
                                     )
                                 }
 
-                                item(key = "grid_bottom_spacer", span = { GridItemSpan(maxLineSpan) }) {
+                                item(key = "grid_bottom_spacer", span = { GridItemSpan(maxLineSpan) }, contentType = "spacer") {
                                     Spacer(modifier = Modifier.navigationBarsPadding().height(24.dp))
                                 }
                             }

@@ -38,21 +38,11 @@ import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.devson.pixchive.core.data.models.GalleryImage
 import com.devson.pixchive.core.data.models.GalleryViewSettings
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import com.devson.pixchive.core.utils.FormatUtils
 
-private fun formatSize(bytes: Long): String {
-    if (bytes <= 0) return "0 B"
-    val units = arrayOf("B", "KB", "MB", "GB", "TB")
-    val digitGroups = (Math.log10(bytes.toDouble()) / Math.log10(1024.0)).toInt()
-    return String.format(Locale.US, "%.1f %s", bytes / Math.pow(1024.0, digitGroups.toDouble()), units[digitGroups])
-}
+private fun formatSize(bytes: Long): String = FormatUtils.formatFileSize(bytes)
 
-private fun formatDate(timestamp: Long): String {
-    val date = Date(timestamp * 1000L)
-    return SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(date)
-}
+private fun formatDate(timestamp: Long): String = FormatUtils.formatDate(timestamp)
 
 @Composable
 private fun InfoChip(

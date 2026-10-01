@@ -401,7 +401,11 @@ fun LibraryScreen(
                                     .then(zoomModifier)
                             ) {
                                 if (recentHistory.isNotEmpty()) {
-                                    item(span = { GridItemSpan(maxLineSpan) }) {
+                                    item(
+                                        key = "continue_reading",
+                                        span = { GridItemSpan(maxLineSpan) },
+                                        contentType = "continue_reading"
+                                    ) {
                                         ContinueReadingSection(
                                             recentHistory = recentHistory.take(3),
                                             folders = folders,
@@ -433,7 +437,10 @@ fun LibraryScreen(
                                 modifier = Modifier.fillMaxSize()
                             ) {
                                 if (recentHistory.isNotEmpty()) {
-                                    item {
+                                    item(
+                                        key = "continue_reading",
+                                        contentType = "continue_reading"
+                                    ) {
                                         ContinueReadingSection(
                                             recentHistory = recentHistory.take(3),
                                             folders = folders,

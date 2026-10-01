@@ -33,6 +33,8 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 import com.devson.pixchive.core.data.models.GalleryImage
 import com.devson.pixchive.feature.gallery.viewmodel.GalleryFolderViewModel
 import androidx.compose.animation.Crossfade
@@ -157,8 +159,18 @@ fun ImageViewScreen(
                 animationSpec = tween(durationMillis = 500),
                 label = "backgroundBlurCrossfade"
             ) { image ->
+                val blurRequest = remember(image.id) {
+                    ImageRequest.Builder(context)
+                        .data(image.uri)
+                        .size(192)
+                        .allowHardware(true)
+                        .crossfade(false)
+                        .memoryCachePolicy(CachePolicy.ENABLED)
+                        .diskCachePolicy(CachePolicy.ENABLED)
+                        .build()
+                }
                 AsyncImage(
-                    model = image.uri,
+                    model = blurRequest,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier

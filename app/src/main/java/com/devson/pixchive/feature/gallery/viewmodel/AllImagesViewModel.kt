@@ -35,25 +35,34 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Sealed class representing UI items in the gallery list or grid:
  * either a sticky date header separator or a media photo item.
  */
+@Immutable
 sealed class GalleryUiModel {
+    @Immutable
     data class DateHeaderItem(val label: String, val id: String) : GalleryUiModel()
+    @Immutable
     data class MediaItem(val image: GalleryImage) : GalleryUiModel()
 }
 
 // Backward compatibility alias for any existing references
 typealias GalleryItem = GalleryUiModel
 
+@Immutable
 sealed class AllImagesState {
+    @Immutable
     object Loading : AllImagesState()
+    @Immutable
     data class Success(
         val grouped: Map<String, List<GalleryImage>>,
         val flatImages: List<GalleryImage>,
         val gridItems: List<Any> = emptyList()
     ) : AllImagesState()
+    @Immutable
     data class Error(val message: String) : AllImagesState()
 }
 
@@ -280,31 +289,7 @@ class AllImagesViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     private fun getDateLabel(image: GalleryImage): String {
-        val ts = if (image.dateAdded > 0L) image.dateAdded * 1000L else image.dateModified * 1000L
-        if (ts <= 0L) return "Undated"
-        val imageCal = Calendar.getInstance().apply { timeInMillis = ts }
-        val imageDate = calendarMidnight(imageCal)
-        val now = Calendar.getInstance()
-        val today = calendarMidnight(now)
-        val yesterday = calendarMidnight(now).apply { add(Calendar.DAY_OF_YEAR, -1) }
-
-        return when {
-            !imageDate.before(today) -> "Today"
-            !imageDate.before(yesterday) -> "Yesterday"
-            now.get(Calendar.YEAR) == imageCal.get(Calendar.YEAR) -> {
-                SimpleDateFormat("MMMM d", Locale.getDefault()).format(Date(ts))
-            }
-            else -> {
-                SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(Date(ts))
-            }
-        }
+        val ts = if (image.dateAdded > 0L) image.dateAdded else image.dateModified
+        return com.devson.pixchive.core.utils.FormatUtils.getDateHeaderLabel(ts)
     }
-
-    private fun calendarMidnight(source: Calendar): Calendar =
-        (source.clone() as Calendar).apply {
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
 }

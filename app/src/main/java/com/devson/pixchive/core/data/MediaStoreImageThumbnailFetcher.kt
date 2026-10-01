@@ -57,23 +57,16 @@ class MediaStoreImageThumbnailFetcher(
     private fun downsampleIfNeeded(src: Bitmap, targetW: Int, targetH: Int): Bitmap {
         val w = src.width
         val h = src.height
-        if (w <= targetW && h <= targetH) return src
+        // If the thumbnail is already sufficiently close to target size, avoid expensive re-allocation
+        if (w <= (targetW * 1.5).toInt() && h <= (targetH * 1.5).toInt()) return src
 
         val scale = minOf(targetW.toFloat() / w, targetH.toFloat() / h)
         val newW = (w * scale).toInt().coerceAtLeast(1)
         val newH = (h * scale).toInt().coerceAtLeast(1)
 
-        // Use RGB_565 to halve memory vs ARGB_8888
         val scaled = Bitmap.createScaledBitmap(src, newW, newH, true)
         if (scaled !== src) src.recycle()
-        return if (scaled.config == Bitmap.Config.RGB_565) scaled
-        else {
-            val opts = BitmapFactory.Options().apply { inPreferredConfig = Bitmap.Config.RGB_565 }
-            // Convert config in-place by copying
-            val converted = scaled.copy(Bitmap.Config.RGB_565, false)
-            scaled.recycle()
-            converted ?: src
-        }
+        return scaled
     }
 
     class Factory : Fetcher.Factory<Uri> {

@@ -291,7 +291,11 @@ fun AlbumsScreen(
                                     verticalArrangement = Arrangement.spacedBy(4.dp),
                                     modifier = Modifier.fillMaxSize()
                                 ) {
-                                    listItems(state.folders, key = { it.bucketId }) { folder ->
+                                    listItems(
+                                        state.folders,
+                                        key = { it.bucketId },
+                                        contentType = { "gallery_folder_list" }
+                                    ) { folder ->
                                         val isSelected = folder.bucketId in selectedFolderIds
                                         GalleryFolderListItem(
                                             folder = folder,
@@ -376,7 +380,11 @@ fun AlbumsScreen(
                                             }
                                         }
                                 ) {
-                                    items(state.folders, key = { it.bucketId }) { folder ->
+                                    items(
+                                        state.folders,
+                                        key = { it.bucketId },
+                                        contentType = { "gallery_folder_grid" }
+                                    ) { folder ->
                                         val isSelected = folder.bucketId in selectedFolderIds
                                         GalleryFolderItem(
                                             folder = folder,

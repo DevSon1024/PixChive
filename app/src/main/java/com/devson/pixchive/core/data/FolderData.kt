@@ -1,8 +1,10 @@
 package com.devson.pixchive.core.data
 import android.net.Uri
+import androidx.compose.runtime.Immutable
 import com.devson.pixchive.core.utils.PathUtils
 import com.devson.pixchive.core.data.local.ImageEntity
 
+@Immutable
 data class ComicFolder(
     val id: String,
     val name: String,
@@ -16,6 +18,7 @@ data class ComicFolder(
         get() = PathUtils.extractFolderName(name)
 }
 
+@Immutable
 data class FolderWithCover(
     val folder: ComicFolder,
     val coverUri: String? = null,
@@ -27,11 +30,13 @@ data class FolderWithCover(
     val imageCount: Int get() = folder.imageCount
 }
 
+@Immutable
 data class FolderCover(
     val folderId: String,
     val coverUri: String
 )
 
+@Immutable
 data class Chapter(
     val name: String,
     val path: String,
@@ -42,6 +47,7 @@ data class Chapter(
         get() = PathUtils.extractFolderName(name)
 }
 
+@Immutable
 data class ImageFile(
     val name: String,
     val path: String,
@@ -50,6 +56,7 @@ data class ImageFile(
     val dateModified: Long = 0
 )
 
+@Immutable
 data class FolderMetadata(
     val folderName: String = "",
     val coverImageUri: String = "",

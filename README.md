@@ -17,7 +17,7 @@
 
 ## _Requires Android 8.0 or higher._
 
-## 📱 Screenshots
+## Screenshots
 
 <div align="center">
 <img src="screenshots/HomeScreen.jpeg" width="30%" style="border-radius: 14px;"/>
